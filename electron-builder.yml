@@ -1,0 +1,17 @@
+appId: com.example.locadora
+productName: Locadora
+copyright: Copyright © 2026
+directories:
+  output: release
+files:
+  - dist/**/*
+  - package.json
+win:
+  target:
+    - nsis
+linux:
+  target:
+    - AppImage
+mac:
+  target:
+    - dmg
