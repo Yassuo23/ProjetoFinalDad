@@ -1,0 +1,5 @@
+export { ServicoAplicacao } from './ServicoAplicacao'
+export { ServicoPing } from './ServicoPing'
+export { ServicoClientes } from './ServicoClientes'
+export { ServicoEquipamentos } from './ServicoEquipamentos'
+export { ServicoReservas } from './ServicoReservas'

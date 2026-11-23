@@ -1,0 +1,4 @@
+export { PaginaDashboard } from './PaginaDashboard'
+export { PaginaSobre } from './PaginaSobre'
+export { PaginaEmConstrucao } from './PaginaEmConstrucao'
+export { PaginaNaoEncontrada } from './PaginaNaoEncontrada'
