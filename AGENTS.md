@@ -11,6 +11,7 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
 - Três tsconfigs: `tsconfig.base.json`, `tsconfig.main.json` (CJS → `dist/`),
   `tsconfig.renderer.json` (`noEmit`), com `rootDir: src`.
 - Sem framework no renderer: TypeScript puro.
+- Estilização com Tailwind CSS v4 via plugin oficial do Vite (ADR 0004); sem CSS próprio.
 - Banco: SQLite local em `app.getPath('userData')/zenite.db`.
 
 ## Comandos
@@ -39,7 +40,7 @@ src/
 │   ├── janelas/          # criação de BrowserWindow
 │   └── seguranca/        # allowlist, navegação, CSP
 ├── preload/index.ts      # única ponte renderer → main
-├── renderer/             # HTML, CSS e TS puro (sem Node)
+├── renderer/             # HTML e TS puro (sem Node); estilos gerados pelo Tailwind
 └── shared/contratos/     # canais, modelos, esquemas, API
 ```
 
@@ -69,6 +70,9 @@ de Cliente, Equipamento ou Reserva.
 9. `sandbox: true` e `contextIsolation: true` são inegociáveis; CSP de produção sem
    `'unsafe-inline'`, `ws:` ou `unsafe-eval`.
 10. Cada commit compila (`npm run build`), passa lint e testes, e é mergeável sozinho.
+11. Estilização **só com Tailwind CSS**: sem CSS próprio, sem `<style>`, sem `style=` inline e
+    sem novos arquivos `.css` escritos à mão. Cores e fontes da marca vivem no `@theme` do
+    arquivo de entrada do Tailwind; tudo o mais é utilitário nas classes do renderer.
 
 ## Fluxo de git
 
