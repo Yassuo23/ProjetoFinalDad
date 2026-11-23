@@ -56,14 +56,14 @@ if (!appInfo || !pingStatus || !docsButton) {
 }
 
 window.electronAPI
-  .getAppInfo()
+  .appInfo()
   .then((info) => {
     appInfo.innerHTML = [
-      ['Name', info.name],
-      ['Version', info.version],
+      ['Nome', info.name],
+      ['Versão', info.version],
       ['Electron', info.electron],
       ['Node', info.node],
-      ['Platform', `${info.platform} (${info.arch})`],
+      ['Plataforma', `${info.platform} (${info.arch})`],
     ]
       .map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`)
       .join('')
@@ -77,5 +77,5 @@ window.electronAPI.onPing((payload) => {
 })
 
 docsButton.addEventListener('click', () => {
-  void window.electronAPI.openExternal('https://www.electronjs.org/docs')
+  void window.electronAPI.abrirExterno('https://www.electronjs.org/docs')
 })

@@ -6,9 +6,10 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 ## Stack
 
 - **Electron 45** — main process, preload and renderer
-- **TypeScript 7** — strict mode, separate configs for Node-side and renderer code
+- **TypeScript 7** — strict mode; `tsc` 7 for build, API 6.0 para o ESLint
 - **Vite 8** — renderer dev server with HMR and production bundling
 - **electron-builder** — packaging for Windows, Linux and macOS
+- **Zod** — validação de payload no main (nunca no preload)
 
 ## Project structure
 
@@ -17,12 +18,12 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 ├── electron-builder.yml        # Packaging configuration
 ├── vite.config.mts             # Renderer dev server / bundler config
 ├── tsconfig.base.json          # Shared compiler options
-├── tsconfig.main.json          # Main + preload -> dist/
-├── tsconfig.renderer.json      # Renderer type checking (no emit)
+├── tsconfig.main.json          # Main + shared -> dist/ (CJS)
+├── tsconfig.renderer.json      # Renderer/preload type checking (no emit)
 └── src
     ├── main/index.ts           # Electron main process (window, menu, IPC handlers)
-    ├── preload/index.ts        # contextBridge API (the only renderer -> main bridge)
-    ├── shared/ipc.ts           # Channel names and shared types
+    ├── preload/index.ts        # contextBridge API (bundled by esbuild)
+    ├── shared/contratos        # canais, modelos, esquemas (Zod) e api
     └── renderer
         ├── index.html
         └── src
@@ -50,10 +51,11 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 
 ## Adding your own feature
 
-1. Add a channel to `IpcChannels` in `src/shared/ipc.ts`.
-2. Register a handler with `ipcMain.handle` in `src/main/index.ts`.
-3. Expose a typed wrapper in `src/preload/index.ts` and extend `ElectronApi`.
-4. Call `window.electronAPI.yourMethod()` from the renderer.
+1. Add a channel string to `CANAIS` in `src/shared/contratos/canais.ts`.
+2. Add the payload/return types to `modelos.ts` and the Zod schema to `esquemas.ts`.
+3. Register a handler through `RegistroIpc` in `src/main/ipc/` (validate, then delegate).
+4. Expose a typed function in `src/preload/index.ts` and extend `ApiZenite` in `api.ts`.
+5. Call `window.electronAPI.yourMethod()` from the renderer.
 
 For main → renderer messages, use `webContents.send(channel, payload)` and expose an
 `onXxx(callback)` subscription from the preload script, like the existing `onPing` example.

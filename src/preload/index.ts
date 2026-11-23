@@ -1,18 +1,25 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IpcChannels, type ElectronApi, type PingPayload } from '../shared/ipc'
+import { CANAIS } from '../shared/contratos/canais'
+import type { ApiZenite } from '../shared/contratos/api'
+import type { PingPayload } from '../shared/contratos/modelos'
 
-const api: ElectronApi = {
-  getAppInfo: () => ipcRenderer.invoke(IpcChannels.GetAppInfo),
+const api: ApiZenite = {
+  appInfo: () => ipcRenderer.invoke(CANAIS.appInfo),
 
-  openExternal: (url) => ipcRenderer.invoke(IpcChannels.OpenExternal, url),
+  abrirExterno: (url) => ipcRenderer.invoke(CANAIS.abrirExterno, url),
 
   onPing: (callback) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: PingPayload): void => {
+    const listener = (_evento: Electron.IpcRendererEvent, payload: PingPayload): void => {
       callback(payload)
     }
-    ipcRenderer.on(IpcChannels.Ping, listener)
-    return () => ipcRenderer.removeListener(IpcChannels.Ping, listener)
+    ipcRenderer.on(CANAIS.ping, listener)
+    return () => ipcRenderer.removeListener(CANAIS.ping, listener)
   },
+
+  categorias: { listar: () => ipcRenderer.invoke(CANAIS.categoriasListar) },
+  clientes: { listar: () => ipcRenderer.invoke(CANAIS.clientesListar) },
+  equipamentos: { listar: () => ipcRenderer.invoke(CANAIS.equipamentosListar) },
+  reservas: { listar: () => ipcRenderer.invoke(CANAIS.reservasListar) },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

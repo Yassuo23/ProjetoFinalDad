@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
-import { IpcChannels, type AppInfo, type PingPayload } from '../shared/ipc'
+import { CANAIS } from '../shared/contratos/canais'
+import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -36,7 +37,7 @@ function createWindow(): void {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle(IpcChannels.GetAppInfo, (): AppInfo => ({
+  ipcMain.handle(CANAIS.appInfo, (): AppInfo => ({
     name: app.getName(),
     version: app.getVersion(),
     electron: process.versions.electron,
@@ -45,7 +46,7 @@ function registerIpcHandlers(): void {
     arch: process.arch,
   }))
 
-  ipcMain.handle(IpcChannels.OpenExternal, async (_event, url: string): Promise<void> => {
+  ipcMain.handle(CANAIS.abrirExterno, async (_event, url: string): Promise<void> => {
     await shell.openExternal(url)
   })
 }
@@ -55,7 +56,7 @@ function sendPing(): void {
     message: 'Ping from the main process',
     timestamp: Date.now(),
   }
-  mainWindow?.webContents.send(IpcChannels.Ping, payload)
+  mainWindow?.webContents.send(CANAIS.ping, payload)
 }
 
 function buildApplicationMenu(): void {
