@@ -1,4 +1,5 @@
 import './style.css'
+import { montarCategorias } from './paginas/Categorias'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
@@ -40,6 +41,11 @@ root.innerHTML = `
           <h2>Eventos IPC</h2>
           <p id="ping-status" class="muted">Nenhum ping recebido ainda.</p>
         </article>
+
+        <article class="card">
+          <h2>Categorias</h2>
+          <div id="categorias" class="categorias"></div>
+        </article>
       </div>
 
       <button id="docs-button" class="button" type="button">Abrir documentação do Electron ↗</button>
@@ -50,10 +56,13 @@ root.innerHTML = `
 const appInfo = document.querySelector<HTMLElement>('#app-info')
 const pingStatus = document.querySelector<HTMLElement>('#ping-status')
 const docsButton = document.querySelector<HTMLButtonElement>('#docs-button')
+const categorias = document.querySelector<HTMLElement>('#categorias')
 
-if (!appInfo || !pingStatus || !docsButton) {
+if (!appInfo || !pingStatus || !docsButton || !categorias) {
   throw new Error('Failed to render the application shell')
 }
+
+montarCategorias(categorias)
 
 window.electronAPI
   .appInfo()

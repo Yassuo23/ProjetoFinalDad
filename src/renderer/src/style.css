@@ -119,3 +119,23 @@ dd {
 .button:hover {
   background: var(--azul-geleira);
 }
+
+.categorias {
+  font-size: 14px;
+}
+
+.categoria {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(140, 154, 165, 0.35);
+}
+
+.categoria:last-child {
+  border-bottom: 0;
+}
+
+.categoria strong {
+  color: var(--verde-floresta);
+}

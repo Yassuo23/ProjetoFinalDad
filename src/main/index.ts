@@ -1,22 +1,23 @@
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
-import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esquemas'
-import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
-import { RegistroIpc } from './ipc/RegistroIpc'
+import type { PingPayload } from '../shared/contratos/modelos'
 import { ConexaoBanco } from './banco/ConexaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
+import { registrarHandlers } from './ipc/handlers'
+import { RegistroIpc } from './ipc/RegistroIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
 let conexaoBanco: ConexaoBanco | null = null
 
-function iniciarBanco(): void {
+function iniciarBanco(): ConexaoBanco {
   const caminho = path.join(app.getPath('userData'), 'zenite.db')
-  conexaoBanco = new ConexaoBanco(caminho)
-  new Migrador(conexaoBanco.db, MIGRACOES).aplicarPendentes()
+  const conexao = new ConexaoBanco(caminho)
+  new Migrador(conexao.db, MIGRACOES).aplicarPendentes()
+  return conexao
 }
 
 function createWindow(): void {
@@ -45,27 +46,6 @@ function createWindow(): void {
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('closed', () => {
     mainWindow = null
-  })
-}
-
-function obterAppInfo(): AppInfo {
-  return {
-    name: app.getName(),
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    node: process.versions.node,
-    platform: process.platform,
-    arch: process.arch,
-  }
-}
-
-function registerIpcHandlers(): void {
-  const registro = new RegistroIpc(ipcMain)
-
-  registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
-
-  registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url) => {
-    await shell.openExternal(url)
   })
 }
 
@@ -102,8 +82,8 @@ function buildApplicationMenu(): void {
 }
 
 app.whenReady().then(() => {
-  iniciarBanco()
-  registerIpcHandlers()
+  conexaoBanco = iniciarBanco()
+  registrarHandlers(new RegistroIpc(ipcMain), conexaoBanco.db)
   buildApplicationMenu()
   createWindow()
 
