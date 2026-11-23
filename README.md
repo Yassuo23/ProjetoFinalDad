@@ -33,13 +33,13 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Watch TypeScript, start Vite and launch Electron with DevTools |
-| `npm run build` | Compile main/preload and bundle the renderer into `dist/` |
-| `npm start` | Run the built application |
-| `npm run typecheck` | Type check the renderer without emitting files |
-| `npm run dist` | Build and create installers in `release/` |
+| Command             | Description                                                    |
+| ------------------- | -------------------------------------------------------------- |
+| `npm run dev`       | Watch TypeScript, start Vite and launch Electron with DevTools |
+| `npm run build`     | Compile main/preload and bundle the renderer into `dist/`      |
+| `npm start`         | Run the built application                                      |
+| `npm run typecheck` | Type check the renderer without emitting files                 |
+| `npm run dist`      | Build and create installers in `release/`                      |
 
 ## Security defaults
 

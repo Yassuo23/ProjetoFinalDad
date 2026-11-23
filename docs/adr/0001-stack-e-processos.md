@@ -19,6 +19,10 @@ o necessário para governança: contrato IPC único, camadas explícitas, valida
 SQLite local e gates de lint/teste. O main compila em CJS para `dist/`; o preload é empacotado
 em um único arquivo; o renderer continua em TypeScript puro, sem framework.
 
+O `tsc` de build continua sendo o TypeScript 7 (alias `typescript7`). O pacote `typescript`
+aponta para a API 6.0 via `@typescript/typescript6`, que é o que o typescript-eslint consegue
+consumir hoje. O lint roda sem type-checking; a checagem de tipos é feita pelo `tsc` 7.
+
 ## Alternativas descartadas
 
 - **Trocar para React/Vue** — o renderer atual é pequeno; framework não resolve o problema

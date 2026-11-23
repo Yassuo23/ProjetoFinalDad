@@ -6,6 +6,8 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
 ## Stack
 
 - Electron 45, TypeScript 7 (`strict`), Vite 8 no renderer, electron-builder.
+- O `tsc` é o TypeScript 7 (alias `typescript7`); o pacote `typescript` expõe a API 6.0
+  exigida pelo typescript-eslint. O lint roda sem type-checking.
 - Três tsconfigs: `tsconfig.base.json`, `tsconfig.main.json` (CJS → `dist/`),
   `tsconfig.renderer.json` (`noEmit`), com `rootDir: src`.
 - Sem framework no renderer: TypeScript puro.
@@ -13,16 +15,16 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
 
 ## Comandos
 
-| Comando | Uso |
-| --- | --- |
-| `npm run dev` | watch do main/preload + Vite + Electron com DevTools |
-| `npm run build` | compila main/preload e empacota o renderer em `dist/` |
-| `npm start` | roda o build atual |
-| `npm run typecheck` | typecheck do renderer e do shared |
-| `npm run lint` | ESLint (sem type-checking) |
-| `npm run format` | Prettier com escrita |
-| `npm run test` | Vitest |
-| `npm run dist` | instaladores em `release/` |
+| Comando             | Uso                                                   |
+| ------------------- | ----------------------------------------------------- |
+| `npm run dev`       | watch do main/preload + Vite + Electron com DevTools  |
+| `npm run build`     | compila main/preload e empacota o renderer em `dist/` |
+| `npm start`         | roda o build atual                                    |
+| `npm run typecheck` | typecheck do renderer e do shared                     |
+| `npm run lint`      | ESLint (sem type-checking)                            |
+| `npm run format`    | Prettier com escrita                                  |
+| `npm run test`      | Vitest                                                |
+| `npm run dist`      | instaladores em `release/`                            |
 
 ## Mapa de pastas
 
@@ -43,12 +45,12 @@ src/
 
 ## Donos
 
-| Dono | Escopo |
-| --- | --- |
+| Dono               | Escopo                                                                  |
+| ------------------ | ----------------------------------------------------------------------- |
 | Fundação (AS + ED) | estrutura, contrato IPC, main/preload, hardening, categorias como molde |
-| Dev B | módulo Clientes |
-| Dev C | módulo Equipamentos |
-| Dev D | módulo Reservas |
+| Dev B              | módulo Clientes                                                         |
+| Dev C              | módulo Equipamentos                                                     |
+| Dev D              | módulo Reservas                                                         |
 
 Ninguém edita o módulo do outro sem combinar. A fundação não implementa regra de negócio
 de Cliente, Equipamento ou Reserva.
