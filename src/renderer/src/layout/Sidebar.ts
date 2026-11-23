@@ -1,18 +1,17 @@
-import logoClaro from '../assets/brand/logo-claro.png'
-import { Componente, criarElemento, criarIcone } from '../nucleo'
+import { criarElemento, criarIcone, Componente } from '../nucleo'
+import { LogoZenite } from './LogoZenite'
 
 const CLASSES = {
   aside:
-    'flex h-screen w-sidebar shrink-0 flex-col border-r border-granito/30 bg-floresta text-pedra',
-  marca: 'flex items-center gap-3 px-6 py-5',
-  logo: 'h-8 w-auto',
-  nome: 'font-display text-xl text-lima',
-  nav: 'flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4',
+    'flex h-screen w-16 shrink-0 flex-col border-r border-granito/30 bg-floresta text-pedra lg:w-sidebar',
+  marca: 'flex items-center justify-center px-3 py-5 lg:justify-start lg:px-6',
+  nav: 'flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-4 lg:px-3',
+  rotulo: 'hidden lg:inline',
   itemInativo:
-    'flex items-center gap-3 rounded-control px-3 py-2 text-sm text-pedra transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima',
+    'flex items-center justify-center gap-3 rounded-control px-2 py-2 text-sm text-pedra transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
   itemAtivo:
-    'flex items-center gap-3 rounded-control bg-lima/20 px-3 py-2 text-sm text-lima transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima',
-  rodape: 'border-t border-granito/30 px-6 py-4 text-xs text-granito',
+    'flex items-center justify-center gap-3 rounded-control bg-lima/20 px-2 py-2 text-sm text-lima transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
+  rodape: 'hidden border-t border-granito/30 px-6 py-4 text-xs text-granito lg:block',
 } as const
 
 interface ItemNav {
@@ -81,13 +80,7 @@ export class Sidebar extends Componente {
   private montarEstrutura(): void {
     const marca = criarElemento('div', {
       className: CLASSES.marca,
-      filhos: [
-        criarElemento('img', {
-          className: CLASSES.logo,
-          atributos: { src: logoClaro, alt: 'Logotipo Zênite' },
-        }),
-        criarElemento('span', { className: CLASSES.nome, texto: 'Zênite' }),
-      ],
+      filhos: [new LogoZenite().raiz],
     })
 
     const nav = criarElemento('nav', {
@@ -96,10 +89,14 @@ export class Sidebar extends Componente {
     })
 
     for (const item of ITENS) {
+      const rotulo = criarElemento('span', {
+        className: CLASSES.rotulo,
+        texto: item.rotulo,
+      })
       const link = criarElemento('a', {
         className: CLASSES.itemInativo,
-        atributos: { href: `#${item.caminho}` },
-        filhos: [criarIcone(item.icone), item.rotulo],
+        atributos: { href: `#${item.caminho}`, title: item.rotulo },
+        filhos: [criarIcone(item.icone), rotulo],
       })
       this.links.set(item.caminho, link)
       nav.append(link)
