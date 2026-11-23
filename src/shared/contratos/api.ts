@@ -2,13 +2,17 @@ import type {
   AppInfo,
   Categoria,
   Cliente,
+  ClienteAtualizarEntrada,
+  ClienteCriarEntrada,
+  ClientesListarFiltros,
+  ConsultarCepEntrada,
+  Endereco,
   Equipamento,
   EquipamentoAtualizarEntrada,
   EquipamentoCriarEntrada,
   EquipamentoDisponiveisEntrada,
   EquipamentoListarFiltros,
   PingPayload,
-  Reserva,
 } from './modelos'
 
 /** Contrato único da ponte renderer → main. */
@@ -17,7 +21,14 @@ export interface ApiZenite {
   abrirExterno(url: string): Promise<void>
   onPing(callback: (payload: PingPayload) => void): () => void
   categorias: { listar(): Promise<Categoria[]> }
-  clientes: { listar(): Promise<Cliente[]> }
+  clientes: {
+    listar(filtros?: ClientesListarFiltros): Promise<Cliente[]>
+    buscarPorId(id: number): Promise<Cliente>
+    criar(dados: ClienteCriarEntrada): Promise<Cliente>
+    atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente>
+    inativar(id: number): Promise<void>
+    consultarCep(entrada: ConsultarCepEntrada): Promise<Endereco>
+  }
   equipamentos: {
     listar(filtros?: EquipamentoListarFiltros): Promise<Equipamento[]>
     buscarPorId(id: number): Promise<Equipamento>
@@ -26,7 +37,6 @@ export interface ApiZenite {
     inativar(id: number): Promise<void>
     listarDisponiveis(periodo: EquipamentoDisponiveisEntrada): Promise<Equipamento[]>
   }
-  reservas: { listar(): Promise<Reserva[]> }
 }
 
 declare global {

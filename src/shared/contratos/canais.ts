@@ -10,13 +10,17 @@ export const CANAIS = {
   ping: 'app:ping',
   categoriasListar: 'categorias:listar',
   clientesListar: 'clientes:listar',
+  clientesBuscarPorId: 'clientes:buscar-por-id',
+  clientesCriar: 'clientes:criar',
+  clientesAtualizar: 'clientes:atualizar',
+  clientesInativar: 'clientes:inativar',
+  clientesConsultarCep: 'clientes:consultar-cep',
   equipamentosListar: 'equipamentos:listar',
   equipamentosBuscarPorId: 'equipamentos:buscar-por-id',
   equipamentosCriar: 'equipamentos:criar',
   equipamentosAtualizar: 'equipamentos:atualizar',
   equipamentosInativar: 'equipamentos:inativar',
   equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
-  reservasListar: 'reservas:listar',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

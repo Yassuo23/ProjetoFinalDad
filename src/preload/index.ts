@@ -17,7 +17,15 @@ const api: ApiZenite = {
   },
 
   categorias: { listar: () => ipcRenderer.invoke(CANAIS.categoriasListar) },
-  clientes: { listar: () => ipcRenderer.invoke(CANAIS.clientesListar) },
+
+  clientes: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.clientesListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.clientesBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.clientesCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.clientesAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.clientesInativar, { id }),
+    consultarCep: (entrada) => ipcRenderer.invoke(CANAIS.clientesConsultarCep, entrada),
+  },
 
   equipamentos: {
     listar: (filtros) => ipcRenderer.invoke(CANAIS.equipamentosListar, filtros),
@@ -28,8 +36,6 @@ const api: ApiZenite = {
     listarDisponiveis: (periodo) =>
       ipcRenderer.invoke(CANAIS.equipamentosListarDisponiveis, periodo),
   },
-
-  reservas: { listar: () => ipcRenderer.invoke(CANAIS.reservasListar) },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

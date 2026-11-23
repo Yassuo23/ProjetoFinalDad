@@ -29,6 +29,61 @@ export interface Cliente {
   nome: string
   email: string | null
   telefone: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  /** Inativação lógica: cliente com reserva nunca é apagado. */
+  ativo: boolean
+}
+
+export interface ClientesListarFiltros {
+  nome?: string
+  ativo?: boolean
+}
+
+/** Endereço devolvido pela consulta de CEP; preenchido pelo main, não pelo renderer. */
+export interface Endereco {
+  cep: string
+  logradouro: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+export interface ConsultarCepEntrada {
+  cep: string
+}
+
+export interface ClienteCriarEntrada {
+  nome: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+export interface ClienteAtualizarEntrada {
+  id: number
+  nome?: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
 }
 
 export interface Equipamento {
@@ -100,6 +155,10 @@ export type CodigoErroDominio =
   | 'ITEM_INDISPONIVEL'
   | 'RESERVA_JA_CANCELADA'
   | 'URL_NAO_PERMITIDA'
+  | 'CLIENTE_NAO_ENCONTRADO'
+  | 'EMAIL_DUPLICADO'
+  | 'CEP_INVALIDO'
+  | 'CEP_NAO_ENCONTRADO'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio
