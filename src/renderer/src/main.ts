@@ -6,6 +6,7 @@ import {
   PaginaComponentes,
   PaginaDashboard,
   PaginaEmConstrucao,
+  PaginaEquipamentos,
   PaginaNaoEncontrada,
   PaginaSobre,
 } from './paginas'
@@ -18,10 +19,7 @@ if (!root) {
 
 const ROTAS = new Map<string, FabricaPagina>([
   ['/dashboard', () => new PaginaDashboard()],
-  [
-    '/equipamentos',
-    () => new PaginaEmConstrucao('Equipamentos', 'equipamentos.salvar · estadoConservacao'),
-  ],
+  ['/equipamentos', () => new PaginaEquipamentos()],
   ['/clientes', () => new PaginaEmConstrucao('Clientes', 'clientes.buscarCep · clientes.salvar')],
   [
     '/fornecedores',
