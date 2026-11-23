@@ -22,6 +22,16 @@ export abstract class Componente {
     this.aoMontar()
   }
 
+  /** Anexa sem apagar o destino — usado por overlays como Modal. */
+  montarFilho(destino: Element): void {
+    if (this.montado) {
+      return
+    }
+    destino.append(this.elemento)
+    this.montado = true
+    this.aoMontar()
+  }
+
   destruir(): void {
     if (!this.montado) {
       return
