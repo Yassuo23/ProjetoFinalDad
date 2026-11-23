@@ -4,9 +4,12 @@ import { CANAIS } from '../../../shared/contratos/canais'
 import { esquemaAbrirExterno, esquemaSemEntrada } from '../../../shared/contratos/esquemas'
 import type { AppInfo } from '../../../shared/contratos/modelos'
 import { CategoriaRepositorio } from '../../repositorios/CategoriaRepositorio'
+import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
 import { CategoriaServico } from '../../servicos/CategoriaServico'
+import { EquipamentoServico } from '../../servicos/EquipamentoServico'
 import type { RegistroIpc } from '../RegistroIpc'
 import { registrarCategorias } from './categorias'
+import { registrarEquipamentos } from './equipamentos'
 
 function obterAppInfo(): AppInfo {
   return {
@@ -27,5 +30,11 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
     await shell.openExternal(url)
   })
 
-  registrarCategorias(registro, new CategoriaServico(new CategoriaRepositorio(db)))
+  const categorias = new CategoriaRepositorio(db)
+
+  registrarCategorias(registro, new CategoriaServico(categorias))
+  registrarEquipamentos(
+    registro,
+    new EquipamentoServico(new EquipamentoRepositorio(db), categorias),
+  )
 }
