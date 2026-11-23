@@ -21,28 +21,28 @@ const escapeHtml = (value: string): string =>
 root.innerHTML = `
   <main class="window">
     <header class="titlebar">
-      <h1>Locadora</h1>
-      <span class="badge">Electron + TypeScript</span>
+      <h1>Zênite</h1>
+      <span class="badge">Aluguel Outdoor</span>
     </header>
 
     <section class="content">
-      <p class="hint">Use <strong>File → Send Ping</strong> in the native menu to test main → renderer IPC.</p>
+      <p class="hint">Use <strong>Arquivo → Enviar ping</strong> no menu nativo para testar o IPC main → renderer.</p>
 
       <div class="grid">
         <article class="card">
-          <h2>Application</h2>
+          <h2>Aplicação</h2>
           <dl id="app-info">
-            <dt>Status</dt><dd>Loading…</dd>
+            <dt>Status</dt><dd>Carregando…</dd>
           </dl>
         </article>
 
         <article class="card">
-          <h2>IPC events</h2>
-          <p id="ping-status" class="muted">No ping received yet.</p>
+          <h2>Eventos IPC</h2>
+          <p id="ping-status" class="muted">Nenhum ping recebido ainda.</p>
         </article>
       </div>
 
-      <button id="docs-button" class="button" type="button">Open Electron docs ↗</button>
+      <button id="docs-button" class="button" type="button">Abrir documentação do Electron ↗</button>
     </section>
   </main>
 `

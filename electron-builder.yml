@@ -1,17 +1,20 @@
-appId: com.example.locadora
-productName: Locadora
-copyright: Copyright © 2026
+appId: br.edu.zenite.aluguel
+productName: Zênite
+copyright: Copyright © 2026 Zênite — Aluguel Outdoor
 directories:
   output: release
 files:
   - dist/**/*
   - package.json
 win:
+  icon: resources/icon.png
   target:
     - nsis
 linux:
+  icon: resources/icon.png
   target:
     - AppImage
 mac:
+  icon: resources/icon.png
   target:
     - dmg

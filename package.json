@@ -1,8 +1,9 @@
 {
-  "name": "locadora-sistema",
+  "name": "zenite",
   "version": "0.1.0",
   "private": true,
-  "description": "Electron + TypeScript base project",
+  "description": "Zênite — Aluguel Outdoor",
+  "author": "Ana Pinheiro <analuisappena@gmail.com>",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "concurrently -k -n tsc,vite,electron -c cyan,magenta,green \"npm:dev:types\" \"npm:dev:renderer\" \"npm:dev:electron\"",

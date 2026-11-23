@@ -1,6 +1,7 @@
-# Locadora — Electron + TypeScript base
+# Zênite — Aluguel Outdoor
 
-A minimal, secure starting point for an Electron application written in TypeScript.
+Sistema desktop de aluguel de equipamentos outdoor: camping, escalada, ciclismo e trilha.
+Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas explícitas.
 
 ## Stack
 
