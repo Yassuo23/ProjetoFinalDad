@@ -5,6 +5,8 @@ import { esquemaAbrirExterno, esquemaSemEntrada } from '../../../shared/contrato
 import type { AppInfo } from '../../../shared/contratos/modelos'
 import { CategoriaRepositorio } from '../../repositorios/CategoriaRepositorio'
 import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
+import { urlExternaPermitida } from '../../seguranca/UrlsExternas'
+import { ErroDeDominio } from '../../servicos/ErroDominio'
 import { CategoriaServico } from '../../servicos/CategoriaServico'
 import { EquipamentoServico } from '../../servicos/EquipamentoServico'
 import type { RegistroIpc } from '../RegistroIpc'
@@ -27,6 +29,9 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
   registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
 
   registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url) => {
+    if (!urlExternaPermitida(url)) {
+      throw new ErroDeDominio('URL_NAO_PERMITIDA', 'Endereço externo não permitido.')
+    }
     await shell.openExternal(url)
   })
 

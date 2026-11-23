@@ -99,6 +99,7 @@ export type CodigoErroDominio =
   | 'PERIODO_INVALIDO'
   | 'ITEM_INDISPONIVEL'
   | 'RESERVA_JA_CANCELADA'
+  | 'URL_NAO_PERMITIDA'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio
