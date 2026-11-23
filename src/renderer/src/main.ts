@@ -2,7 +2,13 @@ import './tailwind.css'
 import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import { criarElemento, Roteador, substituirConteudo } from './nucleo'
 import type { FabricaPagina } from './nucleo'
-import { PaginaDashboard, PaginaEmConstrucao, PaginaNaoEncontrada, PaginaSobre } from './paginas'
+import {
+  PaginaComponentes,
+  PaginaDashboard,
+  PaginaEmConstrucao,
+  PaginaNaoEncontrada,
+  PaginaSobre,
+} from './paginas'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
@@ -50,6 +56,11 @@ const TITULOS = new Map<string, string>([
   ['/sobre', 'Sobre'],
   ['/404', 'Página não encontrada'],
 ])
+
+if (import.meta.env.DEV) {
+  ROTAS.set('/componentes', () => new PaginaComponentes())
+  TITULOS.set('/componentes', 'Componentes')
+}
 
 const shell = criarElemento('div', {
   className: 'flex h-screen overflow-hidden bg-pedra font-sans text-grafite',
