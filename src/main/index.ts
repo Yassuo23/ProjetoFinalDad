@@ -1,7 +1,9 @@
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
+import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esquemas'
 import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
+import { RegistroIpc } from './ipc/RegistroIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -36,17 +38,23 @@ function createWindow(): void {
   })
 }
 
-function registerIpcHandlers(): void {
-  ipcMain.handle(CANAIS.appInfo, (): AppInfo => ({
+function obterAppInfo(): AppInfo {
+  return {
     name: app.getName(),
     version: app.getVersion(),
     electron: process.versions.electron,
     node: process.versions.node,
     platform: process.platform,
     arch: process.arch,
-  }))
+  }
+}
 
-  ipcMain.handle(CANAIS.abrirExterno, async (_event, url: string): Promise<void> => {
+function registerIpcHandlers(): void {
+  const registro = new RegistroIpc(ipcMain)
+
+  registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
+
+  registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url) => {
     await shell.openExternal(url)
   })
 }
