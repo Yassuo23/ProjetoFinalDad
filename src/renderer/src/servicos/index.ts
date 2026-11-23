@@ -4,3 +4,14 @@ export { ServicoClientes } from './ServicoClientes'
 export { EquipamentoServico } from './EquipamentoServico'
 export type { ResultadoCategorias, ResultadoEquipamentos } from './EquipamentoServico'
 export { ServicoReservas } from './ServicoReservas'
+export { DashboardServico, hojeISO } from './DashboardServico'
+export type {
+  CondicaoClima,
+  DadosDashboard,
+  DevolucaoPendente,
+  Faturamento,
+  PagamentoItem,
+  PrevisaoTempo,
+  StatusFrota,
+  StatusPagamento,
+} from './DashboardServico'
