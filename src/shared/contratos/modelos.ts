@@ -1,5 +1,9 @@
 /** Tipos de domínio compartilhados. Só `type`/`interface`: somem no build. */
 
+import type { EstadoEquipamento } from './estados'
+
+export type { EstadoEquipamento } from './estados'
+
 export interface AppInfo {
   name: string
   version: string
@@ -32,7 +36,44 @@ export interface Equipamento {
   nome: string
   categoriaId: number
   precoDiaria: number
-  disponivel: boolean
+  /** Base configurável do cálculo de multa de atraso (P6). */
+  valorAquisicao: number
+  estado: EstadoEquipamento
+  /** Inativação lógica: nunca apague equipamento com histórico de reserva. */
+  ativo: boolean
+  descricao: string | null
+}
+
+export interface EquipamentoListarFiltros {
+  categoriaId?: number
+  estado?: EstadoEquipamento
+}
+
+export interface EquipamentoIdEntrada {
+  id: number
+}
+
+export interface EquipamentoCriarEntrada {
+  nome: string
+  categoriaId: number
+  precoDiaria: number
+  valorAquisicao: number
+  descricao?: string | null
+}
+
+export interface EquipamentoAtualizarEntrada extends EquipamentoIdEntrada {
+  nome?: string
+  categoriaId?: number
+  precoDiaria?: number
+  valorAquisicao?: number
+  estado?: EstadoEquipamento
+  descricao?: string | null
+}
+
+export interface EquipamentoDisponiveisEntrada {
+  inicio: string
+  fim: string
+  categoriaId?: number
 }
 
 export type StatusReserva = 'pendente' | 'confirmada' | 'cancelada' | 'concluida'
@@ -44,4 +85,22 @@ export interface Reserva {
   inicio: string
   fim: string
   status: StatusReserva
+}
+
+/**
+ * Códigos de erro de domínio. O IPC rejeita com `Error.message === codigo`;
+ * o renderer traduz o código para texto amigável, sem detalhe de driver/Zod.
+ */
+export type CodigoErroDominio =
+  | 'EQUIPAMENTO_NAO_ENCONTRADO'
+  | 'EQUIPAMENTO_INATIVO'
+  | 'CATEGORIA_NAO_ENCONTRADA'
+  | 'NOME_DUPLICADO'
+  | 'PERIODO_INVALIDO'
+  | 'ITEM_INDISPONIVEL'
+  | 'RESERVA_JA_CANCELADA'
+
+export interface ErroDominio {
+  readonly codigo: CodigoErroDominio
+  readonly mensagem: string
 }

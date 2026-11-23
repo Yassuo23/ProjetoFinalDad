@@ -1,4 +1,15 @@
-import type { AppInfo, Categoria, Cliente, Equipamento, PingPayload, Reserva } from './modelos'
+import type {
+  AppInfo,
+  Categoria,
+  Cliente,
+  Equipamento,
+  EquipamentoAtualizarEntrada,
+  EquipamentoCriarEntrada,
+  EquipamentoDisponiveisEntrada,
+  EquipamentoListarFiltros,
+  PingPayload,
+  Reserva,
+} from './modelos'
 
 /** Contrato único da ponte renderer → main. */
 export interface ApiZenite {
@@ -7,7 +18,14 @@ export interface ApiZenite {
   onPing(callback: (payload: PingPayload) => void): () => void
   categorias: { listar(): Promise<Categoria[]> }
   clientes: { listar(): Promise<Cliente[]> }
-  equipamentos: { listar(): Promise<Equipamento[]> }
+  equipamentos: {
+    listar(filtros?: EquipamentoListarFiltros): Promise<Equipamento[]>
+    buscarPorId(id: number): Promise<Equipamento>
+    criar(dados: EquipamentoCriarEntrada): Promise<Equipamento>
+    atualizar(dados: EquipamentoAtualizarEntrada): Promise<Equipamento>
+    inativar(id: number): Promise<void>
+    listarDisponiveis(periodo: EquipamentoDisponiveisEntrada): Promise<Equipamento[]>
+  }
   reservas: { listar(): Promise<Reserva[]> }
 }
 

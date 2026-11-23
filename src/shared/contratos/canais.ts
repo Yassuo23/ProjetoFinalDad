@@ -11,6 +11,11 @@ export const CANAIS = {
   categoriasListar: 'categorias:listar',
   clientesListar: 'clientes:listar',
   equipamentosListar: 'equipamentos:listar',
+  equipamentosBuscarPorId: 'equipamentos:buscar-por-id',
+  equipamentosCriar: 'equipamentos:criar',
+  equipamentosAtualizar: 'equipamentos:atualizar',
+  equipamentosInativar: 'equipamentos:inativar',
+  equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
   reservasListar: 'reservas:listar',
 } as const
 

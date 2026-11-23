@@ -18,7 +18,17 @@ const api: ApiZenite = {
 
   categorias: { listar: () => ipcRenderer.invoke(CANAIS.categoriasListar) },
   clientes: { listar: () => ipcRenderer.invoke(CANAIS.clientesListar) },
-  equipamentos: { listar: () => ipcRenderer.invoke(CANAIS.equipamentosListar) },
+
+  equipamentos: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.equipamentosListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.equipamentosBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.equipamentosCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.equipamentosAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.equipamentosInativar, { id }),
+    listarDisponiveis: (periodo) =>
+      ipcRenderer.invoke(CANAIS.equipamentosListarDisponiveis, periodo),
+  },
+
   reservas: { listar: () => ipcRenderer.invoke(CANAIS.reservasListar) },
 }
 
