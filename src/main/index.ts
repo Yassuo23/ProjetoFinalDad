@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
 import type { PingPayload } from '../shared/contratos/modelos'
 import { ConexaoBanco } from './banco/ConexaoBanco'
@@ -8,6 +8,7 @@ import { MIGRACOES } from './banco/migracoes'
 import { registrarHandlers } from './ipc/handlers'
 import { RegistroIpc } from './ipc/RegistroIpc'
 import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
+import { aplicarCsp } from './seguranca/Csp'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -62,6 +63,7 @@ function buildApplicationMenu(): void {
 }
 
 app.whenReady().then(() => {
+  aplicarCsp(session.defaultSession, isDev)
   conexaoBanco = iniciarBanco()
   registrarHandlers(new RegistroIpc(ipcMain), conexaoBanco.db)
   buildApplicationMenu()

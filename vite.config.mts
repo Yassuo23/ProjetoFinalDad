@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import { CSP_DEV, CSP_PRODUCAO } from './src/shared/seguranca/politicasCsp'
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url))
 const rendererRoot = path.join(projectRoot, 'src', 'renderer')
@@ -9,6 +10,14 @@ export default defineConfig({
   root: rendererRoot,
   base: './',
   clearScreen: false,
+  plugins: [
+    {
+      name: 'zenite-csp',
+      transformIndexHtml(html, contexto) {
+        return html.replace('%ZENITE_CSP%', contexto.server ? CSP_DEV : CSP_PRODUCAO)
+      },
+    },
+  ],
   server: {
     port: 5173,
     strictPort: true,
