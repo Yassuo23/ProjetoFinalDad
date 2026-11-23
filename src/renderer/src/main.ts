@@ -1,5 +1,6 @@
 import './style.css'
 import { montarCategorias } from './paginas/Categorias'
+import { montarClientes } from './paginas/Clientes'
 import { montarEquipamentos } from './paginas/Equipamentos'
 
 const root = document.querySelector<HTMLDivElement>('#app')
@@ -49,10 +50,17 @@ root.innerHTML = `
         </article>
       </div>
 
-      <article class="card card-larga">
-        <h2>Equipamentos</h2>
-        <div id="equipamentos"></div>
-      </article>
+      <div class="modulos">
+        <article class="card card-larga">
+          <h2>Equipamentos</h2>
+          <div id="equipamentos"></div>
+        </article>
+
+        <article class="card card-larga">
+          <h2>Clientes</h2>
+          <div id="clientes"></div>
+        </article>
+      </div>
 
       <button id="docs-button" class="button" type="button">Abrir documentação do Electron ↗</button>
     </section>
@@ -64,13 +72,15 @@ const pingStatus = document.querySelector<HTMLElement>('#ping-status')
 const docsButton = document.querySelector<HTMLButtonElement>('#docs-button')
 const categorias = document.querySelector<HTMLElement>('#categorias')
 const equipamentos = document.querySelector<HTMLElement>('#equipamentos')
+const clientes = document.querySelector<HTMLElement>('#clientes')
 
-if (!appInfo || !pingStatus || !docsButton || !categorias || !equipamentos) {
+if (!appInfo || !pingStatus || !docsButton || !categorias || !equipamentos || !clientes) {
   throw new Error('Failed to render the application shell')
 }
 
 montarCategorias(categorias)
 montarEquipamentos(equipamentos)
+montarClientes(clientes)
 
 window.electronAPI
   .appInfo()

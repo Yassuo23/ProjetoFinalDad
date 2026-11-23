@@ -144,7 +144,19 @@ dd {
   margin-top: 24px;
 }
 
-.form-equipamento {
+.modulos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.modulos .card-larga {
+  margin-top: 0;
+}
+
+.form-equipamento,
+.form-cliente {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
@@ -152,6 +164,7 @@ dd {
 }
 
 .form-equipamento label,
+.form-cliente label,
 .filtros label {
   display: flex;
   flex-direction: column;
@@ -162,6 +175,8 @@ dd {
 
 .form-equipamento input,
 .form-equipamento select,
+.form-cliente input,
+.filtros input,
 .filtros select {
   border: 1px solid rgba(140, 154, 165, 0.6);
   border-radius: 6px;
@@ -169,6 +184,26 @@ dd {
   font: inherit;
   background: #fff;
   color: var(--grafite);
+}
+
+.form-cliente input[readonly] {
+  background: var(--pedra);
+  color: var(--verde-floresta);
+}
+
+.campo-cep {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.campo-cep label {
+  flex: 1;
+}
+
+.button-cep {
+  padding: 8px 12px;
+  background: var(--azul-geleira);
 }
 
 .filtros {
@@ -218,4 +253,33 @@ dd {
 .button-perigo:hover {
   background: #8b2b20;
   color: #fff;
+}
+
+.lista-clientes {
+  display: grid;
+  gap: 10px;
+}
+
+.item-cliente {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 12px;
+  border: 1px solid rgba(140, 154, 165, 0.35);
+  border-radius: 8px;
+}
+
+.item-cliente strong {
+  color: var(--verde-floresta);
+}
+
+.item-cliente p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.item-cliente .button-perigo {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: center;
 }
