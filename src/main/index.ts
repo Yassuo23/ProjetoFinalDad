@@ -7,6 +7,7 @@ import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
 import { registrarHandlers } from './ipc/handlers'
 import { RegistroIpc } from './ipc/RegistroIpc'
+import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -20,29 +21,8 @@ function iniciarBanco(): ConexaoBanco {
   return conexao
 }
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    show: false,
-    title: app.getName(),
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-  } else {
-    void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
-  }
-
+function abrirJanela(): void {
+  mainWindow = criarJanelaPrincipal(isDev)
   mainWindow.once('ready-to-show', () => mainWindow?.show())
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -85,10 +65,10 @@ app.whenReady().then(() => {
   conexaoBanco = iniciarBanco()
   registrarHandlers(new RegistroIpc(ipcMain), conexaoBanco.db)
   buildApplicationMenu()
-  createWindow()
+  abrirJanela()
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) abrirJanela()
   })
 })
 
