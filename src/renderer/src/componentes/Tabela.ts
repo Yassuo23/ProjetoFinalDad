@@ -6,6 +6,8 @@ export interface ColunaTabela<T> {
   readonly rotulo: string
   readonly ordenavel?: boolean
   readonly alinhamento?: 'esquerda' | 'direita'
+  /** Renderização customizada da célula (ex.: Badge de status). */
+  readonly celula?: (linha: T) => Node | string
 }
 
 export interface OpcoesTabela<T> {
@@ -204,13 +206,17 @@ export class Tabela<T extends object> extends Componente {
       ...this.linhas.map((linha) => {
         const tr = criarElemento('tr', {
           className: selecionavel ? CLASSES.linhaSelecionavel : CLASSES.linha,
-          filhos: this.colunas.map((coluna) =>
-            criarElemento('td', {
+          filhos: this.colunas.map((coluna) => {
+            const conteudo =
+              coluna.celula === undefined
+                ? formatarValor(linha[coluna.chave])
+                : coluna.celula(linha)
+            return criarElemento('td', {
               className:
                 coluna.alinhamento === 'direita' ? CLASSES.celulaDireita : CLASSES.celulaEsquerda,
-              texto: formatarValor(linha[coluna.chave]),
-            }),
-          ),
+              filhos: [conteudo],
+            })
+          }),
         })
 
         if (selecionavel) {
