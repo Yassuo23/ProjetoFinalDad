@@ -4,10 +4,20 @@ import { CANAIS } from '../shared/contratos/canais'
 import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esquemas'
 import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
 import { RegistroIpc } from './ipc/RegistroIpc'
+import { ConexaoBanco } from './banco/ConexaoBanco'
+import { Migrador } from './banco/Migrador'
+import { MIGRACOES } from './banco/migracoes'
 
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
+let conexaoBanco: ConexaoBanco | null = null
+
+function iniciarBanco(): void {
+  const caminho = path.join(app.getPath('userData'), 'zenite.db')
+  conexaoBanco = new ConexaoBanco(caminho)
+  new Migrador(conexaoBanco.db, MIGRACOES).aplicarPendentes()
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -92,6 +102,7 @@ function buildApplicationMenu(): void {
 }
 
 app.whenReady().then(() => {
+  iniciarBanco()
   registerIpcHandlers()
   buildApplicationMenu()
   createWindow()
@@ -99,6 +110,11 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  conexaoBanco?.fechar()
+  conexaoBanco = null
 })
 
 app.on('window-all-closed', () => {
