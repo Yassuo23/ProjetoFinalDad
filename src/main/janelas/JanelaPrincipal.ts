@@ -34,7 +34,7 @@ export function criarJanelaPrincipal(isDev: boolean): BrowserWindow {
   })
   sessao.setPermissionCheckHandler(() => false)
 
-  const urlDev = process.env.VITE_DEV_SERVER_URL
+  const urlDev = process.env.ELECTRON_RENDERER_URL ?? process.env.VITE_DEV_SERVER_URL
   if (isDev && urlDev) {
     void janela.loadURL(urlDev)
     janela.webContents.openDevTools({ mode: 'detach' })

@@ -30,10 +30,11 @@ function iniciarBanco(caminho: string): ConexaoBanco {
 }
 
 function abrirJanela(): void {
-  mainWindow = criarJanelaPrincipal(isDev)
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => {
-    mainWindow = null
+  const janela = criarJanelaPrincipal(isDev)
+  mainWindow = janela
+  janela.once('ready-to-show', () => janela.show())
+  janela.on('closed', () => {
+    if (mainWindow === janela) mainWindow = null
   })
 }
 
@@ -69,11 +70,13 @@ function iniciar(): void {
       },
     })
 
-    const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname))
-    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco, new ArquivosNativos())
-
     instalarMenu(isDev, { ping: sendPing })
     abrirJanela()
+
+    const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname), () =>
+      mainWindow?.webContents.mainFrame,
+    )
+    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco, new ArquivosNativos())
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) abrirJanela()

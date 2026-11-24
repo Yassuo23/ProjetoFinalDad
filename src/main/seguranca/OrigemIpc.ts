@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 /** Porta que decide se um evento IPC veio do frame da própria aplicação. */
@@ -5,9 +6,17 @@ export interface VerificadorOrigem {
   permitida(evento: unknown): boolean
 }
 
+/** Frame principal atual; a janela pode ser recriada no evento `activate`. */
+export type ProvedorFramePrincipal = () => unknown
+
 interface EventoIpcEstrutural {
-  readonly senderFrame?: { readonly url?: string; readonly isMainFrame?: boolean } | null
-  readonly sender?: { getURL(): string }
+  readonly senderFrame?: unknown
+  readonly sender?: { readonly getURL?: unknown }
+}
+
+interface FrameEstrutural {
+  readonly url?: unknown
+  readonly isMainFrame?: unknown
 }
 
 function comoEvento(evento: unknown): EventoIpcEstrutural | null {
@@ -15,13 +24,43 @@ function comoEvento(evento: unknown): EventoIpcEstrutural | null {
   return evento as EventoIpcEstrutural
 }
 
+function comoFrame(valor: unknown): FrameEstrutural | null {
+  if (typeof valor !== 'object' || valor === null) return null
+  return valor as FrameEstrutural
+}
+
+/** Hash e query mudam conforme a rota e não fazem parte da origem confiável. */
+function normalizar(valor: string): string | null {
+  try {
+    const url = new URL(valor)
+    url.hash = ''
+    url.search = ''
+    return url.href
+  } catch {
+    return null
+  }
+}
+
 /**
- * Aceita somente chamadas cujo frame e cujo webContents apontam para a URL carregada pelo app.
- * URL do dev server é comparada por origem; em produção a comparação é do arquivo exato.
+ * Aceita somente chamadas do frame principal da própria janela, cuja URL
+ * normalizada é a mesma que a janela carrega. Em produção o arquivo exato é
+ * conferido; em dev, qualquer caminho servido pela origem do Vite.
  */
-export function criarVerificadorOrigem(urlAplicacao: string): VerificadorOrigem {
+export function criarVerificadorOrigem(
+  urlAplicacao: string,
+  framePrincipal?: ProvedorFramePrincipal,
+): VerificadorOrigem {
   const alvo = new URL(urlAplicacao)
-  const origemOuArquivo = alvo.protocol === 'file:' ? alvo.href : alvo.origin
+  const esperado = normalizar(alvo.href)
+  if (esperado === null) throw new Error('URL da aplicacao invalida')
+
+  const conferirUrl = (bruta: unknown): boolean => {
+    if (typeof bruta !== 'string') return false
+    const normalizada = normalizar(bruta)
+    if (normalizada === null) return false
+    if (alvo.protocol === 'file:') return normalizada === esperado
+    return new URL(normalizada).origin === alvo.origin
+  }
 
   return {
     permitida(evento: unknown): boolean {
@@ -29,33 +68,27 @@ export function criarVerificadorOrigem(urlAplicacao: string): VerificadorOrigem 
       if (!candidato) return false
 
       const frame = candidato.senderFrame
-      const urlFrame = frame?.url
-      if (!urlFrame || frame?.isMainFrame === false) return false
+      if (framePrincipal && frame !== framePrincipal()) return false
 
-      const getUrl = candidato.sender?.getURL
-      if (typeof getUrl !== 'function') return false
-      const urlSender = getUrl.call(candidato.sender)
-      if (typeof urlSender !== 'string') return false
+      const estrutura = comoFrame(frame)
+      if (!estrutura || estrutura.isMainFrame === false) return false
+      if (!conferirUrl(estrutura.url)) return false
 
-      const permitir = (bruta: string): boolean => {
-        try {
-          const url = new URL(bruta)
-          return alvo.protocol === 'file:' ? url.href === origemOuArquivo : url.origin === origemOuArquivo
-        } catch {
-          return false
-        }
-      }
-
-      return permitir(urlFrame) && permitir(urlSender)
+      const remetente = candidato.sender
+      if (!remetente || typeof remetente.getURL !== 'function') return false
+      return conferirUrl(remetente.getURL())
     },
   }
 }
 
-/** URL exata que a janela principal carrega, usada como origem confiável do IPC. */
+/** URL que a janela principal realmente carrega, usada como origem confiável do IPC. */
 export function urlAplicacao(isDev: boolean, diretorioMain: string): string {
   if (isDev) {
-    return process.env.VITE_DEV_SERVER_URL ?? 'http://localhost:5173'
+    return (
+      process.env.ELECTRON_RENDERER_URL ??
+      process.env.VITE_DEV_SERVER_URL ??
+      'http://localhost:5173'
+    )
   }
-  const arquivo = pathToFileURL(`${diretorioMain}/../renderer/index.html`).href
-  return arquivo
+  return pathToFileURL(path.resolve(diretorioMain, '../renderer/index.html')).href
 }
