@@ -11,7 +11,7 @@ const ALTURA_MINIMA = 600
 /** URL carregada pela janela — usada tambem como allowlist de origem IPC. */
 export function urlAplicacao(isDev: boolean, urlDev: string | undefined): string {
   if (isDev && urlDev) return urlDev
-  return pathToFileURL(path.join(__dirname, '../renderer/index.html')).toString()
+  return pathToFileURL(path.join(__dirname, '../../renderer/index.html')).toString()
 }
 
 /**
@@ -28,7 +28,7 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
     show: false,
     title: 'Zênite — Aluguel Outdoor',
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -50,7 +50,7 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
   if (isDev && urlDev) {
     void janela.loadURL(urlDev)
   } else {
-    void janela.loadFile(path.join(__dirname, '../renderer/index.html'))
+    void janela.loadFile(path.join(__dirname, '../../renderer/index.html'))
   }
 
   janela.once('ready-to-show', () => janela.show())
