@@ -8,16 +8,19 @@ import { ClienteRepositorio } from '../../repositorios/ClienteRepositorio'
 import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
 import { ReservaRepositorio } from '../../repositorios/ReservaRepositorio'
 import { urlExternaPermitida } from '../../seguranca/UrlsExternas'
+import { ClimaServico } from '../../servicos/ClimaServico'
 import { DisponibilidadeServico } from '../../servicos/DisponibilidadeServico'
 import { CepServico } from '../../servicos/CepServico'
 import { ClienteServico } from '../../servicos/ClienteServico'
 import { ErroDeDominio } from '../../servicos/ErroDominio'
 import { CategoriaServico } from '../../servicos/CategoriaServico'
 import { EquipamentoServico } from '../../servicos/EquipamentoServico'
+import { ReservaServico } from '../../servicos/ReservaServico'
 import type { RegistroIpc } from '../RegistroIpc'
 import { registrarCategorias } from './categorias'
 import { registrarClientes } from './clientes'
 import { registrarEquipamentos } from './equipamentos'
+import { registrarReservas } from './reservas'
 
 function obterAppInfo(): AppInfo {
   return {
@@ -45,7 +48,8 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
   const clientes = new ClienteRepositorio(db)
 
   const equipamentos = new EquipamentoRepositorio(db)
-  const disponibilidade = new DisponibilidadeServico(new ReservaRepositorio(db), equipamentos)
+  const reservas = new ReservaRepositorio(db)
+  const disponibilidade = new DisponibilidadeServico(reservas, equipamentos)
 
   registrarCategorias(registro, new CategoriaServico(categorias))
   registrarClientes(registro, new ClienteServico(clientes), new CepServico())
@@ -53,5 +57,10 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
     registro,
     new EquipamentoServico(equipamentos, categorias, disponibilidade),
     disponibilidade,
+  )
+  registrarReservas(
+    registro,
+    new ReservaServico(reservas, clientes, equipamentos, disponibilidade),
+    new ClimaServico(),
   )
 }
