@@ -5,7 +5,11 @@ import type {
   ClienteAtualizarEntrada,
   ClienteCriarEntrada,
   ClientesListarFiltros,
+  MultaCalcularEntrada,
   ConsultarCepEntrada,
+  CalculoMulta,
+  Devolucao,
+  DevolucaoRegistrarEntrada,
   DisponibilidadeResultado,
   Endereco,
   Equipamento,
@@ -55,6 +59,11 @@ export interface ApiZenite {
     cancelar(id: number): Promise<void>
     previsaoTempo(entrada: PrevisaoTempoEntrada): Promise<PrevisaoTempo>
   }
+  devolucoes: {
+    registrar(dados: DevolucaoRegistrarEntrada): Promise<Devolucao>
+    buscarPorReserva(reservaId: number): Promise<Devolucao>
+  }
+  multas: { calcular(entrada: MultaCalcularEntrada): Promise<CalculoMulta> }
 }
 
 declare global {

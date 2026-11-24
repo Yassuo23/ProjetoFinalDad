@@ -47,6 +47,14 @@ const api: ApiZenite = {
     cancelar: (id) => ipcRenderer.invoke(CANAIS.reservasCancelar, { id }),
     previsaoTempo: (entrada) => ipcRenderer.invoke(CANAIS.reservasPrevisaoTempo, entrada),
   },
+
+  devolucoes: {
+    registrar: (dados) => ipcRenderer.invoke(CANAIS.devolucoesRegistrar, dados),
+    buscarPorReserva: (reservaId) =>
+      ipcRenderer.invoke(CANAIS.devolucoesBuscarPorReserva, { reservaId }),
+  },
+
+  multas: { calcular: (entrada) => ipcRenderer.invoke(CANAIS.multasCalcular, entrada) },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

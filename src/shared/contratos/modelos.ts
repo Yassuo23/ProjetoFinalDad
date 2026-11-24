@@ -193,6 +193,41 @@ export interface PrevisaoTempo {
   dias: PrevisaoDia[]
 }
 
+/** P6 — devolução e cálculo de multa por atraso. */
+export interface Devolucao {
+  id: number
+  reservaId: number
+  devolvidoEm: string
+  observacoes: string | null
+  diasAtraso: number
+  valorDiaria: number
+  valorMulta: number
+}
+
+export interface DevolucaoRegistrarEntrada {
+  reservaId: number
+  devolvidoEm: string
+  observacoes?: string | null
+}
+
+export interface MultaCalcularEntrada {
+  reservaId: number
+  devolvidoEm: string
+}
+
+export interface CalculoMulta {
+  diasAtraso: number
+  diasCarencia: number
+  valorDiaria: number
+  valorLocacao: number
+  baseCalculo: number
+  percentualDiario: number
+  valorMultaBruta: number
+  valorMulta: number
+  valorTotal: number
+  tetoAplicado: boolean
+}
+
 /**
  * Códigos de erro de domínio. O IPC rejeita com `Error.message === codigo`;
  * o renderer traduz o código para texto amigável, sem detalhe de driver/Zod.
@@ -214,6 +249,10 @@ export type CodigoErroDominio =
   | 'RESERVA_JA_CONFIRMADA'
   | 'LOCAL_NAO_ENCONTRADO'
   | 'PREVISAO_INDISPONIVEL'
+  | 'DEVOLUCAO_JA_REGISTRADA'
+  | 'DEVOLUCAO_DATA_INVALIDA'
+  | 'RESERVA_NAO_CONFIRMADA'
+  | 'MULTA_BASE_INDISPONIVEL'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio

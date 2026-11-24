@@ -92,6 +92,23 @@ export const esquemaReservaPrevisao = z
   })
   .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
 
+// P6 — Devoluções e multa
+
+export const esquemaDevolucaoRegistrar = z.object({
+  reservaId: z.number().int().positive(),
+  devolvidoEm: z.iso.datetime(),
+  observacoes: z.string().trim().max(500).nullish(),
+})
+
+export const esquemaDevolucaoBuscarPorReserva = z.object({
+  reservaId: z.number().int().positive(),
+})
+
+export const esquemaMultaCalcular = z.object({
+  reservaId: z.number().int().positive(),
+  devolvidoEm: z.iso.datetime(),
+})
+
 // P2 — Clientes e CEP
 
 /** Aceita 01001-000 e 01001000; a normalização para dígitos é do serviço no main. */

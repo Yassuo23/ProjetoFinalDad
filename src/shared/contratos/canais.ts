@@ -28,6 +28,9 @@ export const CANAIS = {
   reservasConfirmar: 'reservas:confirmar',
   reservasCancelar: 'reservas:cancelar',
   reservasPrevisaoTempo: 'reservas:previsao-tempo',
+  devolucoesRegistrar: 'devolucoes:registrar',
+  devolucoesBuscarPorReserva: 'devolucoes:buscar-por-reserva',
+  multasCalcular: 'multas:calcular',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]
