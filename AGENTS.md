@@ -46,15 +46,22 @@ src/
 
 ## Donos
 
-| Dono               | Escopo                                                                  |
-| ------------------ | ----------------------------------------------------------------------- |
-| Fundação (AS + ED) | estrutura, contrato IPC, main/preload, hardening, categorias como molde |
-| Dev B              | módulo Clientes                                                         |
-| Dev C              | módulo Equipamentos                                                     |
-| Dev D              | módulo Reservas                                                         |
+Sete papéis, com fronteiras explícitas (ver também `CODEOWNERS` e `.opencode/agents/`):
 
-Ninguém edita o módulo do outro sem combinar. A fundação não implementa regra de negócio
-de Cliente, Equipamento ou Reserva.
+| Papel                       | Escopo                                                                                  |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| AS (Arquiteto)              | estrutura, camadas, contrato em `src/shared/contratos/`, POO, ADRs, revisão R1–R7       |
+| ED (Especialista Desktop)   | main, janela, menu, ciclo de vida, preload, IPC, hardening, CSP, empacotamento          |
+| BD (Banco de Dados)         | esquema, migrações em `src/main/banco/migracoes/`, repositórios em `src/main/repositorios/` |
+| BE (Backend)                | serviços de domínio em `src/main/servicos/`, handlers finos em `src/main/ipc/handlers/` |
+| IA (Integração de APIs)     | clientes HTTP em `src/main/integracoes/` (cep, clima, cnpj, feriados)                   |
+| UX (UI/UX)                  | design system e documentação de telas em `docs/`; não escreve código de tela            |
+| FE (Frontend)               | `src/renderer/` (TypeScript puro + Tailwind, sem framework)                             |
+
+Módulos de negócio (regra em `src/main/servicos/<modulo>/`): Clientes, Equipamentos,
+Reservas e os demais declarados no contrato (fornecedores, devoluções, pagamentos,
+manutenções, usuários). Ninguém edita o módulo do outro sem combinar. A fundação não
+implementa regra de negócio de nenhum módulo.
 
 ## As 10 regras invioláveis
 

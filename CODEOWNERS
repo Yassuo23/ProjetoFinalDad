@@ -1,0 +1,34 @@
+# Zênite — quem edita o quê.
+# Donos por pasta/módulo. PRs que tocam contrato ou fundação exigem revisão da fundação (AS + ED).
+
+# Fundação — arquitetura, contrato e Electron
+/src/shared/contratos/     @yassuo23
+/src/main/ipc/RegistroIpc.ts @yassuo23
+/src/main/index.ts         @yassuo23
+/src/main/banco/ConexaoBanco.ts @yassuo23
+/src/main/banco/Migrador.ts @yassuo23
+/src/preload/index.ts      @yassuo23
+/docs/adr/                 @yassuo23
+/.opencode/                @yassuo23
+/AGENTS.md                 @yassuo23
+/CLAUDE.md                 @yassuo23
+
+# Banco de dados
+/src/main/banco/migracoes/ @yassuo23
+/src/main/repositorios/    @yassuo23
+
+# Backend (regra de negócio e handlers por módulo)
+/src/main/servicos/        @yassuo23
+/src/main/ipc/handlers/    @yassuo23
+
+# Integrações externas
+/src/main/integracoes/     @yassuo23
+
+# Frontend / UI
+/src/renderer/             @yassuo23
+/docs/design-system.md     @yassuo23
+/docs/telas.md             @yassuo23
+
+# Documentação de produto
+/docs/requisitos-cliente.md @yassuo23
+/docs/dominio.md           @yassuo23
