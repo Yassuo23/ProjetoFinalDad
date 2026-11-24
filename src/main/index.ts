@@ -2,6 +2,7 @@ import path from 'node:path'
 import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
 import type { PingPayload } from '../shared/contratos/modelos'
+import { CicloBanco, type PortaCicloBanco } from './banco/CicloBanco'
 import { ConexaoBanco } from './banco/ConexaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
@@ -15,10 +16,13 @@ import { criarVerificadorOrigem, urlAplicacao } from './seguranca/OrigemIpc'
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
-let conexaoBanco: ConexaoBanco | null = null
+let cicloBanco: PortaCicloBanco | null = null
 
-function iniciarBanco(): ConexaoBanco {
-  const caminho = path.join(app.getPath('userData'), 'zenite.db')
+function caminhoBanco(): string {
+  return path.join(app.getPath('userData'), 'zenite.db')
+}
+
+function iniciarBanco(caminho: string): ConexaoBanco {
   const conexao = new ConexaoBanco(caminho)
   new Migrador(conexao.db, MIGRACOES).aplicarPendentes()
   return conexao
@@ -52,10 +56,17 @@ function focarJanela(): void {
 function iniciar(): void {
   app.whenReady().then(() => {
     aplicarCsp(session.defaultSession, isDev)
-    conexaoBanco = iniciarBanco()
+
+    const caminho = caminhoBanco()
+    cicloBanco = new CicloBanco(iniciarBanco(caminho), caminho, {
+      reiniciar: () => {
+        app.relaunch()
+        app.exit(0)
+      },
+    })
 
     const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname))
-    registrarHandlers(new RegistroIpc(ipcMain, origem), conexaoBanco.db)
+    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco.db)
 
     instalarMenu(isDev, { ping: sendPing })
     abrirJanela()
@@ -75,8 +86,8 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 app.on('before-quit', () => {
-  conexaoBanco?.fechar()
-  conexaoBanco = null
+  cicloBanco?.fechar()
+  cicloBanco = null
 })
 
 app.on('window-all-closed', () => {

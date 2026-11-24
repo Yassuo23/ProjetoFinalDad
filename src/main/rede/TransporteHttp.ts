@@ -16,9 +16,18 @@ export class ErroTransporte extends Error {
   }
 }
 
-/** Porta do `net.fetch` do Electron — injetada para manter o Vitest sem Electron. */
+/** Tipos estruturais para o `net.fetch` do Electron — o Vitest nunca importa o Electron. */
+export interface OpcoesFetchHttp {
+  signal?: AbortSignal
+}
+
+export interface RespostaHttp {
+  readonly ok: boolean
+  json(): Promise<unknown>
+}
+
 export interface ClienteHttp {
-  fetch(url: string, init?: RequestInit): Promise<Response>
+  fetch(url: string, init?: OpcoesFetchHttp): Promise<RespostaHttp>
 }
 
 export interface TransporteHttp {
@@ -40,7 +49,7 @@ export class TransporteHttpSeguro implements TransporteHttp {
       throw new ErroTransporte('URL_NAO_PERMITIDA')
     }
 
-    let resposta: Response
+    let resposta: RespostaHttp
     try {
       resposta = await this.cliente.fetch(url, { signal: AbortSignal.timeout(this.timeoutMs) })
     } catch (erro) {

@@ -9,6 +9,7 @@ export function criarJanelaPrincipal(isDev: boolean): BrowserWindow {
     height: 800,
     minWidth: 800,
     minHeight: 600,
+    center: true,
     show: false,
     title: 'Zênite — Aluguel Outdoor',
     icon: path.join(__dirname, '../../resources/icon.png'),
