@@ -1,3 +1,5 @@
+import { ErroSemPermissao } from '../nucleo/erros'
+
 /**
  * Allowlist de links externos. URL vinda do renderer é sempre não confiável:
  * apenas `https:` e domínios explicitamente enumerados podem chegar ao `shell`.
@@ -19,5 +21,12 @@ export function urlExternaPermitida(bruta: string): boolean {
     )
   } catch {
     return false
+  }
+}
+
+/** Usada pelo handler antes de chamar `shell.openExternal`. */
+export function validarUrlExterna(bruta: string): void {
+  if (!urlExternaPermitida(bruta)) {
+    throw new ErroSemPermissao('Link externo nao permitido.')
   }
 }

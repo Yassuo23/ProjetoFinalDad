@@ -3,8 +3,7 @@ import { CANAIS } from '../../../shared/contratos/canais'
 import { esquemaAbrirExterno, esquemaSemEntrada } from '../../../shared/contratos/esquemas'
 import type { AppInfo } from '../../../shared/contratos/modelos'
 import type { ContainerAplicacao } from '../../nucleo/ContainerAplicacao'
-import { ErroSemPermissao } from '../../nucleo/erros'
-import { urlExternaPermitida } from '../../seguranca/UrlsExternas'
+import { validarUrlExterna } from '../../seguranca/UrlsExternas'
 import type { RegistroIpc } from '../RegistroIpc'
 
 function obterAppInfo(): AppInfo {
@@ -27,9 +26,7 @@ export function registrarHandlers(registro: RegistroIpc, _container: ContainerAp
   registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
 
   registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url: string) => {
-    if (!urlExternaPermitida(url)) {
-      throw new ErroSemPermissao('Link externo nao permitido.')
-    }
+    validarUrlExterna(url)
     await shell.openExternal(url)
   })
 }
