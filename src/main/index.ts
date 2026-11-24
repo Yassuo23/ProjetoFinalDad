@@ -59,9 +59,12 @@ function iniciar(): void {
 
     const caminho = caminhoBanco()
     cicloBanco = new CicloBanco(iniciarBanco(caminho), caminho, {
+      // Agenda o reinício para depois da resposta IPC: `app.exit` é imediato.
       reiniciar: () => {
-        app.relaunch()
-        app.exit(0)
+        setTimeout(() => {
+          app.relaunch()
+          app.exit(0)
+        }, 100)
       },
     })
 
