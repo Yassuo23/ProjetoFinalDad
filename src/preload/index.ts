@@ -55,6 +55,15 @@ const api: ApiZenite = {
   },
 
   multas: { calcular: (entrada) => ipcRenderer.invoke(CANAIS.multasCalcular, entrada) },
+
+  pagamentos: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.pagamentosListar, filtros),
+    buscarPorReserva: (reservaId) =>
+      ipcRenderer.invoke(CANAIS.pagamentosBuscarPorReserva, { reservaId }),
+    registrar: (dados) => ipcRenderer.invoke(CANAIS.pagamentosRegistrar, dados),
+    confirmar: (id) => ipcRenderer.invoke(CANAIS.pagamentosConfirmar, { id }),
+    estornar: (id) => ipcRenderer.invoke(CANAIS.pagamentosEstornar, { id }),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

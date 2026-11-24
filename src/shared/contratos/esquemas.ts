@@ -109,6 +109,27 @@ export const esquemaMultaCalcular = z.object({
   devolvidoEm: z.iso.datetime(),
 })
 
+// P7 — Pagamentos
+
+export const esquemaPagamentoListar = z
+  .object({
+    reservaId: z.number().int().positive().optional(),
+    status: z.enum(['pendente', 'pago', 'estornado']).optional(),
+  })
+  .optional()
+
+export const esquemaPagamentoBuscarPorReserva = z.object({
+  reservaId: z.number().int().positive(),
+})
+
+export const esquemaPagamentoRegistrar = z.object({
+  reservaId: z.number().int().positive(),
+  valor: z.number().positive(),
+  forma: z.enum(['dinheiro', 'pix', 'cartao_credito', 'cartao_debito']),
+})
+
+export const esquemaPagamentoId = z.object({ id: z.number().int().positive() })
+
 // P2 — Clientes e CEP
 
 /** Aceita 01001-000 e 01001000; a normalização para dígitos é do serviço no main. */

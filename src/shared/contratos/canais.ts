@@ -31,6 +31,11 @@ export const CANAIS = {
   devolucoesRegistrar: 'devolucoes:registrar',
   devolucoesBuscarPorReserva: 'devolucoes:buscar-por-reserva',
   multasCalcular: 'multas:calcular',
+  pagamentosListar: 'pagamentos:listar',
+  pagamentosBuscarPorReserva: 'pagamentos:buscar-por-reserva',
+  pagamentosRegistrar: 'pagamentos:registrar',
+  pagamentosConfirmar: 'pagamentos:confirmar',
+  pagamentosEstornar: 'pagamentos:estornar',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

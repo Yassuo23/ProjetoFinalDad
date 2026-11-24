@@ -17,6 +17,9 @@ import type {
   EquipamentoCriarEntrada,
   EquipamentoDisponiveisEntrada,
   EquipamentoListarFiltros,
+  Pagamento,
+  PagamentoRegistrarEntrada,
+  PagamentosListarFiltros,
   PingPayload,
   PrevisaoTempo,
   PrevisaoTempoEntrada,
@@ -64,6 +67,13 @@ export interface ApiZenite {
     buscarPorReserva(reservaId: number): Promise<Devolucao>
   }
   multas: { calcular(entrada: MultaCalcularEntrada): Promise<CalculoMulta> }
+  pagamentos: {
+    listar(filtros?: PagamentosListarFiltros): Promise<Pagamento[]>
+    buscarPorReserva(reservaId: number): Promise<Pagamento>
+    registrar(dados: PagamentoRegistrarEntrada): Promise<Pagamento>
+    confirmar(id: number): Promise<Pagamento>
+    estornar(id: number): Promise<Pagamento>
+  }
 }
 
 declare global {

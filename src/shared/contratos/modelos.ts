@@ -228,6 +228,31 @@ export interface CalculoMulta {
   tetoAplicado: boolean
 }
 
+/** P7 — pagamento único por reserva, com status próprio. */
+export type FormaPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito'
+export type StatusPagamento = 'pendente' | 'pago' | 'estornado'
+
+export interface Pagamento {
+  id: number
+  reservaId: number
+  valor: number
+  forma: FormaPagamento
+  status: StatusPagamento
+  pagoEm: string | null
+  criadoEm: string
+}
+
+export interface PagamentoRegistrarEntrada {
+  reservaId: number
+  valor: number
+  forma: FormaPagamento
+}
+
+export interface PagamentosListarFiltros {
+  reservaId?: number
+  status?: StatusPagamento
+}
+
 /**
  * Códigos de erro de domínio. O IPC rejeita com `Error.message === codigo`;
  * o renderer traduz o código para texto amigável, sem detalhe de driver/Zod.
@@ -253,6 +278,11 @@ export type CodigoErroDominio =
   | 'DEVOLUCAO_DATA_INVALIDA'
   | 'RESERVA_NAO_CONFIRMADA'
   | 'MULTA_BASE_INDISPONIVEL'
+  | 'PAGAMENTO_NAO_ENCONTRADO'
+  | 'PAGAMENTO_JA_REGISTRADO'
+  | 'PAGAMENTO_JA_PAGO'
+  | 'PAGAMENTO_JA_ESTORNADO'
+  | 'VALOR_PAGAMENTO_INVALIDO'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio
