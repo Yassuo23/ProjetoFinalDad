@@ -222,4 +222,28 @@ describe('ReservaRepositorio', () => {
 
     conexao.fechar()
   })
+
+  it('conclui somente reservas pendentes ou confirmadas', () => {
+    const conexao = bancoComMigracoes()
+    const repositorio = new ReservaRepositorio(conexao.db)
+
+    inserirReserva(conexao.db, {
+      inicio: INICIO,
+      fim: FIM,
+      status: 'confirmada',
+    })
+    inserirReserva(conexao.db, {
+      inicio: '2026-12-06T00:00:00.000Z',
+      fim: '2026-12-08T00:00:00.000Z',
+      status: 'cancelada',
+    })
+
+    expect(repositorio.concluir(1)).toBe(true)
+    expect(repositorio.buscarPorId(1)?.status).toBe('concluida')
+    expect(repositorio.concluir(2)).toBe(false)
+    expect(repositorio.buscarPorId(2)?.status).toBe('cancelada')
+    expect(repositorio.concluir(999)).toBe(false)
+
+    conexao.fechar()
+  })
 })

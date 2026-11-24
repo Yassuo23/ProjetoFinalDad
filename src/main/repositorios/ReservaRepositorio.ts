@@ -13,6 +13,7 @@ export interface RepositorioReservas {
   criar(dados: ReservaCriarEntrada): Reserva
   confirmar(id: number): Reserva | null
   cancelar(id: number): boolean
+  concluir(id: number): boolean
   existeSobreposicao(equipamentoId: number, inicio: string, fim: string): boolean
 }
 
@@ -81,6 +82,16 @@ export class ReservaRepositorio implements RepositorioReservas {
   cancelar(id: number): boolean {
     const resultado = this.db
       .prepare("UPDATE reservas SET status = 'cancelada' WHERE id = ?")
+      .run(id)
+    return resultado.changes > 0
+  }
+
+  concluir(id: number): boolean {
+    const resultado = this.db
+      .prepare(`
+        UPDATE reservas SET status = 'concluida'
+        WHERE id = ? AND status IN ('pendente', 'confirmada')
+      `)
       .run(id)
     return resultado.changes > 0
   }

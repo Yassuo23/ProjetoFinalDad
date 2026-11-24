@@ -84,6 +84,7 @@ function repositorioFalso(itens: readonly Reserva[] = [reserva()]) {
     criar,
     confirmar,
     cancelar,
+    concluir: () => false,
     existeSobreposicao: () => false,
   }
   return { repositorio, listar, buscarPorId, criar, confirmar, cancelar }

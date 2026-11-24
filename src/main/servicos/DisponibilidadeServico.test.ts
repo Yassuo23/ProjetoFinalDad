@@ -56,6 +56,7 @@ function reservasFalso(sobrepostos: readonly number[] = []) {
     },
     confirmar: () => null,
     cancelar: () => false,
+    concluir: () => false,
   }
   return { repositorio, existeSobreposicao }
 }
