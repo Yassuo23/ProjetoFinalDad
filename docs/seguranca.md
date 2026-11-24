@@ -62,9 +62,11 @@ verificador de origem é erro de inicialização.
 
 ## 4.2 Transporte HTTP do main
 
-`src/main/rede/TransporteHttp.ts` usa `net.fetch` injetado, aplica a mesma allowlist das URLs
-externas e `AbortSignal.timeout` (8 s por padrão). Erros são internos (`ErroTransporte`); o
-serviço de domínio decide o código devolvido ao renderer. Vitest usa um cliente falso — o
+`src/main/rede/TransporteHttp.ts` aplica a mesma allowlist das URLs externas e
+`AbortSignal.timeout` (8 s por padrão). `criarTransporteHttp()` em
+`src/main/rede/TransporteHttpMain.ts` fornece a instância com `net.fetch` do Electron para o API
+Engineer injetar nos serviços de CEP/CNPJ/clima/feriados. Erros são internos (`ErroTransporte`);
+o serviço de domínio decide o código devolvido ao renderer. Vitest usa um cliente falso — o
 Electron nunca é iniciado nos testes.
 
 ## 5. APIs externas no main
@@ -73,8 +75,9 @@ CEP (ViaCEP → BrasilAPI), CNPJ (BrasilAPI), clima (Open-Meteo) e feriados (Bra
 porque o renderer não tem `connect-src` externo na CSP de produção. Dados de erro são normalizados
 para `CodigoErroDominio`; nenhuma exceção de driver ou resposta HTTP crua chega à tela.
 
-**Risco residual:** `fetch` nesses serviços não usa timeout explícito; uma conexão travada pode
-demorar. Mitigação futura: `AbortSignal.timeout`.
+**Risco residual:** os serviços legados de CEP/clima ainda chamam `fetch` direto; o transporte com
+timeout já está disponível e a migração desses serviços é handoff ao API Engineer. A CSP de
+produção mantém `connect-src 'self'`: nenhuma tela conversa diretamente com essas APIs.
 
 ## 6. Banco e dados sensíveis
 
@@ -82,7 +85,37 @@ demorar. Mitigação futura: `AbortSignal.timeout`.
 - Senha de usuário é armazenada como hash `scrypt` com salt (`P10`); texto plano nunca é
   persistido, logado ou devolvido.
 
-## 7. Revisão de segurança
+## 6.1 Arquivos nativos (ADR 0019)
+
+- Diálogos de abrir/salvar, confirmação de restauração, cópia e escrita ficam em
+  `src/main/seguranca/ArquivosNativos.ts`. O renderer envia só título/filtros/dados; caminho é
+  decidido no main e `caminho: null` é cancelamento, não erro.
+- Restauração só aceita `.db` dentro de `documents`, `downloads` ou `userData` (inclusive
+  descendentes), comparado por `realpath` + fronteira de separador. Fora disso:
+  `CAMINHO_NAO_PERMITIDO`.
+- CSV usa delimitador `,`, aspas dobradas e apóstrofo em células que começam com `=`, `+`, `-` ou
+  `@` após espaços. Nenhuma fórmula é interpretada pela planilha.
+- A restauração fecha a conexão, copia o arquivo e agenda `app.relaunch()` **após** a resposta IPC
+  (ADR 0019); trocar `DatabaseSync` em voo deixaria os repositórios com referência morta.
+
+## 7. Evidências de verificação
+
+Comandos e resultados esperados (gates rodados antes de cada commit):
+
+| Verificação | Evidência |
+| --- | --- |
+| `npm run build` | `dist/preload/index.js` contém **apenas** `require("electron")`; nenhum `require("../shared/...")` |
+| `npm run test` | `UrlsExternas.test.ts`: `abrirExterno('file:///...')` → `false` / `URL_NAO_PERMITIDA` |
+| `npm run test` | `Csp.test.ts`: CSP de produção sem `'unsafe-inline'`, `'unsafe-eval'` ou `ws:` |
+| `npm run test` | `NavegacaoSegura.test.ts`: navegação externa bloqueada e pop-up negado, com `WebContents` falso |
+| `npm run test` | `RegistroIpc.test.ts`: canal duplicado, payload inválido e origem não confiável rejeitados com `RegistradorFalso` |
+| `npm run test` | `Csv.test.ts`: `=cmd`, `+cmd`, `@import` e `-2` neutralizados |
+| inspeção | `dist/renderer/index.html` sem tokens de CSP de dev |
+| inspeção | nenhum `fetch(`, `ipcRenderer` ou `require(` em `src/renderer/**/*.ts` |
+
+Os testes usam portas/dublês falsos; **o Electron nunca é iniciado no Vitest**.
+
+## 8. Revisão de segurança
 
 Checklist R1–R7 em [`CONTRIBUTING.md`](../CONTRIBUTING.md). Itens de bloqueio: `nodeIntegration`,
 `sandbox: false`, CSP de dev em produção, `openExternal` sem allowlist, handler sem validação e
