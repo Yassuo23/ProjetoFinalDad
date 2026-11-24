@@ -10,7 +10,7 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
   exigida pelo typescript-eslint. O lint roda sem type-checking.
 - Três tsconfigs: `tsconfig.base.json`, `tsconfig.main.json` (CJS → `dist/`),
   `tsconfig.renderer.json` (`noEmit`), com `rootDir: src`.
-- Sem framework no renderer: TypeScript puro.
+- Sem framework no renderer: TypeScript puro (ADR 0012 — não use `.tsx`, React ou Vue).
 - Banco: SQLite local em `app.getPath('userData')/zenite.db`.
 
 ## Comandos
@@ -30,30 +30,62 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
 
 ```
 src/
-├── main/                 # processo principal (Electron)
-│   ├── index.ts          # composição: app, janela, registro de handlers
-│   ├── ipc/              # RegistroIpc + handlers finos
-│   ├── servicos/         # regra de negócio (POO)
-│   ├── repositorios/     # SQL parametrizado
-│   ├── banco/            # conexão e migrações
-│   ├── janelas/          # criação de BrowserWindow
-│   └── seguranca/        # allowlist, navegação, CSP
-├── preload/index.ts      # única ponte renderer → main
-├── renderer/             # HTML, CSS e TS puro (sem Node)
-└── shared/contratos/     # canais, modelos, esquemas, API
+├── main/                       # processo principal (Electron)
+│   ├── index.ts                # app, janela e chamada ao composition root
+│   ├── ipc/
+│   │   ├── RegistroIpc.ts      # registro único: valida schema e delega
+│   │   ├── handlers/           # um arquivo por módulo + index.ts (composition root)
+│   │   └── index.ts            # ★ monta repositórios, serviços e handlers
+│   ├── servicos/               # regra de negócio (POO, injeção por construtor)
+│   ├── repositorios/           # SQL parametrizado + type guard de linha
+│   ├── banco/
+│   │   ├── Banco.ts            # conexão userData/zenite.db
+│   │   ├── Migrador.ts         # migrações versionadas
+│   │   └── migracoes/          # 001..010 — registro só pelo AS
+│   ├── janelas/                # BrowserWindow (sandbox + contextIsolation)
+│   └── seguranca/              # allowlist, navegação, CSP por ambiente
+├── preload/index.ts            # única ponte renderer → main (só CANAIS + tipos)
+├── renderer/
+│   ├── index.html              # HTML com CSP de produção
+│   └── src/
+│       ├── main.ts             # monta as telas
+│       ├── style.css           # estilos externos (sem inline)
+│       └── paginas/            # uma função montarX por módulo
+└── shared/
+    └── contratos/
+        ├── canais.ts           # único registro de strings de canal
+        ├── modelos.ts          # tipos de payload/retorno + CodigoErroDominio
+        ├── esquemas.ts         # Zod — somente no main
+        ├── estados.ts          # EstadoEquipamento (fonte única)
+        └── api.ts              # ApiZenite, porta tipada do renderer
 ```
 
-## Donos
+## Sete agentes e donos (ADR 0018)
 
-| Dono               | Escopo                                                                  |
-| ------------------ | ----------------------------------------------------------------------- |
-| Fundação (AS + ED) | estrutura, contrato IPC, main/preload, hardening, categorias como molde |
-| Dev B              | módulo Clientes                                                         |
-| Dev C              | módulo Equipamentos                                                     |
-| Dev D              | módulo Reservas                                                         |
+| Agente | Escopo | Pastas |
+| --- | --- | --- |
+| `arquiteto` (AS) | contrato, camadas, ADRs, revisão R1–R7 | `docs/adr/`, `shared/contratos/`, `AGENTS.md` |
+| `especialista-desktop` (ED) | main, preload, janela, hardening, build | `main/index.ts`, `main/janelas/`, `main/seguranca/`, `preload/`, `vite.config.mts` |
+| `backend` | serviços POO e handlers finos | `main/servicos/`, `main/ipc/handlers/*.ts` |
+| `database` | repositórios e migrações de módulo | `main/repositorios/`, `main/banco/migracoes/NNN-*.ts` |
+| `frontend` | renderer TypeScript puro e CSS | `renderer/` |
+| `qa` | gates, testes, smoke e riscos | `*.test.ts`, `docs/entrega-fundacao.md` |
+| `integrador` | PRs, branches, documentação e defesa | `CONTRIBUTING.md`, `README.md`, `docs/*.md`, `.github/` |
 
-Ninguém edita o módulo do outro sem combinar. A fundação não implementa regra de negócio
-de Cliente, Equipamento ou Reserva.
+Ninguém edita o módulo do outro sem combinar. `shared/contratos/` e
+`main/banco/migracoes/index.ts` são exclusivos do AS. Conflito de fronteira vai para ADR, nunca
+para o merge. `.github/CODEOWNERS` espelha esta tabela.
+
+## Ponto único de montagem e convenções POO
+
+- `src/main/ipc/handlers/index.ts` é o **composition root**: instancia repositórios e serviços,
+  injeta as portas e registra todos os handlers. Nenhum outro arquivo faz `new` de serviço.
+- Serviço = classe com construtor que recebe **interfaces porta**; regra de negócio é método:
+  `calcular`, `confirmar`, `verificar`. Repositório = classe que implementa a porta de dados.
+- `ErroDeDominio` (`main/servicos/ErroDominio.ts`) é a classe base; sempre use um
+  `CodigoErroDominio` do contrato. Nunca lance `Error` cru para o renderer.
+- Nomenclatura: português do domínio (`Equipamento`, `Reserva`, `Cliente`, `Devolucao`), camelCase
+  em código, snake_case em SQL, `montarX` para montar telas. Sem abreviações opacas.
 
 ## As 10 regras invioláveis
 
@@ -77,3 +109,14 @@ de Cliente, Equipamento ou Reserva.
 - Commit convencional: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`.
 - PR pequeno, com o que mudou, como testar e risco residual.
 - Quem revisa: fundação revisa contrato e camadas; dono do módulo revisa a regra.
+- Conflitos previsíveis: `shared/contratos/` e `migracoes/index.ts` são do AS; migração nova usa
+  o próximo número livre e só o AS a registra. Não resolva divergência de contrato no merge —
+  pare e abra decisão (ADR).
+- Padrões de código: ESLint + Prettier (`npm run format`), nomes em português do domínio, `strict`
+  sem `any`, testes ao lado do arquivo (`.test.ts`). Gate verde por commit, não por PR.
+
+## Documentação do enunciado
+
+`README.md` (visão geral), `CONTRIBUTING.md` (fluxo), `docs/seguranca.md` (Electron e hardening),
+`docs/decisoes-ia.md` (MCP e RAG), `docs/divisao-pacotes.md`, `docs/entrega-fundacao.md` e
+`docs/adr/` (decisões difíceis de reverter).

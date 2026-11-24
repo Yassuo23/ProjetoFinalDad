@@ -18,9 +18,12 @@ Requisitos: Node 24 (o `node:sqlite` é usado diretamente — não instale `bett
 1. **O contrato vem primeiro.** Nenhum módulo começa sem canais, payloads, retornos, códigos de
    erro e migração fechados em `src/shared/contratos/`. Se faltar algo, pare e peça à fundação —
    não invente canal.
-2. **Respeite o dono.** Fundação cuida de contrato, main/preload, hardening e categorias; Dev B de
-   Clientes; Dev C de Equipamentos; Dev D de Reservas. Ninguém edita módulo alheio sem combinar.
-3. **Leia as ADRs** em `docs/adr/`, em especial a 0004 (segurança) e a 0005 (camadas).
+2. **Respeite o dono.** Sete agentes com pastas fechadas (ADR 0018 e tabela no `AGENTS.md`):
+   AS (contrato/ADRs), ED (main/preload/build), Backend (serviços/handlers), Database
+   (repositórios/migrações de módulo), Frontend (renderer `.ts`), QA (testes/gates) e Integrador
+   (PRs/docs). Ninguém edita módulo alheio sem combinar.
+3. **Leia as ADRs** em `docs/adr/`: 0004 (segurança), 0005 (camadas), 0012 (renderer em TS puro)
+   e 0018 (sete agentes).
 
 ## Branches e commits
 
@@ -30,6 +33,20 @@ Requisitos: Node 24 (o `node:sqlite` é usado diretamente — não instale `bett
 - **Um commit por processo, não por camada solta:** o pacote de módulo entra em quatro commits
   (repositório → serviço → handlers → renderer), cada um verde por si só.
 - Mensagem em português, imperativa, sem ponto final.
+- Autoria: `willcotil <willcotil@users.noreply.github.com>`. Nunca rebasear nem reescrever o
+  histórico local; integração é por PR, não por empurrar commit.
+- **Conflitos mais prováveis:** `src/shared/contratos/` e `src/main/banco/migracoes/index.ts` são
+  exclusivos do AS. Migração nova usa o próximo número livre; o dono escreve só
+  `NNN-modulo.ts` e pede ao AS para registrá-la. Divergência de contrato vai para ADR, nunca para
+  o merge.
+
+## Padrões de código
+
+- ESLint + Prettier: rode `npm run format` antes do commit; `npm run lint` não faz type-checking.
+- Nomenclatura em português do domínio (`Equipamento`, `Reserva`, `Cliente`, `Devolucao`),
+  camelCase em TypeScript, snake_case em SQL, `montarX` nas telas.
+- `strict` sem `any`: `unknown` + type guard. Erro de domínio sempre com `CodigoErroDominio`.
+- Teste ao lado do arquivo (`Servico.test.ts`, `Repositorio.test.ts`), uma asserção por regra.
 
 ## Gates obrigatórios (todos antes de cada commit)
 

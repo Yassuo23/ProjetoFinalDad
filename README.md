@@ -1,61 +1,57 @@
 # Zênite — Aluguel Outdoor
 
-Sistema desktop de aluguel de equipamentos outdoor: camping, escalada, ciclismo e trilha.
-Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas explícitas.
+Sistema desktop para locadora de equipamentos de camping, escalada, ciclismo e trilha. Cadastro de
+clientes e equipamentos, reservas com previsão do tempo, devolução com multa e pagamento, tudo em
+um banco SQLite local.
 
 ## Stack
 
-- **Electron 45** — main process, preload and renderer
-- **TypeScript 7** — strict mode; `tsc` 7 for build, API 6.0 para o ESLint
-- **Vite 8** — renderer dev server with HMR and production bundling
-- **electron-builder** — packaging for Windows, Linux and macOS
-- **Zod** — validação de payload no main (nunca no preload)
+- **Electron 45** — main, preload isolado e renderer sem Node
+- **TypeScript 7 (`strict`)** — `typescript7` para build; API 6.0 para o ESLint
+- **Vite 8** — bundler do renderer, **sem framework** (ADR 0012)
+- **Zod** — validação somente no main; o preload não importa Zod
+- **SQLite nativo (`node:sqlite`)** — `userData/zenite.db`, migrações versionadas
 
-## Project structure
+## Arquitetura em quatro camadas
 
 ```
-.
-├── electron-builder.yml        # Packaging configuration
-├── vite.config.mts             # Renderer dev server / bundler config
-├── tsconfig.base.json          # Shared compiler options
-├── tsconfig.main.json          # Main + shared -> dist/ (CJS)
-├── tsconfig.renderer.json      # Renderer/preload type checking (no emit)
-└── src
-    ├── main/index.ts           # Electron main process (window, menu, IPC handlers)
-    ├── preload/index.ts        # contextBridge API (bundled by esbuild)
-    ├── shared/contratos        # canais, modelos, esquemas (Zod) e api
-    └── renderer
-        ├── index.html
-        └── src
-            ├── main.ts
-            ├── style.css
-            └── vite-env.d.ts
+renderer (TS puro)  →  preload (contextBridge)  →  handler (valida)  →  serviço (regra)
+                                                                       ↓
+                                                          repositório (SQL parametrizado)
 ```
 
-## Scripts
+- `src/shared/contratos/` é a **fonte única** de canais, tipos, erros e schemas.
+- `src/main/ipc/handlers/index.ts` é o **composition root**: instancia e injeta tudo.
+- Sete agentes com pastas fechadas — veja a tabela em [`AGENTS.md`](AGENTS.md) e a
+  [ADR 0018](docs/adr/0018-sete-agentes-e-fronteiras.md).
 
-| Command             | Description                                                    |
-| ------------------- | -------------------------------------------------------------- |
-| `npm run dev`       | Watch TypeScript, start Vite and launch Electron with DevTools |
-| `npm run build`     | Compile main/preload and bundle the renderer into `dist/`      |
-| `npm start`         | Run the built application                                      |
-| `npm run typecheck` | Type check the renderer without emitting files                 |
-| `npm run dist`      | Build and create installers in `release/`                      |
+## Comandos
 
-## Security defaults
+| Comando | Uso |
+| --- | --- |
+| `npm run dev` | watch do main/preload + Vite + Electron com DevTools |
+| `npm run build` | compila main/preload e empacota o renderer em `dist/` |
+| `npm start` | roda o build atual |
+| `npm run typecheck` | typecheck do renderer e do shared |
+| `npm run lint` / `npm run format` | ESLint / Prettier |
+| `npm run test` | Vitest |
+| `npm run dist` | instaladores em `release/` |
 
-- `contextIsolation: true` and `sandbox: true`
-- `nodeIntegration: false` — the renderer never gets Node access
-- The renderer talks to Electron exclusively through the typed `window.electronAPI` bridge defined in `src/preload/index.ts`
-- A Content Security Policy is set in `src/renderer/index.html` (relax it only where needed)
+## Módulos
 
-## Adding your own feature
+| Pacote | Módulo |
+| --- | --- |
+| P1 / P4 / P8 | Equipamentos, disponibilidade e manutenção |
+| P2 / P3 | Clientes com CEP e fornecedores com CNPJ |
+| P5 / P6 / P7 | Reservas com clima, devolução com multa e pagamentos |
+| P9 / P10 / P11 | Feriados, usuários/perfis e painel |
 
-1. Add a channel string to `CANAIS` in `src/shared/contratos/canais.ts`.
-2. Add the payload/return types to `modelos.ts` and the Zod schema to `esquemas.ts`.
-3. Register a handler through `RegistroIpc` in `src/main/ipc/` (validate, then delegate).
-4. Expose a typed function in `src/preload/index.ts` and extend `ApiZenite` in `api.ts`.
-5. Call `window.electronAPI.yourMethod()` from the renderer.
+## Segurança e decisões
 
-For main → renderer messages, use `webContents.send(channel, payload)` and expose an
-`onXxx(callback)` subscription from the preload script, like the existing `onPing` example.
+- [`docs/seguranca.md`](docs/seguranca.md) — isolamento, allowlist, CSP e ameaças.
+- [`docs/decisoes-ia.md`](docs/decisoes-ia.md) — uso de IA, avaliação de MCP e RAG.
+- [`docs/adr/`](docs/adr/) — decisões difíceis de reverter (Contexto → Decisão → Consequências).
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contrato primeiro, gates e fluxo de PR.
+
+Regras curtas: nenhum `any`, nenhum canal fora de `canais.ts`, nenhuma regra no handler, nenhum
+SQL fora do repositório, nenhuma dependência de runtime no preload além de `electron`.
