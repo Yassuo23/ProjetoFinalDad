@@ -1,4 +1,16 @@
 import type { DatabaseSync } from 'node:sqlite'
+import type {
+  PortaServicoCategorias,
+  PortaServicoClientes,
+  PortaServicoDevolucoes,
+  PortaServicoEquipamentos,
+  PortaServicoFornecedores,
+  PortaServicoIntegracoes,
+  PortaServicoManutencoes,
+  PortaServicoPagamentos,
+  PortaServicoReservas,
+  PortaServicoUsuarios,
+} from '../../shared/contratos/servicos'
 
 /**
  * Composition root da aplicação.
@@ -26,10 +38,31 @@ export interface ClienteIntegracao<TResposta> {
   consultar(entrada: string): Promise<TResposta>
 }
 
+/**
+ * Conjunto completo das portas de serviço. Quem implementa cada módulo entrega
+ * a instância ao container; o ED só recebe o provedor já ligado e delega nos
+ * handlers — nunca instancia serviço nem implementa regra de negócio.
+ */
+export interface ProvedorServicos {
+  readonly categorias: PortaServicoCategorias
+  readonly equipamentos: PortaServicoEquipamentos
+  readonly clientes: PortaServicoClientes
+  readonly fornecedores: PortaServicoFornecedores
+  readonly reservas: PortaServicoReservas
+  readonly devolucoes: PortaServicoDevolucoes
+  readonly pagamentos: PortaServicoPagamentos
+  readonly manutencoes: PortaServicoManutencoes
+  readonly usuarios: PortaServicoUsuarios
+  readonly integracoes: PortaServicoIntegracoes
+}
+
+export type NomeServico = keyof ProvedorServicos
+
 type FabricaRepositorio<T> = (db: DatabaseSync) => Repositorio<T>
 
 export class ContainerAplicacao {
   private readonly repositorios = new Map<string, FabricaRepositorio<unknown>>()
+  private readonly servicos = new Map<NomeServico, unknown>()
 
   constructor(private readonly db: DatabaseSync) {}
 
@@ -53,7 +86,61 @@ export class ContainerAplicacao {
     return fabrica(this.db) as Repositorio<T>
   }
 
+  /**
+   * Registra uma porta de serviço isolada. O dono do módulo chama isto ao ligar
+   * seu `Servico<Entidade>`; o ED não implementa serviços.
+   */
+  registrarServico<T extends NomeServico>(nome: T, servico: ProvedorServicos[T]): void {
+    if (this.servicos.has(nome)) {
+      throw new Error(`Servico duplicado: ${nome}`)
+    }
+    this.servicos.set(nome, servico)
+  }
+
+  /** Recupera a porta tipada para o handler delegar sem conhecer a classe. */
+  obterServico<T extends NomeServico>(nome: T): ProvedorServicos[T] {
+    const servico = this.servicos.get(nome)
+    if (!servico) {
+      throw new Error(`Servico nao registrado: ${nome}`)
+    }
+    return servico as ProvedorServicos[T]
+  }
+
+  /** Atalho para o composition root ligar todas as portas de uma vez. */
+  registrarProvedorServicos(provedor: ProvedorServicos): void {
+    this.registrarServico('categorias', provedor.categorias)
+    this.registrarServico('equipamentos', provedor.equipamentos)
+    this.registrarServico('clientes', provedor.clientes)
+    this.registrarServico('fornecedores', provedor.fornecedores)
+    this.registrarServico('reservas', provedor.reservas)
+    this.registrarServico('devolucoes', provedor.devolucoes)
+    this.registrarServico('pagamentos', provedor.pagamentos)
+    this.registrarServico('manutencoes', provedor.manutencoes)
+    this.registrarServico('usuarios', provedor.usuarios)
+    this.registrarServico('integracoes', provedor.integracoes)
+  }
+
+  /** Provedor completo; falha se algum módulo ainda não foi registrado. */
+  obterProvedorServicos(): ProvedorServicos {
+    return {
+      categorias: this.obterServico('categorias'),
+      equipamentos: this.obterServico('equipamentos'),
+      clientes: this.obterServico('clientes'),
+      fornecedores: this.obterServico('fornecedores'),
+      reservas: this.obterServico('reservas'),
+      devolucoes: this.obterServico('devolucoes'),
+      pagamentos: this.obterServico('pagamentos'),
+      manutencoes: this.obterServico('manutencoes'),
+      usuarios: this.obterServico('usuarios'),
+      integracoes: this.obterServico('integracoes'),
+    }
+  }
+
   get totalRepositorios(): number {
     return this.repositorios.size
+  }
+
+  get totalServicos(): number {
+    return this.servicos.size
   }
 }

@@ -282,3 +282,68 @@ export interface FeriadosListarPayload {
   readonly ano: number
   readonly uf: string
 }
+
+// ---------------------------------------------------------------------------
+// Recursos nativos — payloads e retornos da ponte (somente tipos)
+// ---------------------------------------------------------------------------
+
+/** Extensões dos diálogos, sempre com ponto inicial (ex.: `.csv`). */
+export interface AbrirArquivoPayload {
+  readonly titulo: string
+  readonly extensoes: readonly string[]
+}
+
+export interface ArquivoSelecionado {
+  readonly caminho: string
+  readonly nome: string
+}
+
+export interface SalvarArquivoPayload {
+  readonly titulo: string
+  readonly nomePadrao: string
+  readonly extensoes: readonly string[]
+}
+
+/** O main grava a cópia em `destino`; o renderer já escolheu o caminho. */
+export interface BackupBancoPayload {
+  readonly destino: string
+}
+
+export interface ResultadoBackup {
+  readonly caminho: string
+  readonly bytes: number
+}
+
+/** Restauração é destrutiva: o main valida a origem e protege o banco atual. */
+export interface RestaurarBancoPayload {
+  readonly origem: string
+}
+
+export interface ResultadoRestauracao {
+  readonly caminho: string
+  readonly bytes: number
+}
+
+export type CelulaCsv = string | number | null
+
+/** `linhas` não inclui cabeçalho; ele vem de `colunas`. */
+export interface ExportarCsvPayload {
+  readonly nomeArquivo: string
+  readonly colunas: readonly string[]
+  readonly linhas: readonly (readonly CelulaCsv[])[]
+}
+
+/** A regra que identifica atrasos mora no serviço de devoluções; aqui vai só o aviso. */
+export interface NotificacaoDevolucaoAtrasoPayload {
+  readonly quantidade: number
+  readonly detalhes: string | null
+}
+
+export interface SafeStorageCifrarPayload {
+  readonly texto: string
+}
+
+export interface SafeStorageDecifrarPayload {
+  /** Texto cifrado em base64, como devolvido por `safeStorage`. */
+  readonly textoCifrado: string
+}

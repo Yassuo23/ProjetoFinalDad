@@ -78,6 +78,17 @@ export const CANAIS = {
   climaPrevisao: 'integracoes:clima-previsao',
   cnpjBuscar: 'integracoes:cnpj-buscar',
   feriadosListar: 'integracoes:feriados-listar',
+
+  // Recursos nativos (implementação/adapters do ED no main)
+  nativoAbrirArquivo: 'nativo:abrir-arquivo',
+  nativoSalvarArquivo: 'nativo:salvar-arquivo',
+  nativoBackupBanco: 'nativo:backup-banco',
+  nativoRestaurarBanco: 'nativo:restaurar-banco',
+  nativoExportarCsv: 'nativo:exportar-csv',
+  nativoNotificarDevolucaoAtraso: 'nativo:notificar-devolucao-atraso',
+  nativoSafeStorageDisponivel: 'nativo:safe-storage-disponivel',
+  nativoSafeStorageCifrar: 'nativo:safe-storage-cifrar',
+  nativoSafeStorageDecifrar: 'nativo:safe-storage-decifrar',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

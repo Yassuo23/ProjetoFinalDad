@@ -1,6 +1,8 @@
 ﻿import type {
   AppInfo,
+  ArquivoSelecionado,
   Categoria,
+  CelulaCsv,
   Cliente,
   Devolucao,
   EnderecoViaCep,
@@ -12,10 +14,36 @@
   Pagamento,
   PingPayload,
   PrevisaoClima,
+  ResultadoBackup,
+  ResultadoRestauracao,
   Reserva,
   Usuario,
   ValorMulta,
 } from './modelos'
+
+/**
+ * Um método por canal nativo. O preload implementa cada um como função
+ * específica; nenhum `invoke` genérico é exposto ao renderer.
+ */
+export interface ApiRecursosNativos {
+  abrirArquivo(titulo: string, extensoes: readonly string[]): Promise<ArquivoSelecionado | null>
+  salvarArquivo(
+    titulo: string,
+    nomePadrao: string,
+    extensoes: readonly string[],
+  ): Promise<string | null>
+  backupBanco(destino: string): Promise<ResultadoBackup>
+  restaurarBanco(origem: string): Promise<ResultadoRestauracao>
+  exportarCsv(
+    nomeArquivo: string,
+    colunas: readonly string[],
+    linhas: readonly (readonly CelulaCsv[])[],
+  ): Promise<string | null>
+  notificarDevolucaoAtraso(quantidade: number, detalhes: string | null): Promise<void>
+  safeStorageDisponivel(): Promise<boolean>
+  safeStorageCifrar(texto: string): Promise<string | null>
+  safeStorageDecifrar(textoCifrado: string): Promise<string | null>
+}
 
 /** Contrato único da ponte renderer → main. */
 export interface ApiZenite {
@@ -153,6 +181,9 @@ export interface ApiZenite {
     buscarCnpj?(cnpj: string): Promise<DadosCnpj>
     feriados?(ano: number, uf: string): Promise<Feriado[]>
   }
+
+  /** Opcional até o ED publicar as funções no preload. */
+  nativo?: ApiRecursosNativos
 }
 
 declare global {

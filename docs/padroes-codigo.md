@@ -24,7 +24,9 @@ renderer (TS puro) → preload → IPC (canal + schema) → handler → serviço
 - Acesso a dados vive em classe (`class RepositorioX`) com `DatabaseSync` injetado pelo
   `ContainerAplicacao`.
 - Handlers são funções finas registradas via `RegistroIpc`: validam com schema Zod e delegam.
-- Interfaces de porta (`Repositorio<T>`, `ClienteIntegracao<T>`) ficam em `src/main/nucleo/`.
+- Interfaces de porta de infraestrutura (`Repositorio<T>`, `ClienteIntegracao<T>`) ficam em
+  `src/main/nucleo/`; portas de serviço (`PortaServico<Modulo>`) ficam em
+  `src/shared/contratos/servicos.ts` e contêm somente tipos (ADR 0007).
 - `readonly` por padrão em DTO e parâmetro de construtor; `private readonly` para dependências.
 - Nomes: `Servico<Entidade>`, `Repositorio<Entidade>`, `Erro<Motivo>`, `Criar<Entidade>Payload`.
 - Sem `any` (R7): valor externo é `unknown` até Zod ou type guard confirmar o tipo.
@@ -55,7 +57,7 @@ src/
 │   ├── janelas/ e seguranca/  # ED
 ├── preload/index.ts           # ED
 ├── renderer/src/              # FE: nucleo/, componentes/, layout/, paginas/, servicos/
-└── shared/contratos/          # AS: canais, modelos, esquemas, api
+└── shared/contratos/          # AS: canais, modelos, esquemas, api, servicos (tipos)
 ```
 
 ## Regras de ouro

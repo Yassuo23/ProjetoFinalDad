@@ -23,6 +23,9 @@ const textoOpcional = z.string().trim().nullable()
 const dataIso = z.iso.datetime()
 const valorMonetario = z.number().finite().nonnegative()
 
+/** Canal de operação por id — usado por obter/excluir/confirmar/baixar etc. */
+export const esquemaId = z.object({ id })
+
 const estadoEquipamento = z.enum(['otimo', 'bom', 'regular', 'em_manutencao', 'baixado'])
 const perfilUsuario = z.enum(['administrador', 'atendente', 'visualizador'])
 const formaPagamento = z.enum(['dinheiro', 'pix', 'cartao', 'boleto'])
@@ -194,6 +197,54 @@ export const esquemaFeriadosListar = z.object({
   ano: z.number().int().min(2000).max(2100),
   uf: z.string().trim().length(2).toUpperCase(),
 })
+
+// ---------------------------------------------------------------------------
+// --- recursos nativos (main decide; preload só transporta) ---
+// ---------------------------------------------------------------------------
+
+const nomeArquivoSeguro = z.string().trim().min(1).max(120).regex(/^[^\\/:*?"<>|]+$/)
+const extensoesArquivo = z.array(z.string().regex(/^\.[a-z0-9]+$/i)).min(1).max(10)
+const caminhoBanco = z.string().trim().min(1).max(260).regex(/\.db$/i)
+const textoCifrado = z
+  .string()
+  .trim()
+  .min(4)
+  .max(8192)
+  .regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Texto cifrado deve estar em base64')
+
+export const esquemaAbrirArquivo = z.object({
+  titulo: textoObrigatorio.max(80),
+  extensoes: extensoesArquivo,
+})
+
+export const esquemaSalvarArquivo = z.object({
+  titulo: textoObrigatorio.max(80),
+  nomePadrao: nomeArquivoSeguro,
+  extensoes: extensoesArquivo,
+})
+
+export const esquemaBackupBanco = z.object({ destino: caminhoBanco })
+
+export const esquemaRestaurarBanco = z.object({ origem: caminhoBanco })
+
+export const esquemaExportarCsv = z.object({
+  nomeArquivo: nomeArquivoSeguro.regex(/\.csv$/i, 'Nome deve terminar em .csv'),
+  colunas: z.array(textoObrigatorio.max(80)).min(1).max(40),
+  linhas: z
+    .array(z.array(z.union([z.string().max(1000), z.number().finite(), z.null()])).max(40))
+    .max(5000),
+})
+
+export const esquemaNotificacaoDevolucaoAtraso = z.object({
+  quantidade: z.number().int().positive(),
+  detalhes: z.string().trim().max(240).nullable(),
+})
+
+export const esquemaSafeStorageCifrar = z.object({
+  texto: z.string().min(1).max(4096),
+})
+
+export const esquemaSafeStorageDecifrar = z.object({ textoCifrado })
 
 // ---------------------------------------------------------------------------
 // --- schema de erro (formato único da ponte) ---
