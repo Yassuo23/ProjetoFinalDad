@@ -519,3 +519,70 @@ dd {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.form-pagamento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.form-pagamento label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--verde-floresta);
+}
+
+.form-pagamento select,
+.form-pagamento input {
+  border: 1px solid rgba(140, 154, 165, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  background: #fff;
+  color: var(--grafite);
+}
+
+.dica {
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.lista-pagamentos {
+  display: grid;
+  gap: 10px;
+}
+
+.item-pagamento {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(140, 154, 165, 0.35);
+  border-radius: 8px;
+}
+
+.item-pagamento p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.item-pagamento strong {
+  color: var(--verde-floresta);
+}
+
+.status-pago {
+  color: #1d6b3a;
+}
+
+.status-estornado {
+  color: #8b2b20;
+}
+
+.acoes-pagamento {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}

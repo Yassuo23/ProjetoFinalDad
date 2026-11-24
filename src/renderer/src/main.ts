@@ -3,6 +3,7 @@ import { montarCategorias } from './paginas/Categorias'
 import { montarClientes } from './paginas/Clientes'
 import { montarDevolucoes } from './paginas/Devolucoes'
 import { montarEquipamentos } from './paginas/Equipamentos'
+import { montarPagamentos } from './paginas/Pagamentos'
 import { montarReservas } from './paginas/Reservas'
 
 const root = document.querySelector<HTMLDivElement>('#app')
@@ -72,6 +73,11 @@ root.innerHTML = `
           <h2>Devoluções</h2>
           <div id="devolucoes"></div>
         </article>
+
+        <article class="card card-larga">
+          <h2>Pagamentos</h2>
+          <div id="pagamentos"></div>
+        </article>
       </div>
 
       <button id="docs-button" class="button" type="button">Abrir documentação do Electron ↗</button>
@@ -87,6 +93,7 @@ const equipamentos = document.querySelector<HTMLElement>('#equipamentos')
 const clientes = document.querySelector<HTMLElement>('#clientes')
 const reservas = document.querySelector<HTMLElement>('#reservas')
 const devolucoes = document.querySelector<HTMLElement>('#devolucoes')
+const pagamentos = document.querySelector<HTMLElement>('#pagamentos')
 
 if (
   !appInfo ||
@@ -96,7 +103,8 @@ if (
   !equipamentos ||
   !clientes ||
   !reservas ||
-  !devolucoes
+  !devolucoes ||
+  !pagamentos
 ) {
   throw new Error('Failed to render the application shell')
 }
@@ -106,6 +114,7 @@ montarEquipamentos(equipamentos)
 montarClientes(clientes)
 montarReservas(reservas)
 montarDevolucoes(devolucoes)
+montarPagamentos(pagamentos)
 
 window.electronAPI
   .appInfo()
