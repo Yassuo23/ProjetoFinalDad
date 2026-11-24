@@ -92,12 +92,23 @@ export class BackupServico implements ServicoBackup {
     const confirmado = await this.arquivos.confirmar(MENSAGEM_CONFIRMACAO)
     if (!confirmado) return { caminho: null, bytes: 0 }
 
+    let precisaReabrir = false
     try {
       this.ciclo.fechar()
+      precisaReabrir = true
       const bytes = await this.arquivos.copiar(caminho, this.ciclo.caminhoArquivo())
       this.ciclo.solicitarReabertura()
+      precisaReabrir = false
       return { caminho, bytes }
     } catch (erro) {
+      // Depois de fechar, a conexão e os repositórios só voltam no boot.
+      if (precisaReabrir) {
+        try {
+          this.ciclo.solicitarReabertura()
+        } catch {
+          // O pedido de reinício é best-effort; o erro original continua valendo.
+        }
+      }
       if (erro instanceof ErroDeDominio) throw erro
       throw new ErroDeDominio('BACKUP_FALHOU', 'Não foi possível restaurar o backup.')
     }

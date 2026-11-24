@@ -183,7 +183,7 @@ describe('BackupServico — restaurar', () => {
     expect(ciclo.solicitarReabertura).not.toHaveBeenCalled()
   })
 
-  it('converte falha de cópia em BACKUP_FALHOU sem pedir reabertura', async () => {
+  it('pede reabertura e devolve BACKUP_FALHOU quando a cópia falha após fechar', async () => {
     const origem = path.join(diretorios[1] ?? '', 'backup.db')
     writeFileSync(origem, 'dados do backup')
     const ciclo = cicloFalso()
@@ -195,6 +195,30 @@ describe('BackupServico — restaurar', () => {
       codigo: 'BACKUP_FALHOU',
       message: 'BACKUP_FALHOU',
     })
-    expect(ciclo.solicitarReabertura).not.toHaveBeenCalled()
+    expect(ciclo.fechar).toHaveBeenCalledTimes(1)
+    expect(arquivos.copiar).toHaveBeenCalledTimes(1)
+    expect(ciclo.solicitarReabertura).toHaveBeenCalledTimes(1)
+    expect(arquivos.copiar.mock.invocationCallOrder[0]).toBeLessThan(
+      ciclo.solicitarReabertura.mock.invocationCallOrder[0] ?? 0,
+    )
+  })
+
+  it('mantém BACKUP_FALHOU se o pedido de reinício também falhar', async () => {
+    const origem = path.join(diretorios[1] ?? '', 'outro.db')
+    writeFileSync(origem, 'dados do backup')
+    const ciclo = cicloFalso()
+    const arquivos = arquivosFalso()
+    arquivos.copiar.mockRejectedValueOnce(new Error('erro de disco'))
+    ciclo.solicitarReabertura.mockImplementationOnce(() => {
+      throw new Error('falha ao reiniciar')
+    })
+    const servico = new BackupServico(ciclo.porta, arquivos.porta, diretorios)
+
+    await expect(servico.restaurar({ caminho: origem })).rejects.toMatchObject({
+      codigo: 'BACKUP_FALHOU',
+      message: 'BACKUP_FALHOU',
+      mensagem: expect.not.stringContaining('falha ao reiniciar'),
+    })
+    expect(ciclo.solicitarReabertura).toHaveBeenCalledTimes(1)
   })
 })
