@@ -7,7 +7,7 @@ export interface EventoNavegacao {
 export interface NavegacaoWebContents {
   aoNavegar(ouvinte: (evento: EventoNavegacao, url: string) => void): void
   aoNavegarQuadro(ouvinte: (evento: EventoNavegacao, url: string) => void): void
-  aoAbrirJanela(): void
+  aoAbrirJanela(negar: () => { action: 'deny' }): void
 }
 
 /** Só a URL da própria janela pode ser navegada; links externos usam openExternal. */
@@ -26,5 +26,5 @@ export function protegerNavegacao(webContents: NavegacaoWebContents, urlApp: str
     if (!destinoPermitido(destino, urlApp)) evento.preventDefault()
   })
 
-  webContents.aoAbrirJanela()
+  webContents.aoAbrirJanela(() => ({ action: 'deny' }))
 }

@@ -42,7 +42,7 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
       aoNavegar: (ouvinte) => webContents.on('will-navigate', ouvinte),
       aoNavegarQuadro: (ouvinte) =>
         webContents.on('will-frame-navigate', (detalhes) => ouvinte(detalhes, detalhes.url)),
-      aoAbrirJanela: () => webContents.setWindowOpenHandler(() => ({ action: 'deny' })),
+      aoAbrirJanela: (negar) => webContents.setWindowOpenHandler(negar),
     },
     urlAplicacao(isDev, urlDev),
   )

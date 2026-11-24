@@ -44,7 +44,7 @@ rejeita file:///C:/Windows/System32/calc.exe
 `RegistroIpc` converte a exceção em `ErroApi` com código `SEM_PERMISSAO`. O renderer
 recebe apenas a mensagem pública; o detalhe fica no console do main.
 
-Resultado observado: `npm run test` — 12 testes aprovados após esta etapa.
+Resultado observado: `npm run test` — 25 testes aprovados após a suíte completa.
 
 ## Riscos residuais
 
