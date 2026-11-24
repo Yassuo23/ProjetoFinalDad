@@ -1,61 +1,79 @@
 # Zênite — Aluguel Outdoor
 
-Sistema desktop de aluguel de equipamentos outdoor: camping, escalada, ciclismo e trilha.
-Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas explícitas.
+Sistema desktop para locadora de equipamentos outdoor (camping, escalada, ciclismo, caiaque e
+prancha). Electron + TypeScript, com contrato IPC tipado, camadas explícitas e SQLite local.
 
 ## Stack
 
-- **Electron 45** — main process, preload and renderer
-- **TypeScript 7** — strict mode; `tsc` 7 for build, API 6.0 para o ESLint
-- **Vite 8** — renderer dev server with HMR and production bundling
-- **electron-builder** — packaging for Windows, Linux and macOS
-- **Zod** — validação de payload no main (nunca no preload)
+- **Electron 45** (Node 24.22.3 embutido) — main, preload e renderer
+- **TypeScript 7** em `strict` (`typescript7` para build; API 6.0 para o ESLint)
+- **Vite 8** no renderer, **Tailwind CSS v4** pelo plugin oficial (sem CSS próprio)
+- **node:sqlite** (`DatabaseSync`) — sem addon nativo, sem rebuild de ABI
+- **Zod** — validação de payload **somente no main**
+- **Vitest** — testes unitários; **ESLint flat** + **Prettier** — qualidade
 
-## Project structure
+> O renderer é **TypeScript puro, sem React** (decisão do humano, ADR 0006).
 
-```
-.
-├── electron-builder.yml        # Packaging configuration
-├── vite.config.mts             # Renderer dev server / bundler config
-├── tsconfig.base.json          # Shared compiler options
-├── tsconfig.main.json          # Main + shared -> dist/ (CJS)
-├── tsconfig.renderer.json      # Renderer/preload type checking (no emit)
-└── src
-    ├── main/index.ts           # Electron main process (window, menu, IPC handlers)
-    ├── preload/index.ts        # contextBridge API (bundled by esbuild)
-    ├── shared/contratos        # canais, modelos, esquemas (Zod) e api
-    └── renderer
-        ├── index.html
-        └── src
-            ├── main.ts
-            ├── style.css
-            └── vite-env.d.ts
+## Como rodar
+
+```powershell
+npm install
+npm run dev        # watch do main/preload + Vite + Electron com DevTools
+npm run build      # compila main/preload e empacota o renderer em dist/
+npm start          # roda o build atual
+npm run dist       # instaladores em release/
 ```
 
-## Scripts
+Gates de todo commit:
 
-| Command             | Description                                                    |
-| ------------------- | -------------------------------------------------------------- |
-| `npm run dev`       | Watch TypeScript, start Vite and launch Electron with DevTools |
-| `npm run build`     | Compile main/preload and bundle the renderer into `dist/`      |
-| `npm start`         | Run the built application                                      |
-| `npm run typecheck` | Type check the renderer without emitting files                 |
-| `npm run dist`      | Build and create installers in `release/`                      |
+```powershell
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
 
-## Security defaults
+## Arquitetura
 
-- `contextIsolation: true` and `sandbox: true`
-- `nodeIntegration: false` — the renderer never gets Node access
-- The renderer talks to Electron exclusively through the typed `window.electronAPI` bridge defined in `src/preload/index.ts`
-- A Content Security Policy is set in `src/renderer/index.html` (relax it only where needed)
+```
+renderer (TS puro) → preload → IPC (canal + schema) → handler → serviço → repositório → SQLite
+```
 
-## Adding your own feature
+- `src/shared/contratos/canais.ts` é a **única** fonte de strings de canal (sem imports).
+- `modelos.ts` (tipos), `esquemas.ts` (Zod, nunca no preload), `api.ts` (`ApiZenite`).
+- `src/main/nucleo/` — erros de domínio e `ContainerAplicacao` (composition root).
+- Regra de negócio em serviço; SQL parametrizado em repositório; handler só valida e delega.
+- O banco fica em `app.getPath('userData')/zenite.db`, nunca em `dist/`.
 
-1. Add a channel string to `CANAIS` in `src/shared/contratos/canais.ts`.
-2. Add the payload/return types to `modelos.ts` and the Zod schema to `esquemas.ts`.
-3. Register a handler through `RegistroIpc` in `src/main/ipc/` (validate, then delegate).
-4. Expose a typed function in `src/preload/index.ts` and extend `ApiZenite` in `api.ts`.
-5. Call `window.electronAPI.yourMethod()` from the renderer.
+Decisões e detalhes: `docs/adr/`, `docs/padroes-codigo.md`, `docs/dominio.md`,
+`docs/seguranca.md`.
 
-For main → renderer messages, use `webContents.send(channel, payload)` and expose an
-`onXxx(callback)` subscription from the preload script, like the existing `onPing` example.
+## Mapa de pastas
+
+```
+src/
+├── main/
+│   ├── index.ts              # ED: app, janela, menu, ciclo de vida
+│   ├── nucleo/               # AS: erros, container, portas
+│   ├── banco/                # conexão, migrador, migracoes/
+│   ├── repositorios/         # BD: <modulo>/ (SQL parametrizado)
+│   ├── servicos/             # BE: <modulo>/ (regra de negócio)
+│   ├── integracoes/          # IA: cep/, clima/, cnpj/, feriados/
+│   ├── ipc/                  # RegistroIpc + handlers/<modulo>/
+│   ├── janelas/ e seguranca/ # ED
+├── preload/index.ts          # ED: contextBridge
+├── renderer/src/             # FE: nucleo/, componentes/, layout/, paginas/, servicos/
+└── shared/contratos/         # AS: canais, modelos, esquemas, api
+```
+
+## Donos e contribuição
+
+Sete papéis (AS, ED, BD, BE, IA, UX, FE) com fronteiras em `AGENTS.md` e `CODEOWNERS`.
+Leia `CONTRIBUTING.md` antes de abrir PR: branch própria, um commit por etapa, 4 gates verdes e
+revisão da fundação + dono do módulo.
+
+## Segurança
+
+Isolamento (`sandbox`/`contextIsolation`), validação no main, erro sem detalhe interno e
+CSP rígida em produção. Riscos pendentes de correção pelo ED estão listados em
+`docs/seguranca.md`.
