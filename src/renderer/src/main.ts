@@ -2,6 +2,7 @@ import './style.css'
 import { montarCategorias } from './paginas/Categorias'
 import { montarClientes } from './paginas/Clientes'
 import { montarEquipamentos } from './paginas/Equipamentos'
+import { montarReservas } from './paginas/Reservas'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
@@ -60,6 +61,11 @@ root.innerHTML = `
           <h2>Clientes</h2>
           <div id="clientes"></div>
         </article>
+
+        <article class="card card-larga">
+          <h2>Reservas</h2>
+          <div id="reservas"></div>
+        </article>
       </div>
 
       <button id="docs-button" class="button" type="button">Abrir documentação do Electron ↗</button>
@@ -73,14 +79,24 @@ const docsButton = document.querySelector<HTMLButtonElement>('#docs-button')
 const categorias = document.querySelector<HTMLElement>('#categorias')
 const equipamentos = document.querySelector<HTMLElement>('#equipamentos')
 const clientes = document.querySelector<HTMLElement>('#clientes')
+const reservas = document.querySelector<HTMLElement>('#reservas')
 
-if (!appInfo || !pingStatus || !docsButton || !categorias || !equipamentos || !clientes) {
+if (
+  !appInfo ||
+  !pingStatus ||
+  !docsButton ||
+  !categorias ||
+  !equipamentos ||
+  !clientes ||
+  !reservas
+) {
   throw new Error('Failed to render the application shell')
 }
 
 montarCategorias(categorias)
 montarEquipamentos(equipamentos)
 montarClientes(clientes)
+montarReservas(reservas)
 
 window.electronAPI
   .appInfo()
