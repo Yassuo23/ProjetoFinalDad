@@ -6,12 +6,18 @@ import {
   esquemaEquipamentoInativar,
   esquemaEquipamentoListar,
   esquemaEquipamentoListarDisponiveis,
+  esquemaVerificarDisponibilidade,
 } from '../../../shared/contratos/esquemas'
+import type { ServicoDisponibilidade } from '../../servicos/DisponibilidadeServico'
 import type { ServicoEquipamentos } from '../../servicos/EquipamentoServico'
 import type { RegistroIpc } from '../RegistroIpc'
 
 /** Handlers finos: validam pelo schema e delegam. Nenhuma regra nem SQL aqui. */
-export function registrarEquipamentos(registro: RegistroIpc, servico: ServicoEquipamentos): void {
+export function registrarEquipamentos(
+  registro: RegistroIpc,
+  servico: ServicoEquipamentos,
+  disponibilidade: ServicoDisponibilidade,
+): void {
   registro.registrar(CANAIS.equipamentosListar, esquemaEquipamentoListar, async (filtros) =>
     servico.listar(filtros ?? {}),
   )
@@ -42,5 +48,11 @@ export function registrarEquipamentos(registro: RegistroIpc, servico: ServicoEqu
     CANAIS.equipamentosListarDisponiveis,
     esquemaEquipamentoListarDisponiveis,
     async (periodo) => servico.listarDisponiveis(periodo),
+  )
+
+  registro.registrar(
+    CANAIS.equipamentosVerificarDisponibilidade,
+    esquemaVerificarDisponibilidade,
+    async (entrada) => disponibilidade.verificar(entrada),
   )
 }

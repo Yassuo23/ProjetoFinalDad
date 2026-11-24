@@ -6,7 +6,9 @@ import type { AppInfo } from '../../../shared/contratos/modelos'
 import { CategoriaRepositorio } from '../../repositorios/CategoriaRepositorio'
 import { ClienteRepositorio } from '../../repositorios/ClienteRepositorio'
 import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
+import { ReservaRepositorio } from '../../repositorios/ReservaRepositorio'
 import { urlExternaPermitida } from '../../seguranca/UrlsExternas'
+import { DisponibilidadeServico } from '../../servicos/DisponibilidadeServico'
 import { CepServico } from '../../servicos/CepServico'
 import { ClienteServico } from '../../servicos/ClienteServico'
 import { ErroDeDominio } from '../../servicos/ErroDominio'
@@ -42,10 +44,14 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
   const categorias = new CategoriaRepositorio(db)
   const clientes = new ClienteRepositorio(db)
 
+  const equipamentos = new EquipamentoRepositorio(db)
+  const disponibilidade = new DisponibilidadeServico(new ReservaRepositorio(db), equipamentos)
+
   registrarCategorias(registro, new CategoriaServico(categorias))
   registrarClientes(registro, new ClienteServico(clientes), new CepServico())
   registrarEquipamentos(
     registro,
-    new EquipamentoServico(new EquipamentoRepositorio(db), categorias),
+    new EquipamentoServico(equipamentos, categorias, disponibilidade),
+    disponibilidade,
   )
 }
