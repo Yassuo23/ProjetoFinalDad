@@ -11,7 +11,7 @@ pastas fechadas (ADR 0018 e tabela no `AGENTS.md`); ninguém edita módulo de ou
 | `especialista-desktop` (ED) | main, preload, janela, hardening, build; expõe a ponte e as portas nativas |
 | `backend` | serviços POO, handlers finos e ligação no composition root |
 | `database` | repositórios parametrizados e migrações `NNN-*.ts` de módulo |
-| `frontend` | uma função `montarX` por módulo, TypeScript puro e CSS externo |
+| `frontend` | uma função `montarX` por módulo, TypeScript puro e utilitários Tailwind v4 |
 | `qa` | gates, testes, smoke e riscos residuais |
 | `integrador` | PRs, branches, documentação e defesa |
 

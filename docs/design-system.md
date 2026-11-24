@@ -6,6 +6,11 @@
 - **Dono:** UI/UX Designer (UX)
 - **Implementação:** `frontend-developer` — somente utilitários Tailwind v4 (ADR 0004)
 
+> Após a integração com `origin/main`, a governança de sete agentes (ADR 0018) absorve os papéis
+> de UI/UX Designer e `frontend-developer` no `frontend` (FE). Os arquivos
+> `.opencode/agents/ui-ux-designer.md` e `.opencode/agents/frontend-developer.md` ficam como
+> referência de especialidade; o dono único do renderer é o `frontend`.
+
 Este documento é a fonte única de identidade visual. Ele não contém lógica TypeScript nem CSS
 de autoria: os únicos trechos de CSS são os tokens do `@theme`, que o FE cola na entrada do
 Tailwind. Toda classe listada abaixo deve ser copiada **por extenso** para constantes tipadas

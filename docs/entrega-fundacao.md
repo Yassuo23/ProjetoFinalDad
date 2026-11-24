@@ -21,11 +21,12 @@ sem rebase e sem reescrita de histórico.
 | Hardening: instância única, menu/atalhos, permissões negadas, verificação de origem IPC, transporte `net.fetch` com timeout | ADR 0020, `d419e55`, `6edbcea`, `5ea54ad` |
 | Arquivos nativos: diálogos, backup/restauração, exportação CSV com escape | ADR 0019, `07699ff`, `8c6348d`, `14e7adc`, `9a82ae9`, `59f851e`, `4cfe921` |
 | Segurança documentada com evidências de teste | `docs/seguranca.md`, `88d34dc` |
+| Integração com `origin/main`: Tailwind v4, design system, shell/router e dashboard do upstream, mantendo backend/contratos locais | merge `3503f19`, ADR 0004, `docs/design-system.md`, `docs/telas.md` |
 
 ## Verificação
 
-- `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` — verdes no último commit
-  conferido: **39 arquivos / 187 testes** (antes da tela de arquivos).
+- `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` — verdes no merge `3503f19`:
+  **39 arquivos / 187 testes**.
 - `dist/preload/index.js` com único `require("electron")`; nenhum `require("../shared/...")`.
 - CSP de produção em `dist/renderer/index.html` sem `'unsafe-inline'`, `'unsafe-eval'` ou `ws:`.
 - Smoke real no Electron (fundação): janela aberta, banco criado no `userData`, canais de
@@ -41,7 +42,7 @@ sem rebase e sem reescrita de histórico.
 | `especialista-desktop` (ED) | main, preload, janela, hardening e build |
 | `backend` | serviços POO e handlers finos |
 | `database` | repositórios parametrizados e migrações de módulo |
-| `frontend` | renderer TypeScript puro e CSS |
+| `frontend` | renderer TypeScript puro e utilitários Tailwind v4 |
 | `qa` | gates, testes, smoke e riscos |
 | `integrador` | PRs, branches, documentação e defesa |
 

@@ -36,7 +36,8 @@ Permissões de dispositivo (câmera, microfone, notificações) são negadas por
 - **Desenvolvimento:** `'unsafe-inline'` e `ws:` são necessários para Vite HMR e DevTools; só
   valem quando `NODE_ENV=development`.
 - Verificação de release: `dist/renderer/index.html` não pode conter os tokens de dev.
-- Estilos vivem em `src/renderer/src/style.css`; nenhum atributo `style=` inline.
+- Estilos vivem em utilitários Tailwind v4 em `src/renderer/src/**/*.ts`, com tokens no `@theme`
+  de `src/renderer/src/tailwind.css` (ADR 0004); não há CSS próprio nem atributo `style=` inline.
 
 ## 4. Links externos
 

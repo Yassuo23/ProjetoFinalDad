@@ -26,7 +26,7 @@
 
 # Frontend — renderer puro (ADR 0012)
 /src/renderer/                @willcotil
-/index.html                   @willcotil
+/src/renderer/index.html      @willcotil
 
 # QA e Integração
 *.test.ts                     @willcotil
