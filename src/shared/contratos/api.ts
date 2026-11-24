@@ -14,6 +14,11 @@ import type {
   EquipamentoDisponiveisEntrada,
   EquipamentoListarFiltros,
   PingPayload,
+  PrevisaoTempo,
+  PrevisaoTempoEntrada,
+  Reserva,
+  ReservaCriarEntrada,
+  ReservasListarFiltros,
   VerificarDisponibilidadeEntrada,
 } from './modelos'
 
@@ -41,6 +46,14 @@ export interface ApiZenite {
     verificarDisponibilidade(
       entrada: VerificarDisponibilidadeEntrada,
     ): Promise<DisponibilidadeResultado>
+  }
+  reservas: {
+    listar(filtros?: ReservasListarFiltros): Promise<Reserva[]>
+    buscarPorId(id: number): Promise<Reserva>
+    criar(dados: ReservaCriarEntrada): Promise<Reserva>
+    confirmar(id: number): Promise<Reserva>
+    cancelar(id: number): Promise<void>
+    previsaoTempo(entrada: PrevisaoTempoEntrada): Promise<PrevisaoTempo>
   }
 }
 

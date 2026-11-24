@@ -22,6 +22,12 @@ export const CANAIS = {
   equipamentosInativar: 'equipamentos:inativar',
   equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
   equipamentosVerificarDisponibilidade: 'equipamentos:verificar-disponibilidade',
+  reservasListar: 'reservas:listar',
+  reservasBuscarPorId: 'reservas:buscar-por-id',
+  reservasCriar: 'reservas:criar',
+  reservasConfirmar: 'reservas:confirmar',
+  reservasCancelar: 'reservas:cancelar',
+  reservasPrevisaoTempo: 'reservas:previsao-tempo',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

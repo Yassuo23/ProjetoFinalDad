@@ -153,6 +153,44 @@ export interface Reserva {
   inicio: string
   fim: string
   status: StatusReserva
+  /** Local da atividade — base da previsão do tempo (P5). */
+  localAtividade: string | null
+  criadoEm: string
+}
+
+export interface ReservasListarFiltros {
+  clienteId?: number
+  equipamentoId?: number
+  status?: StatusReserva
+}
+
+export interface ReservaCriarEntrada {
+  clienteId: number
+  equipamentoId: number
+  inicio: string
+  fim: string
+  localAtividade: string
+}
+
+export interface PrevisaoTempoEntrada {
+  local: string
+  inicio: string
+  fim: string
+}
+
+export interface PrevisaoDia {
+  data: string
+  temperaturaMin: number
+  temperaturaMax: number
+  precipitacaoMm: number
+  descricao: string
+}
+
+export interface PrevisaoTempo {
+  local: string
+  latitude: number
+  longitude: number
+  dias: PrevisaoDia[]
 }
 
 /**
@@ -172,6 +210,10 @@ export type CodigoErroDominio =
   | 'EMAIL_DUPLICADO'
   | 'CEP_INVALIDO'
   | 'CEP_NAO_ENCONTRADO'
+  | 'RESERVA_NAO_ENCONTRADA'
+  | 'RESERVA_JA_CONFIRMADA'
+  | 'LOCAL_NAO_ENCONTRADO'
+  | 'PREVISAO_INDISPONIVEL'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio

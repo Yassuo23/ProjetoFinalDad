@@ -62,6 +62,36 @@ export const esquemaVerificarDisponibilidade = z
   })
   .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
 
+// P5 — Reservas e clima
+
+export const esquemaReservaListar = z
+  .object({
+    clienteId: z.number().int().positive().optional(),
+    equipamentoId: z.number().int().positive().optional(),
+    status: z.enum(['pendente', 'confirmada', 'cancelada', 'concluida']).optional(),
+  })
+  .optional()
+
+export const esquemaReservaId = esquemaId
+
+export const esquemaReservaCriar = z
+  .object({
+    clienteId: z.number().int().positive(),
+    equipamentoId: z.number().int().positive(),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+    localAtividade: z.string().trim().min(1).max(120),
+  })
+  .refine((reserva) => reserva.inicio < reserva.fim, { message: 'PERIODO_INVALIDO' })
+
+export const esquemaReservaPrevisao = z
+  .object({
+    local: z.string().trim().min(1).max(120),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+  })
+  .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
+
 // P2 — Clientes e CEP
 
 /** Aceita 01001-000 e 01001000; a normalização para dígitos é do serviço no main. */
