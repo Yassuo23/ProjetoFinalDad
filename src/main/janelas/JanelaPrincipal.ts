@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { BrowserWindow } from 'electron'
+import { protegerNavegacao } from '../seguranca/NavegacaoSegura'
 
 const LARGURA_INICIAL = 1200
 const ALTURA_INICIAL = 800
@@ -35,6 +36,17 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
     },
   })
 
+  const webContents = janela.webContents
+  protegerNavegacao(
+    {
+      aoNavegar: (ouvinte) => webContents.on('will-navigate', ouvinte),
+      aoNavegarQuadro: (ouvinte) =>
+        webContents.on('will-frame-navigate', (detalhes) => ouvinte(detalhes, detalhes.url)),
+      aoAbrirJanela: () => webContents.setWindowOpenHandler(() => ({ action: 'deny' })),
+    },
+    urlAplicacao(isDev, urlDev),
+  )
+
   if (isDev && urlDev) {
     void janela.loadURL(urlDev)
   } else {
@@ -42,5 +54,6 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
   }
 
   janela.once('ready-to-show', () => janela.show())
+  if (isDev) webContents.openDevTools({ mode: 'detach' })
   return janela
 }

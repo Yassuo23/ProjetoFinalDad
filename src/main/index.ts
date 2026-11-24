@@ -10,6 +10,8 @@ import { RegistroIpc } from './ipc/RegistroIpc'
 import { criarJanelaPrincipal, urlAplicacao } from './janelas/JanelaPrincipal'
 import { criarMenuAplicacao } from './janelas/MenuAplicacao'
 import { ContainerAplicacao } from './nucleo/ContainerAplicacao'
+import { aplicarCsp } from './seguranca/CspMain'
+import { negarPermissoesDispositivo } from './seguranca/Permissoes'
 import { origemIpcConfiavel } from './seguranca/OrigemIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -41,6 +43,8 @@ if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
   app.whenReady().then(() => {
+    aplicarCsp(isDev)
+    negarPermissoesDispositivo()
     iniciarBanco()
     if (!conexaoBanco) throw new Error('Falha ao abrir o banco local.')
 

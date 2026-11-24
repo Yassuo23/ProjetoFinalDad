@@ -20,7 +20,7 @@ function eEvento(valor: unknown): valor is EventoIpc {
 }
 
 /** Compara origem e caminho, ignorando query/hash do HMR. */
-function chaveUrl(valor: string): string | null {
+export function chaveUrl(valor: string): string | null {
   try {
     const url = new URL(valor)
     if (url.protocol === 'file:') return `file:${url.pathname}`
