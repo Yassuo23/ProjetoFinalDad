@@ -24,11 +24,15 @@ export class DisponibilidadeServico implements ServicoDisponibilidade {
   ) {}
 
   verificar(entrada: VerificarDisponibilidadeEntrada): DisponibilidadeResultado {
-    if (!this.equipamentos.buscarPorId(entrada.equipamentoId)) {
+    const equipamento = this.equipamentos.buscarPorId(entrada.equipamentoId)
+    if (!equipamento) {
       return { disponivel: false, motivo: 'EQUIPAMENTO_NAO_ENCONTRADO' }
     }
     if (entrada.inicio >= entrada.fim) {
       return { disponivel: false, motivo: 'PERIODO_INVALIDO' }
+    }
+    if (equipamento.estado !== 'disponivel') {
+      return { disponivel: false, motivo: 'ITEM_INDISPONIVEL' }
     }
     if (this.reservas.existeSobreposicao(entrada.equipamentoId, entrada.inicio, entrada.fim)) {
       return { disponivel: false, motivo: 'ITEM_INDISPONIVEL' }

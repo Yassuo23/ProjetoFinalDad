@@ -93,6 +93,18 @@ describe('DisponibilidadeServico', () => {
     expect(existeSobreposicao).toHaveBeenCalledWith(1, PERIODO.inicio, PERIODO.fim)
   })
 
+  it('devolve ITEM_INDISPONIVEL para equipamento em manutenção sem sobreposição', () => {
+    const { repositorio, existeSobreposicao } = reservasFalso()
+    const emManutencao: Equipamento = { ...tenda, estado: 'em_manutencao' }
+    const servico = new DisponibilidadeServico(repositorio, equipamentosFalso([emManutencao]))
+
+    expect(servico.verificar({ equipamentoId: 1, ...PERIODO })).toEqual({
+      disponivel: false,
+      motivo: 'ITEM_INDISPONIVEL',
+    })
+    expect(existeSobreposicao).not.toHaveBeenCalled()
+  })
+
   it('devolve disponível quando não há equipamento inexistente, período invertido ou reserva', () => {
     const { repositorio } = reservasFalso()
     const servico = new DisponibilidadeServico(repositorio, equipamentosFalso())
