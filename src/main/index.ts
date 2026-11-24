@@ -1,16 +1,19 @@
+import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
-import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esquemas'
-import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
-import { RegistroIpc } from './ipc/RegistroIpc'
+import type { PingPayload } from '../shared/contratos/modelos'
 import { ConexaoBanco } from './banco/ConexaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
+import { registrarHandlers } from './ipc/handlers'
+import { RegistroIpc } from './ipc/RegistroIpc'
+import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
+import { criarMenuAplicacao } from './janelas/MenuAplicacao'
+import { ContainerAplicacao } from './nucleo/ContainerAplicacao'
 
 const isDev = process.env.NODE_ENV === 'development'
 
-let mainWindow: BrowserWindow | null = null
+let janelaPrincipal: BrowserWindow | null = null
 let conexaoBanco: ConexaoBanco | null = null
 
 function iniciarBanco(): void {
@@ -19,104 +22,54 @@ function iniciarBanco(): void {
   new Migrador(conexaoBanco.db, MIGRACOES).aplicarPendentes()
 }
 
-function createWindow(): void {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    show: false,
-    title: app.getName(),
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  })
-
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-    mainWindow.webContents.openDevTools({ mode: 'detach' })
-  } else {
-    void mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
-  }
-
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
-  mainWindow.on('closed', () => {
-    mainWindow = null
-  })
-}
-
-function obterAppInfo(): AppInfo {
-  return {
-    name: app.getName(),
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    node: process.versions.node,
-    platform: process.platform,
-    arch: process.arch,
-  }
-}
-
-function registerIpcHandlers(): void {
-  const registro = new RegistroIpc(ipcMain)
-
-  registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
-
-  registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url) => {
-    await shell.openExternal(url)
-  })
-}
-
-function sendPing(): void {
+function enviarPing(): void {
   const payload: PingPayload = {
     message: 'Ping from the main process',
     timestamp: Date.now(),
   }
-  mainWindow?.webContents.send(CANAIS.ping, payload)
+  janelaPrincipal?.webContents.send(CANAIS.ping, payload)
 }
 
-function buildApplicationMenu(): void {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        { label: 'Send Ping', click: () => sendPing() },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { type: 'separator' },
-        { role: 'toggleDevTools' },
-      ],
-    },
-  ]
-
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+function focarJanela(): void {
+  if (!janelaPrincipal) return
+  if (janelaPrincipal.isMinimized()) janelaPrincipal.restore()
+  janelaPrincipal.focus()
 }
 
-app.whenReady().then(() => {
-  iniciarBanco()
-  registerIpcHandlers()
-  buildApplicationMenu()
-  createWindow()
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.whenReady().then(() => {
+    iniciarBanco()
+    if (!conexaoBanco) throw new Error('Falha ao abrir o banco local.')
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    const container = new ContainerAplicacao(conexaoBanco.db)
+    const registro = new RegistroIpc(ipcMain)
+    registrarHandlers(registro, container)
+
+    criarMenuAplicacao(isDev, enviarPing)
+    janelaPrincipal = criarJanelaPrincipal(isDev, process.env.VITE_DEV_SERVER_URL)
+    janelaPrincipal.on('closed', () => {
+      janelaPrincipal = null
+    })
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        janelaPrincipal = criarJanelaPrincipal(isDev, process.env.VITE_DEV_SERVER_URL)
+      } else {
+        focarJanela()
+      }
+    })
   })
+}
+
+app.on('second-instance', () => focarJanela())
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('before-quit', () => {
   conexaoBanco?.fechar()
   conexaoBanco = null
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
 })
