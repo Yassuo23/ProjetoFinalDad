@@ -35,7 +35,7 @@
 
 ## Pendências
 
-1. Adicionar `willcotil` como colaborador no GitHub (ação manual) antes de qualquer push.
+1. Confirmar o convite de `willcotil` no GitHub antes de qualquer push (convite já enviado).
 2. Fechar o contrato de cada pacote seguinte **antes** da implementação; `reservas:listar` volta
    somente com o contrato do P5.
 3. P4 deve acrescentar a interseção com reservas sobrepostas em `listarDisponiveis` — hoje o filtro

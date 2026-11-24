@@ -21,6 +21,7 @@ export const CANAIS = {
   equipamentosAtualizar: 'equipamentos:atualizar',
   equipamentosInativar: 'equipamentos:inativar',
   equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
+  equipamentosVerificarDisponibilidade: 'equipamentos:verificar-disponibilidade',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

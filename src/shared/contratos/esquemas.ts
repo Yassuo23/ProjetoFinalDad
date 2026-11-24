@@ -53,6 +53,15 @@ export const esquemaEquipamentoListarDisponiveis = z
   })
   .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
 
+/** P4 — mesmo rigor de período, agora com id do equipamento. */
+export const esquemaVerificarDisponibilidade = z
+  .object({
+    equipamentoId: z.number().int().positive(),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+  })
+  .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
+
 // P2 — Clientes e CEP
 
 /** Aceita 01001-000 e 01001000; a normalização para dígitos é do serviço no main. */

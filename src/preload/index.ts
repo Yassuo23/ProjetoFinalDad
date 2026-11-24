@@ -35,6 +35,8 @@ const api: ApiZenite = {
     inativar: (id) => ipcRenderer.invoke(CANAIS.equipamentosInativar, { id }),
     listarDisponiveis: (periodo) =>
       ipcRenderer.invoke(CANAIS.equipamentosListarDisponiveis, periodo),
+    verificarDisponibilidade: (entrada) =>
+      ipcRenderer.invoke(CANAIS.equipamentosVerificarDisponibilidade, entrada),
   },
 }
 

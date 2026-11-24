@@ -131,6 +131,19 @@ export interface EquipamentoDisponiveisEntrada {
   categoriaId?: number
 }
 
+/** P4 — verificação pontual para um equipamento e período. */
+export interface VerificarDisponibilidadeEntrada {
+  equipamentoId: number
+  inicio: string
+  fim: string
+}
+
+export interface DisponibilidadeResultado {
+  disponivel: boolean
+  /** Presente quando `disponivel` é false; o renderer traduz o código. */
+  motivo?: CodigoErroDominio
+}
+
 export type StatusReserva = 'pendente' | 'confirmada' | 'cancelada' | 'concluida'
 
 export interface Reserva {

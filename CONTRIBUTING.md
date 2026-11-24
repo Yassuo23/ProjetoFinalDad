@@ -62,7 +62,6 @@ PR pequeno, com: o que mudou, como testar e risco residual.
 
 ## Colaboradores
 
-- `willcotil` é colaborador do repositório. A adição no GitHub ainda é uma **pendência manual**:
-  configurar `Settings → Collaborators → Add people` com o usuário `willcotil` e permissão
-  `Write`. Enquanto isso, os commits locais já são assinados como
-  `willcotil <willcotil@users.noreply.github.com>` e nenhum push é feito sem essa confirmação.
+- `willcotil` foi convidado como colaborador no GitHub (confirmação pendente aceita). Os commits
+  locais são assinados como `willcotil <willcotil@users.noreply.github.com>`. Push somente após
+  aceitar o convite e conferir `origin`.

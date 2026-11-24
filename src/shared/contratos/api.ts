@@ -6,6 +6,7 @@ import type {
   ClienteCriarEntrada,
   ClientesListarFiltros,
   ConsultarCepEntrada,
+  DisponibilidadeResultado,
   Endereco,
   Equipamento,
   EquipamentoAtualizarEntrada,
@@ -13,6 +14,7 @@ import type {
   EquipamentoDisponiveisEntrada,
   EquipamentoListarFiltros,
   PingPayload,
+  VerificarDisponibilidadeEntrada,
 } from './modelos'
 
 /** Contrato único da ponte renderer → main. */
@@ -36,6 +38,9 @@ export interface ApiZenite {
     atualizar(dados: EquipamentoAtualizarEntrada): Promise<Equipamento>
     inativar(id: number): Promise<void>
     listarDisponiveis(periodo: EquipamentoDisponiveisEntrada): Promise<Equipamento[]>
+    verificarDisponibilidade(
+      entrada: VerificarDisponibilidadeEntrada,
+    ): Promise<DisponibilidadeResultado>
   }
 }
 
