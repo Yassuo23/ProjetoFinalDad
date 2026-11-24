@@ -169,3 +169,136 @@ export const esquemaClienteAtualizar = esquemaId.extend({
   nome: z.string().trim().min(1).max(120).optional(),
   ...camposCliente,
 })
+
+// P3 — Fornecedores e CNPJ
+
+const esquemaCnpj = z.string().regex(/^\d{2}\.?\d{3}\.?\d{3}\/?\d{2}-?\d{2}$/, 'CNPJ_INVALIDO')
+
+export const esquemaFornecedorListar = z
+  .object({
+    razaoSocial: z.string().trim().max(120).optional(),
+    ativo: z.boolean().optional(),
+  })
+  .optional()
+
+export const esquemaFornecedorBuscarPorId = esquemaId
+export const esquemaFornecedorInativar = esquemaId
+export const esquemaConsultarCnpj = z.object({ cnpj: esquemaCnpj })
+
+const camposFornecedor = {
+  nomeFantasia: z.string().trim().max(120).nullish(),
+  cnpj: esquemaCnpj,
+  email: esquemaEmail.nullish(),
+  telefone: z.string().trim().max(20).nullish(),
+  cep: esquemaCep.nullish(),
+  cidade: z.string().trim().max(120).nullish(),
+  uf: z.string().trim().length(2).nullish(),
+}
+
+export const esquemaFornecedorCriar = z.object({
+  razaoSocial: z.string().trim().min(1).max(120),
+  ...camposFornecedor,
+})
+
+export const esquemaFornecedorAtualizar = esquemaId.extend({
+  razaoSocial: z.string().trim().min(1).max(120).optional(),
+  nomeFantasia: z.string().trim().max(120).nullish(),
+  cnpj: esquemaCnpj.optional(),
+  email: esquemaEmail.nullish(),
+  telefone: z.string().trim().max(20).nullish(),
+  cep: esquemaCep.nullish(),
+  cidade: z.string().trim().max(120).nullish(),
+  uf: z.string().trim().length(2).nullish(),
+})
+
+// P8 — Manutenção
+
+export const esquemaManutencaoListar = z
+  .object({
+    equipamentoId: z.number().int().positive().optional(),
+    status: z.enum(['aberta', 'concluida']).optional(),
+  })
+  .optional()
+
+export const esquemaManutencaoBuscarPorId = esquemaId
+
+export const esquemaManutencaoAbrir = z.object({
+  equipamentoId: z.number().int().positive(),
+  descricao: z.string().trim().min(1).max(500),
+  custo: z.number().nonnegative().nullish(),
+})
+
+export const esquemaManutencaoConcluir = esquemaId.extend({
+  custo: z.number().nonnegative().nullish(),
+})
+
+// P9 — Feriados
+
+export const esquemaFeriadoListar = z
+  .object({
+    ano: z.number().int().min(2000).max(2100).optional(),
+    uf: z.string().trim().length(2).optional(),
+    tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']).optional(),
+  })
+  .optional()
+
+export const esquemaFeriadoBuscarPorId = esquemaId
+
+export const esquemaFeriadoCriar = z.object({
+  data: z.iso.date(),
+  nome: z.string().trim().min(1).max(120),
+  tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']),
+  uf: z.string().trim().length(2).optional(),
+})
+
+export const esquemaFeriadoAtualizar = esquemaId.extend({
+  data: z.iso.date().optional(),
+  nome: z.string().trim().min(1).max(120).optional(),
+  tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']).optional(),
+  uf: z.string().trim().length(2).optional(),
+})
+
+export const esquemaFeriadoRemover = esquemaId
+
+export const esquemaFeriadoImportar = z.object({
+  ano: z.number().int().min(2000).max(2100),
+  uf: z.string().trim().length(2).optional(),
+})
+
+// P10 — Usuários e perfis
+
+export const esquemaUsuarioListar = z
+  .object({
+    perfil: z.enum(['administrador', 'operador', 'visualizador']).optional(),
+    ativo: z.boolean().optional(),
+  })
+  .optional()
+
+export const esquemaUsuarioBuscarPorId = esquemaId
+
+export const esquemaUsuarioCriar = z.object({
+  nome: z.string().trim().min(1).max(120),
+  login: z.string().trim().min(3).max(60),
+  senha: z.string().min(8).max(128),
+  perfil: z.enum(['administrador', 'operador', 'visualizador']),
+})
+
+export const esquemaUsuarioAtualizar = esquemaId.extend({
+  nome: z.string().trim().min(1).max(120).optional(),
+  login: z.string().trim().min(3).max(60).optional(),
+  perfil: z.enum(['administrador', 'operador', 'visualizador']).optional(),
+  ativo: z.boolean().optional(),
+})
+
+export const esquemaUsuarioInativar = esquemaId
+
+export const esquemaUsuarioAutenticar = z.object({
+  login: z.string().trim().min(3).max(60),
+  senha: z.string().min(1).max(128),
+})
+
+// P11 — Painel
+
+export const esquemaPainelFiltros = z
+  .object({ ano: z.number().int().min(2000).max(2100).optional() })
+  .optional()

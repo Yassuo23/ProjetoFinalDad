@@ -64,6 +64,46 @@ const api: ApiZenite = {
     confirmar: (id) => ipcRenderer.invoke(CANAIS.pagamentosConfirmar, { id }),
     estornar: (id) => ipcRenderer.invoke(CANAIS.pagamentosEstornar, { id }),
   },
+
+  fornecedores: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.fornecedoresListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.fornecedoresBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.fornecedoresCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.fornecedoresAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.fornecedoresInativar, { id }),
+    consultarCnpj: (entrada) => ipcRenderer.invoke(CANAIS.fornecedoresConsultarCnpj, entrada),
+  },
+
+  manutencoes: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.manutencoesListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.manutencoesBuscarPorId, { id }),
+    abrir: (dados) => ipcRenderer.invoke(CANAIS.manutencoesAbrir, dados),
+    concluir: (dados) => ipcRenderer.invoke(CANAIS.manutencoesConcluir, dados),
+  },
+
+  feriados: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.feriadosListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.feriadosBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.feriadosCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.feriadosAtualizar, dados),
+    remover: (id) => ipcRenderer.invoke(CANAIS.feriadosRemover, { id }),
+    importar: (dados) => ipcRenderer.invoke(CANAIS.feriadosImportar, dados),
+  },
+
+  usuarios: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.usuariosListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.usuariosBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.usuariosCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.usuariosAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.usuariosInativar, { id }),
+    autenticar: (entrada) => ipcRenderer.invoke(CANAIS.usuariosAutenticar, entrada),
+  },
+
+  painel: {
+    resumo: (filtros) => ipcRenderer.invoke(CANAIS.painelResumo, filtros),
+    porCategoria: (filtros) => ipcRenderer.invoke(CANAIS.painelPorCategoria, filtros),
+    receita: (filtros) => ipcRenderer.invoke(CANAIS.painelReceita, filtros),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

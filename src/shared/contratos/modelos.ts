@@ -257,6 +257,195 @@ export interface PagamentosListarFiltros {
  * Códigos de erro de domínio. O IPC rejeita com `Error.message === codigo`;
  * o renderer traduz o código para texto amigável, sem detalhe de driver/Zod.
  */
+/** P3 — Fornecedores e consulta de CNPJ. */
+export interface Fornecedor {
+  id: number
+  razaoSocial: string
+  nomeFantasia: string | null
+  cnpj: string
+  email: string | null
+  telefone: string | null
+  cep: string | null
+  cidade: string | null
+  uf: string | null
+  ativo: boolean
+}
+
+export interface DadosCnpj {
+  cnpj: string
+  razaoSocial: string
+  nomeFantasia: string | null
+  cidade: string | null
+  uf: string | null
+}
+
+export interface ConsultarCnpjEntrada {
+  cnpj: string
+}
+
+export interface FornecedoresListarFiltros {
+  razaoSocial?: string
+  ativo?: boolean
+}
+
+export interface FornecedorCriarEntrada {
+  razaoSocial: string
+  nomeFantasia?: string | null
+  cnpj: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+export interface FornecedorAtualizarEntrada {
+  id: number
+  razaoSocial?: string
+  nomeFantasia?: string | null
+  cnpj?: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+/** P8 — Manutenção muda o estado do equipamento na conclusão. */
+export type StatusManutencao = 'aberta' | 'concluida'
+
+export interface Manutencao {
+  id: number
+  equipamentoId: number
+  descricao: string
+  status: StatusManutencao
+  abertaEm: string
+  concluidaEm: string | null
+  custo: number | null
+}
+
+export interface ManutencaoAbrirEntrada {
+  equipamentoId: number
+  descricao: string
+  custo?: number | null
+}
+
+export interface ManutencaoConcluirEntrada {
+  id: number
+  custo?: number | null
+}
+
+export interface ManutencoesListarFiltros {
+  equipamentoId?: number
+  status?: StatusManutencao
+}
+
+/** P9 — Catálogo de feriados; `uf = ''` representa âmbito nacional. */
+export type TipoFeriado = 'nacional' | 'estadual' | 'municipal' | 'personalizado'
+
+export interface Feriado {
+  id: number
+  data: string
+  nome: string
+  tipo: TipoFeriado
+  uf: string
+}
+
+export interface FeriadoCriarEntrada {
+  data: string
+  nome: string
+  tipo: TipoFeriado
+  uf?: string
+}
+
+export interface FeriadoAtualizarEntrada {
+  id: number
+  data?: string
+  nome?: string
+  tipo?: TipoFeriado
+  uf?: string
+}
+
+export interface FeriadoImportarEntrada {
+  ano: number
+  uf?: string
+}
+
+export interface FeriadosListarFiltros {
+  ano?: number
+  uf?: string
+  tipo?: TipoFeriado
+}
+
+/** P10 — Perfis locais; a senha nunca sai do main. */
+export type Perfil = 'administrador' | 'operador' | 'visualizador'
+
+export interface Usuario {
+  id: number
+  nome: string
+  login: string
+  perfil: Perfil
+  ativo: boolean
+  criadoEm: string
+}
+
+export interface UsuarioCriarEntrada {
+  nome: string
+  login: string
+  senha: string
+  perfil: Perfil
+}
+
+export interface UsuarioAtualizarEntrada {
+  id: number
+  nome?: string
+  login?: string
+  perfil?: Perfil
+  ativo?: boolean
+}
+
+export interface UsuarioAutenticarEntrada {
+  login: string
+  senha: string
+}
+
+export interface UsuariosListarFiltros {
+  perfil?: Perfil
+  ativo?: boolean
+}
+
+/** P11 — Agregados de leitura; nenhum dado novo é persistido. */
+export interface PainelFiltros {
+  ano?: number
+}
+
+export interface ResumoPainel {
+  equipamentosAtivos: number
+  equipamentosDisponiveis: number
+  equipamentosEmManutencao: number
+  reservasPendentes: number
+  reservasConfirmadas: number
+  reservasConcluidas: number
+  clientesAtivos: number
+  valorLocacao: number
+  valorMultas: number
+  valorRecebido: number
+}
+
+export interface ItemPorCategoria {
+  categoriaId: number
+  nome: string
+  equipamentos: number
+  reservas: number
+}
+
+export interface ItemReceita {
+  mes: string
+  locacao: number
+  multas: number
+  recebido: number
+}
+
 export type CodigoErroDominio =
   | 'EQUIPAMENTO_NAO_ENCONTRADO'
   | 'EQUIPAMENTO_INATIVO'
@@ -283,6 +472,20 @@ export type CodigoErroDominio =
   | 'PAGAMENTO_JA_PAGO'
   | 'PAGAMENTO_JA_ESTORNADO'
   | 'VALOR_PAGAMENTO_INVALIDO'
+  | 'FORNECEDOR_NAO_ENCONTRADO'
+  | 'CNPJ_INVALIDO'
+  | 'CNPJ_NAO_ENCONTRADO'
+  | 'CNPJ_DUPLICADO'
+  | 'MANUTENCAO_NAO_ENCONTRADA'
+  | 'MANUTENCAO_JA_ABERTA'
+  | 'MANUTENCAO_JA_CONCLUIDA'
+  | 'FERIADO_NAO_ENCONTRADO'
+  | 'FERIADO_JA_EXISTENTE'
+  | 'FERIADOS_INDISPONIVEIS'
+  | 'USUARIO_NAO_ENCONTRADO'
+  | 'LOGIN_DUPLICADO'
+  | 'SENHA_INVALIDA'
+  | 'USUARIO_INATIVO'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio

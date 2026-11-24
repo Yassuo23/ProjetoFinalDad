@@ -5,7 +5,25 @@ import type {
   ClienteAtualizarEntrada,
   ClienteCriarEntrada,
   ClientesListarFiltros,
+  ConsultarCnpjEntrada,
+  DadosCnpj,
+  Feriado,
+  FeriadoAtualizarEntrada,
+  FeriadoCriarEntrada,
+  FeriadoImportarEntrada,
+  FeriadosListarFiltros,
+  Fornecedor,
+  FornecedorAtualizarEntrada,
+  FornecedorCriarEntrada,
+  FornecedoresListarFiltros,
+  ItemPorCategoria,
+  ItemReceita,
+  Manutencao,
+  ManutencaoAbrirEntrada,
+  ManutencaoConcluirEntrada,
+  ManutencoesListarFiltros,
   MultaCalcularEntrada,
+  PainelFiltros,
   ConsultarCepEntrada,
   CalculoMulta,
   Devolucao,
@@ -22,10 +40,16 @@ import type {
   PagamentosListarFiltros,
   PingPayload,
   PrevisaoTempo,
+  ResumoPainel,
   PrevisaoTempoEntrada,
   Reserva,
   ReservaCriarEntrada,
   ReservasListarFiltros,
+  Usuario,
+  UsuarioAtualizarEntrada,
+  UsuarioAutenticarEntrada,
+  UsuarioCriarEntrada,
+  UsuariosListarFiltros,
   VerificarDisponibilidadeEntrada,
 } from './modelos'
 
@@ -73,6 +97,41 @@ export interface ApiZenite {
     registrar(dados: PagamentoRegistrarEntrada): Promise<Pagamento>
     confirmar(id: number): Promise<Pagamento>
     estornar(id: number): Promise<Pagamento>
+  }
+  fornecedores: {
+    listar(filtros?: FornecedoresListarFiltros): Promise<Fornecedor[]>
+    buscarPorId(id: number): Promise<Fornecedor>
+    criar(dados: FornecedorCriarEntrada): Promise<Fornecedor>
+    atualizar(dados: FornecedorAtualizarEntrada): Promise<Fornecedor>
+    inativar(id: number): Promise<void>
+    consultarCnpj(entrada: ConsultarCnpjEntrada): Promise<DadosCnpj>
+  }
+  manutencoes: {
+    listar(filtros?: ManutencoesListarFiltros): Promise<Manutencao[]>
+    buscarPorId(id: number): Promise<Manutencao>
+    abrir(dados: ManutencaoAbrirEntrada): Promise<Manutencao>
+    concluir(dados: ManutencaoConcluirEntrada): Promise<Manutencao>
+  }
+  feriados: {
+    listar(filtros?: FeriadosListarFiltros): Promise<Feriado[]>
+    buscarPorId(id: number): Promise<Feriado>
+    criar(dados: FeriadoCriarEntrada): Promise<Feriado>
+    atualizar(dados: FeriadoAtualizarEntrada): Promise<Feriado>
+    remover(id: number): Promise<void>
+    importar(dados: FeriadoImportarEntrada): Promise<Feriado[]>
+  }
+  usuarios: {
+    listar(filtros?: UsuariosListarFiltros): Promise<Usuario[]>
+    buscarPorId(id: number): Promise<Usuario>
+    criar(dados: UsuarioCriarEntrada): Promise<Usuario>
+    atualizar(dados: UsuarioAtualizarEntrada): Promise<Usuario>
+    inativar(id: number): Promise<void>
+    autenticar(entrada: UsuarioAutenticarEntrada): Promise<Usuario>
+  }
+  painel: {
+    resumo(filtros?: PainelFiltros): Promise<ResumoPainel>
+    porCategoria(filtros?: PainelFiltros): Promise<ItemPorCategoria[]>
+    receita(filtros?: PainelFiltros): Promise<ItemReceita[]>
   }
 }
 

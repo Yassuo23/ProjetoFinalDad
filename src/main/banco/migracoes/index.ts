@@ -5,6 +5,9 @@ import { migracaoClientes } from './003-clientes'
 import { migracaoReservas } from './004-reservas'
 import { migracaoDevolucoes } from './005-devolucoes'
 import { migracaoPagamentos } from './006-pagamentos'
+import { migracaoManutencoes } from './007-manutencoes'
+import { migracaoFeriados } from './008-feriados'
+import { migracaoUsuarios } from './009-usuarios'
 
 export const MIGRACOES: readonly Migracao[] = [
   migracaoCategorias,
@@ -13,4 +16,7 @@ export const MIGRACOES: readonly Migracao[] = [
   migracaoReservas,
   migracaoDevolucoes,
   migracaoPagamentos,
+  migracaoManutencoes,
+  migracaoFeriados,
+  migracaoUsuarios,
 ]
