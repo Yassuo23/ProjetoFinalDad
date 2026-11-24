@@ -1,4 +1,14 @@
 import type { FormaPagamento, Pagamento, StatusPagamento } from '../../../shared/contratos/modelos'
+import { criarElemento } from '../nucleo'
+import {
+  CLASSES,
+  classeStatusPagamento,
+  criarBotao,
+  criarEntrada,
+  criarSelecao,
+  rotular,
+} from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const FORMAS: readonly { valor: FormaPagamento; rotulo: string }[] = [
   { valor: 'dinheiro', rotulo: 'Dinheiro' },
@@ -29,25 +39,50 @@ const REAIS = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 
 /** Tela de pagamentos: só chama a API tipada; nunca Node, IPC cru, fetch ou SQL. */
 export function montarPagamentos(container: HTMLElement): void {
-  container.innerHTML = `
-    <form class="form-pagamento">
-      <label>Reserva <select name="reservaId" required></select></label>
-      <label>Valor (R$) <input name="valor" type="number" min="0.01" step="0.01" required /></label>
-      <label>Forma <select name="forma" required></select></label>
-      <button class="button" type="submit">Registrar</button>
-    </form>
+  const selecaoReserva = criarSelecao({ nome: 'reservaId', obrigatorio: true })
+  const campoValor = criarEntrada({
+    nome: 'valor',
+    tipo: 'number',
+    min: '0.01',
+    step: '0.01',
+    obrigatorio: true,
+  })
+  const selecaoForma = criarSelecao({ nome: 'forma', obrigatorio: true })
 
-    <p class="dica muted"> Quando há devolução, o valor da última multa é sugerido no campo valor. Confira antes de registrar.</p>
-    <p id="pagamentos-erro" class="erro" role="alert" hidden></p>
-    <div id="pagamentos-lista" class="lista-pagamentos"><p class="muted">Carregando…</p></div>
-  `
+  const form = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Registro de pagamento' },
+    filhos: [
+      rotular('Reserva', selecaoReserva),
+      rotular('Valor (R$)', campoValor),
+      rotular('Forma', selecaoForma),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Registrar', { tipo: 'submit' })],
+      }),
+    ],
+  })
 
-  const form = obrigar<HTMLFormElement>(container, '.form-pagamento')
-  const selecaoReserva = obrigar<HTMLSelectElement>(form, 'select[name="reservaId"]')
-  const selecaoForma = obrigar<HTMLSelectElement>(form, 'select[name="forma"]')
-  const campoValor = obrigar<HTMLInputElement>(form, 'input[name="valor"]')
-  const areaErro = obrigar<HTMLElement>(container, '#pagamentos-erro')
-  const lista = obrigar<HTMLElement>(container, '#pagamentos-lista')
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'pagamentos-erro', role: 'alert', hidden: '' },
+  })
+  const lista = criarElemento('div', {
+    className: CLASSES.lista,
+    atributos: { id: 'pagamentos-lista' },
+    filhos: [criarElemento('p', { className: CLASSES.muted, texto: 'Carregando…' })],
+  })
+
+  container.replaceChildren(
+    criarElemento('div', { className: CLASSES.cartao, filhos: [form] }),
+    criarElemento('p', {
+      className: CLASSES.muted,
+      texto:
+        'Quando há devolução, o valor da última multa é sugerido no campo valor. Confira antes de registrar.',
+    }),
+    areaErro,
+    lista,
+  )
 
   selecaoForma.replaceChildren(
     ...FORMAS.map(({ valor, rotulo }) => {
@@ -107,7 +142,9 @@ export function montarPagamentos(container: HTMLElement): void {
       if (elegiveis.length === 0) {
         selecaoReserva.replaceChildren(criarOpcaoVazia())
         campoValor.placeholder = ''
-        lista.replaceChildren(criarTexto('Nenhuma reserva elegível para pagamento.', 'muted'))
+        lista.replaceChildren(
+          criarTexto('Nenhuma reserva elegível para pagamento.', CLASSES.muted),
+        )
         return
       }
 
@@ -117,7 +154,7 @@ export function montarPagamentos(container: HTMLElement): void {
       sugerirValor(Number(selecaoReserva.value))
 
       if (pagamentos.length === 0) {
-        lista.replaceChildren(criarTexto('Nenhum pagamento registrado.', 'muted'))
+        lista.replaceChildren(criarTexto('Nenhum pagamento registrado.', CLASSES.muted))
       } else {
         lista.replaceChildren(...pagamentos.map(criarItem))
       }
@@ -196,44 +233,34 @@ function criarOpcaoVazia(): HTMLOptionElement {
 }
 
 function criarItem(pagamento: Pagamento): HTMLElement {
-  const item = document.createElement('article')
-  item.className = 'item-pagamento'
-
-  const titulo = document.createElement('strong')
-  titulo.textContent = `Pagamento #${pagamento.id}`
-  item.append(titulo)
-  item.append(criarTexto(ROTULOS_STATUS[pagamento.status], `status-${pagamento.status}`))
-  item.append(
+  const filhos: Array<Node | string> = [
+    criarElemento('strong', {
+      className: CLASSES.itemTitulo,
+      texto: `Pagamento #${pagamento.id}`,
+    }),
+    criarTexto(ROTULOS_STATUS[pagamento.status], classeStatusPagamento(pagamento.status)),
     criarTexto(
       `Reserva #${pagamento.reservaId} · ${REAIS.format(pagamento.valor)} · ${rotuloForma(pagamento.forma)}`,
+      CLASSES.texto,
     ),
-  )
-  item.append(criarTexto(`Registrado em ${formatarData(pagamento.criadoEm)}`, 'muted'))
+    criarTexto(`Registrado em ${formatarData(pagamento.criadoEm)}`, CLASSES.muted),
+  ]
+
   if (pagamento.pagoEm) {
-    item.append(criarTexto(`Pago em ${formatarData(pagamento.pagoEm)}`, 'muted'))
+    filhos.push(criarTexto(`Pago em ${formatarData(pagamento.pagoEm)}`, CLASSES.muted))
   }
 
   if (pagamento.status === 'pendente' || pagamento.status === 'pago') {
-    const acoes = document.createElement('div')
-    acoes.className = 'acoes-pagamento'
-    if (pagamento.status === 'pendente') {
-      acoes.append(criarBotao('Confirmar', 'confirmar', pagamento.id))
-    } else {
-      acoes.append(criarBotao('Estornar', 'estornar', pagamento.id))
-    }
-    item.append(acoes)
+    const botao = criarBotao(pagamento.status === 'pendente' ? 'Confirmar' : 'Estornar', {
+      acao: pagamento.status === 'pendente' ? 'confirmar' : 'estornar',
+      variante: pagamento.status === 'pago' ? 'perigo' : 'primario',
+      pequeno: true,
+    })
+    botao.dataset.id = String(pagamento.id)
+    filhos.push(criarElemento('div', { className: CLASSES.acoesItem, filhos: [botao] }))
   }
-  return item
-}
 
-function criarBotao(texto: string, acao: string, id: number): HTMLButtonElement {
-  const botao = document.createElement('button')
-  botao.className = `button button-pequeno${acao === 'estornar' ? ' button-perigo' : ''}`
-  botao.type = 'button'
-  botao.textContent = texto
-  botao.dataset.acao = acao
-  botao.dataset.id = String(id)
-  return botao
+  return criarElemento('article', { className: CLASSES.item, filhos })
 }
 
 function rotuloForma(forma: FormaPagamento): string {
@@ -245,16 +272,9 @@ function formatarData(valor: string): string {
   return Number.isNaN(data.getTime()) ? valor : data.toLocaleString('pt-BR')
 }
 
-function criarTexto(texto: string, classe?: string): HTMLElement {
-  const elemento = document.createElement('p')
-  elemento.textContent = texto
-  if (classe) elemento.className = classe
-  return elemento
-}
-
-function obrigar<T extends Element>(container: ParentNode, seletor: string): T {
-  const elemento = container.querySelector<T>(seletor)
-  if (!elemento) throw new Error(`Falha ao montar a tela de pagamentos: ${seletor}`)
+function criarTexto(texto: string, classe: string): HTMLElement {
+  const elemento = criarElemento('p', { texto })
+  elemento.className = classe
   return elemento
 }
 
@@ -265,4 +285,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (mensagem) return mensagem
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de pagamentos adaptada ao roteador do shell. */
+export class PaginaPagamentos extends PaginaFuncional {
+  constructor() {
+    super('Pagamentos', 'Registros, confirmações e estornos.', montarPagamentos)
+  }
 }

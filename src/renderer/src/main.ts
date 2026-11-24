@@ -3,11 +3,17 @@ import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import { criarElemento, Roteador, substituirConteudo } from './nucleo'
 import type { FabricaPagina } from './nucleo'
 import {
+  PaginaArquivos,
+  PaginaCategorias,
+  PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
+  PaginaDevolucoes,
   PaginaEmConstrucao,
   PaginaEquipamentos,
   PaginaNaoEncontrada,
+  PaginaPagamentos,
+  PaginaReservas,
   PaginaSobre,
 } from './paginas'
 
@@ -20,7 +26,8 @@ if (!root) {
 const ROTAS = new Map<string, FabricaPagina>([
   ['/dashboard', () => new PaginaDashboard()],
   ['/equipamentos', () => new PaginaEquipamentos()],
-  ['/clientes', () => new PaginaEmConstrucao('Clientes', 'clientes.buscarCep · clientes.salvar')],
+  ['/categorias', () => new PaginaCategorias()],
+  ['/clientes', () => new PaginaClientes()],
   [
     '/fornecedores',
     () => new PaginaEmConstrucao('Fornecedores', 'fornecedores.listar · fornecedores.salvar'),
@@ -29,15 +36,10 @@ const ROTAS = new Map<string, FabricaPagina>([
     '/manutencao',
     () => new PaginaEmConstrucao('Manutenção', 'manutencao.listar · manutencao.abrir'),
   ],
-  ['/reservas', () => new PaginaEmConstrucao('Reservas', 'reservas.criar · clima.previsao')],
-  [
-    '/devolucoes',
-    () => new PaginaEmConstrucao('Devoluções', 'devolucoes.registrar · multas.calcular'),
-  ],
-  [
-    '/pagamentos',
-    () => new PaginaEmConstrucao('Pagamentos', 'pagamentos.listar · pagamentos.registrar'),
-  ],
+  ['/reservas', () => new PaginaReservas()],
+  ['/devolucoes', () => new PaginaDevolucoes()],
+  ['/pagamentos', () => new PaginaPagamentos()],
+  ['/arquivos', () => new PaginaArquivos()],
   ['/sobre', () => new PaginaSobre()],
   ['/404', () => new PaginaNaoEncontrada()],
 ])
@@ -45,12 +47,14 @@ const ROTAS = new Map<string, FabricaPagina>([
 const TITULOS = new Map<string, string>([
   ['/dashboard', 'Dashboard'],
   ['/equipamentos', 'Equipamentos'],
+  ['/categorias', 'Categorias'],
   ['/clientes', 'Clientes'],
   ['/fornecedores', 'Fornecedores'],
   ['/manutencao', 'Manutenção'],
   ['/reservas', 'Reservas'],
   ['/devolucoes', 'Devoluções'],
   ['/pagamentos', 'Pagamentos'],
+  ['/arquivos', 'Arquivos'],
   ['/sobre', 'Sobre'],
   ['/404', 'Página não encontrada'],
 ])

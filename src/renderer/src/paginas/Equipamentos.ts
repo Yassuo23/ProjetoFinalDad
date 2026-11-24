@@ -4,6 +4,16 @@ import type {
   Equipamento,
   EquipamentoListarFiltros,
 } from '../../../shared/contratos/modelos'
+import { criarElemento } from '../nucleo'
+import {
+  CLASSES,
+  criarBotao,
+  criarEntrada,
+  criarOpcao,
+  criarSelecao,
+  rotular,
+} from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const ROTULOS_ESTADO: Record<EstadoEquipamento, string> = {
   disponivel: 'Disponível',
@@ -24,65 +34,118 @@ const DINHEIRO = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: '
 
 /** Tela de equipamentos: só chama a API tipada; nunca Node, IPC cru ou SQL. */
 export function montarEquipamentos(container: HTMLElement): void {
-  container.innerHTML = `
-    <form class="form-equipamento">
-      <label>Nome <input name="nome" required maxlength="120" /></label>
-      <label>Categoria <select name="categoriaId" required></select></label>
-      <label>Diária (R$) <input name="precoDiaria" type="number" min="0" step="0.01" required /></label>
-      <label>Valor de aquisição (R$)
-        <input name="valorAquisicao" type="number" min="0" step="0.01" required />
-      </label>
-      <label>Descrição <input name="descricao" maxlength="500" /></label>
-      <button class="button" type="submit">Cadastrar equipamento</button>
-    </form>
+  const campoNome = criarEntrada({ nome: 'nome', obrigatorio: true, maxlength: '120' })
+  const selecaoCategoria = criarSelecao({ nome: 'categoriaId', obrigatorio: true })
+  const campoPreco = criarEntrada({
+    nome: 'precoDiaria',
+    tipo: 'number',
+    min: '0',
+    step: '0.01',
+    obrigatorio: true,
+  })
+  const campoAquisicao = criarEntrada({
+    nome: 'valorAquisicao',
+    tipo: 'number',
+    min: '0',
+    step: '0.01',
+    obrigatorio: true,
+  })
+  const campoDescricao = criarEntrada({ nome: 'descricao', maxlength: '500' })
 
-    <div class="filtros">
-      <label>Filtrar por categoria <select id="filtro-categoria"><option value="">Todas</option></select></label>
-      <label>Filtrar por estado <select id="filtro-estado"><option value="">Todos</option></select></label>
-    </div>
+  const form = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Cadastro de equipamento' },
+    filhos: [
+      rotular('Nome', campoNome),
+      rotular('Categoria', selecaoCategoria),
+      rotular('Diária (R$)', campoPreco),
+      rotular('Valor de aquisição (R$)', campoAquisicao),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [rotular('Descrição', campoDescricao)],
+      }),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Cadastrar equipamento', { tipo: 'submit' })],
+      }),
+    ],
+  })
 
-    <h3 class="titulo-secao">Verificar disponibilidade</h3>
-    <form class="form-disponibilidade">
-      <label>Equipamento <select name="equipamentoId" required></select></label>
-      <label>Início <input name="inicio" type="datetime-local" required /></label>
-      <label>Fim <input name="fim" type="datetime-local" required /></label>
-      <button class="button" type="submit">Verificar</button>
-    </form>
-    <p id="disponibilidade-resultado" class="resultado-disponibilidade" role="status" hidden></p>
+  const filtroCategoria = criarSelecao({
+    nome: 'filtro-categoria',
+    id: 'filtro-categoria',
+  })
+  filtroCategoria.append(criarOpcao('', 'Todas'))
+  const filtroEstado = criarSelecao({ nome: 'filtro-estado', id: 'filtro-estado' })
+  filtroEstado.append(criarOpcao('', 'Todos'))
 
-    <p id="equipamentos-erro" class="erro" role="alert" hidden></p>
-    <div id="equipamentos-lista" class="lista-equipamentos"><p class="muted">Carregando…</p></div>
-  `
+  const selecaoEquipamento = criarSelecao({ nome: 'equipamentoId', obrigatorio: true })
+  const campoInicio = criarEntrada({ nome: 'inicio', tipo: 'datetime-local', obrigatorio: true })
+  const campoFim = criarEntrada({ nome: 'fim', tipo: 'datetime-local', obrigatorio: true })
 
-  const form = container.querySelector<HTMLFormElement>('.form-equipamento')
-  const formDisponibilidade = container.querySelector<HTMLFormElement>('.form-disponibilidade')
-  const selecaoEquipamento = container.querySelector<HTMLSelectElement>('select[name="equipamentoId"]')
-  const selecaoCategoria = container.querySelector<HTMLSelectElement>('select[name="categoriaId"]')
-  const filtroCategoria = container.querySelector<HTMLSelectElement>('#filtro-categoria')
-  const filtroEstado = container.querySelector<HTMLSelectElement>('#filtro-estado')
-  const resultado = container.querySelector<HTMLElement>('#disponibilidade-resultado')
-  const areaErro = container.querySelector<HTMLElement>('#equipamentos-erro')
-  const lista = container.querySelector<HTMLElement>('#equipamentos-lista')
+  const formDisponibilidade = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Verificação de disponibilidade' },
+    filhos: [
+      rotular('Equipamento', selecaoEquipamento),
+      rotular('Início', campoInicio),
+      rotular('Fim', campoFim),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Verificar', { tipo: 'submit' })],
+      }),
+    ],
+  })
 
-  if (
-    !form ||
-    !formDisponibilidade ||
-    !selecaoEquipamento ||
-    !selecaoCategoria ||
-    !filtroCategoria ||
-    !filtroEstado ||
-    !resultado ||
-    !areaErro ||
-    !lista
-  ) {
-    throw new Error('Falha ao montar a tela de equipamentos')
-  }
+  const resultado = criarElemento('p', {
+    className: CLASSES.disponivel,
+    atributos: { id: 'disponibilidade-resultado', role: 'status', hidden: '' },
+  })
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'equipamentos-erro', role: 'alert', hidden: '' },
+  })
+  const lista = criarElemento('div', {
+    className: CLASSES.lista,
+    atributos: { id: 'equipamentos-lista' },
+    filhos: [criarElemento('p', { className: CLASSES.muted, texto: 'Carregando…' })],
+  })
+
+  container.replaceChildren(
+    criarElemento('div', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Cadastro' }),
+        form,
+      ],
+    }),
+    criarElemento('div', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Filtros' }),
+        criarElemento('div', {
+          className: CLASSES.formulario,
+          filhos: [rotular('Filtrar por categoria', filtroCategoria), rotular('Filtrar por estado', filtroEstado)],
+        }),
+      ],
+    }),
+    criarElemento('div', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', {
+          className: CLASSES.tituloSecao,
+          texto: 'Verificar disponibilidade',
+        }),
+        formDisponibilidade,
+        resultado,
+      ],
+    }),
+    areaErro,
+    lista,
+  )
 
   for (const estado of ESTADOS_EQUIPAMENTO) {
-    const opcao = document.createElement('option')
-    opcao.value = estado
-    opcao.textContent = ROTULOS_ESTADO[estado]
-    filtroEstado.append(opcao)
+    filtroEstado.append(criarOpcao(estado, ROTULOS_ESTADO[estado]))
   }
 
   const mostrarErro = (erro: unknown): void => {
@@ -92,7 +155,7 @@ export function montarEquipamentos(container: HTMLElement): void {
 
   const mostrarResultado = (texto: string, disponivel: boolean): void => {
     resultado.textContent = texto
-    resultado.className = `resultado-disponibilidade ${disponivel ? 'disponivel' : 'indisponivel'}`
+    resultado.className = disponivel ? CLASSES.disponivel : CLASSES.indisponivel
     resultado.hidden = false
   }
 
@@ -111,17 +174,14 @@ export function montarEquipamentos(container: HTMLElement): void {
       const equipamentos = await window.electronAPI.equipamentos.listar(filtros)
       lista.replaceChildren(...equipamentos.map((equipamento) => criarItem(equipamento, categorias)))
       if (equipamentos.length === 0) {
-        lista.replaceChildren(criarTexto('Nenhum equipamento encontrado.', 'muted'))
+        lista.replaceChildren(criarTexto('Nenhum equipamento encontrado.', CLASSES.muted))
       }
 
       const selecionado = selecaoEquipamento.value
       selecaoEquipamento.replaceChildren(
-        ...equipamentos.map((equipamento) => {
-          const opcao = document.createElement('option')
-          opcao.value = String(equipamento.id)
-          opcao.textContent = equipamento.nome
-          return opcao
-        }),
+        ...equipamentos.map((equipamento) =>
+          criarOpcao(String(equipamento.id), equipamento.nome),
+        ),
       )
       if (equipamentos.some((equipamento) => String(equipamento.id) === selecionado)) {
         selecaoEquipamento.value = selecionado
@@ -139,10 +199,7 @@ export function montarEquipamentos(container: HTMLElement): void {
       categorias = itens
       for (const categoria of itens) {
         for (const select of [selecaoCategoria, filtroCategoria]) {
-          const opcao = document.createElement('option')
-          opcao.value = String(categoria.id)
-          opcao.textContent = categoria.nome
-          select.append(opcao)
+          select.append(criarOpcao(String(categoria.id), categoria.nome))
         }
       }
       return recarregar()
@@ -228,39 +285,36 @@ function criarItem(
   equipamento: Equipamento,
   categorias: readonly Categoria[],
 ): HTMLElement {
-  const item = document.createElement('article')
-  item.className = 'item-equipamento'
-
-  const titulo = document.createElement('strong')
-  titulo.textContent = equipamento.nome
-  item.append(titulo)
+  const filhos: Array<Node | string> = [
+    criarElemento('strong', { className: CLASSES.itemTitulo, texto: equipamento.nome }),
+  ]
 
   const categoria = categorias.find((candidata) => candidata.id === equipamento.categoriaId)
-  const detalhes = criarTexto(
-    `${categoria?.nome ?? 'Categoria não encontrada'} · ${ROTULOS_ESTADO[equipamento.estado]} · ${DINHEIRO.format(equipamento.precoDiaria)}/dia`,
-    'muted',
+  filhos.push(
+    criarTexto(
+      `${categoria?.nome ?? 'Categoria não encontrada'} · ${ROTULOS_ESTADO[equipamento.estado]} · ${DINHEIRO.format(equipamento.precoDiaria)}/dia`,
+      CLASSES.muted,
+    ),
   )
-  item.append(detalhes)
 
   if (equipamento.descricao) {
-    item.append(criarTexto(equipamento.descricao))
+    filhos.push(criarTexto(equipamento.descricao, CLASSES.texto))
   }
 
-  const botao = document.createElement('button')
-  botao.className = 'button button-perigo'
-  botao.type = 'button'
-  botao.textContent = 'Inativar'
-  botao.dataset.acao = 'inativar'
+  const botao = criarBotao('Inativar', {
+    variante: 'perigo',
+    acao: 'inativar',
+    pequeno: true,
+  })
   botao.dataset.id = String(equipamento.id)
-  item.append(botao)
+  filhos.push(criarElemento('div', { className: CLASSES.acoesItem, filhos: [botao] }))
 
-  return item
+  return criarElemento('article', { className: CLASSES.item, filhos })
 }
 
-function criarTexto(texto: string, classe?: string): HTMLElement {
-  const elemento = document.createElement('p')
-  elemento.textContent = texto
-  if (classe) elemento.className = classe
+function criarTexto(texto: string, classe: string): HTMLElement {
+  const elemento = criarElemento('p', { texto })
+  elemento.className = classe
   return elemento
 }
 
@@ -271,4 +325,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (erro.message.startsWith('IPC_INVALIDO:')) return 'Dados inválidos. Confira os campos.'
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de equipamentos adaptada ao roteador do shell. */
+export class PaginaEquipamentos extends PaginaFuncional {
+  constructor() {
+    super('Equipamentos', 'Cadastro, filtros e verificação de disponibilidade.', montarEquipamentos)
+  }
 }

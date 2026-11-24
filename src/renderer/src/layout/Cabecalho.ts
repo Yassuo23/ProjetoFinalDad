@@ -14,12 +14,14 @@ const CLASSES = {
 const CONTEXTOS: Readonly<Record<string, string>> = {
   Dashboard: 'Visão geral do dia · reservas, devoluções e frota',
   Equipamentos: 'Catálogo, disponibilidade e conservação',
+  Categorias: 'Grupos do catálogo de equipamentos',
   Clientes: 'Cadastro e busca rápida de clientes',
   Fornecedores: 'Compras e manutenção terceirizada',
   Manutenção: 'Ordens de serviço da frota',
   Reservas: 'Disponibilidade por data e confirmação',
   Devoluções: 'Atrasos, multas e baixa de equipamentos',
   Pagamentos: 'Recebimentos, pendências e estornos',
+  Arquivos: 'Backup, restauração e exportação CSV',
   Sobre: 'Versão e informações do sistema',
   'Página não encontrada': 'Verifique o endereço acessado',
 }

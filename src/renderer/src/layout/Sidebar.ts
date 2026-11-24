@@ -32,6 +32,11 @@ const ITENS: readonly ItemNav[] = [
     icone: 'M4 7h16v12H4zM9 7V5h6v2M4 12h16',
   },
   {
+    caminho: '/categorias',
+    rotulo: 'Categorias',
+    icone: 'M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z',
+  },
+  {
     caminho: '/clientes',
     rotulo: 'Clientes',
     icone: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0',
@@ -61,6 +66,11 @@ const ITENS: readonly ItemNav[] = [
     caminho: '/pagamentos',
     rotulo: 'Pagamentos',
     icone: 'M3 7h18v12H3zM3 11h18M7 15h4',
+  },
+  {
+    caminho: '/arquivos',
+    rotulo: 'Arquivos',
+    icone: 'M4 7h16v12H4zM9 7V5h6v2M4 12h16',
   },
   {
     caminho: '/sobre',

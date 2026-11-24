@@ -1,4 +1,12 @@
 import type { Cliente, ClientesListarFiltros, Endereco } from '../../../shared/contratos/modelos'
+import { criarElemento } from '../nucleo'
+import {
+  CLASSES,
+  criarBotao,
+  criarEntrada,
+  rotular,
+} from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const MENSAGENS_ERRO: Record<string, string> = {
   CLIENTE_NAO_ENCONTRADO: 'Cliente não encontrado.',
@@ -9,36 +17,75 @@ const MENSAGENS_ERRO: Record<string, string> = {
 
 /** Tela de clientes: só chama a API tipada; nunca Node, IPC cru, fetch ou SQL. */
 export function montarClientes(container: HTMLElement): void {
-  container.innerHTML = `
-    <form class="form-cliente">
-      <label>Nome <input name="nome" required maxlength="120" /></label>
-      <label>E-mail <input name="email" type="email" maxlength="120" /></label>
-      <label>Telefone <input name="telefone" maxlength="20" /></label>
-      <div class="campo-cep">
-        <label>CEP <input name="cep" maxlength="9" placeholder="00000-000" /></label>
-        <button class="button button-cep" type="button" data-acao="buscar-cep">Buscar CEP</button>
-      </div>
-      <label>Número <input name="numero" maxlength="10" /></label>
-      <label>Complemento <input name="complemento" maxlength="120" /></label>
-      <label>Logradouro <input name="logradouro" readonly /></label>
-      <label>Bairro <input name="bairro" readonly /></label>
-      <label>Cidade <input name="cidade" readonly /></label>
-      <label>UF <input name="uf" maxlength="2" readonly /></label>
-      <button class="button" type="submit">Cadastrar cliente</button>
-    </form>
+  const campoNome = criarEntrada({ nome: 'nome', obrigatorio: true, maxlength: '120' })
+  const campoEmail = criarEntrada({ nome: 'email', tipo: 'email', maxlength: '120' })
+  const campoTelefone = criarEntrada({ nome: 'telefone', tipo: 'tel', maxlength: '20' })
+  const campoCep = criarEntrada({
+    nome: 'cep',
+    maxlength: '9',
+    placeholder: '00000-000',
+  })
+  const botaoBuscarCep = criarBotao('Buscar CEP', {
+    variante: 'secundario',
+    acao: 'buscar-cep',
+  })
+  const campoNumero = criarEntrada({ nome: 'numero', maxlength: '10' })
+  const campoComplemento = criarEntrada({ nome: 'complemento', maxlength: '120' })
+  const campoLogradouro = criarEntrada({ nome: 'logradouro', somenteLeitura: true })
+  const campoBairro = criarEntrada({ nome: 'bairro', somenteLeitura: true })
+  const campoCidade = criarEntrada({ nome: 'cidade', somenteLeitura: true })
+  const campoUf = criarEntrada({ nome: 'uf', maxlength: '2', somenteLeitura: true })
 
-    <div class="filtros">
-      <label>Filtrar por nome <input id="filtro-nome-clientes" maxlength="120" /></label>
-    </div>
+  const form = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Cadastro de cliente' },
+    filhos: [
+      rotular('Nome', campoNome),
+      rotular('E-mail', campoEmail),
+      rotular('Telefone', campoTelefone),
+      criarElemento('div', {
+        className: `${CLASSES.larguraTotal} flex items-end gap-3`,
+        filhos: [rotular('CEP', campoCep), botaoBuscarCep],
+      }),
+      rotular('Número', campoNumero),
+      rotular('Complemento', campoComplemento),
+      rotular('Logradouro', campoLogradouro),
+      rotular('Bairro', campoBairro),
+      rotular('Cidade', campoCidade),
+      rotular('UF', campoUf),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Cadastrar cliente', { tipo: 'submit' })],
+      }),
+    ],
+  })
 
-    <p id="clientes-erro" class="erro" role="alert" hidden></p>
-    <div id="clientes-lista" class="lista-clientes"><p class="muted">Carregando…</p></div>
-  `
+  const filtroNome = criarEntrada({ nome: 'filtro-nome-clientes', id: 'filtro-nome-clientes', maxlength: '120' })
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'clientes-erro', role: 'alert', hidden: '' },
+  })
+  const lista = criarElemento('div', {
+    className: CLASSES.lista,
+    atributos: { id: 'clientes-lista' },
+    filhos: [criarElemento('p', { className: CLASSES.muted, texto: 'Carregando…' })],
+  })
 
-  const form = obrigar<HTMLFormElement>(container, '.form-cliente')
-  const filtroNome = obrigar<HTMLInputElement>(container, '#filtro-nome-clientes')
-  const areaErro = obrigar<HTMLElement>(container, '#clientes-erro')
-  const lista = obrigar<HTMLElement>(container, '#clientes-lista')
+  container.replaceChildren(
+    criarElemento('div', { className: CLASSES.cartao, filhos: [form] }),
+    criarElemento('div', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('div', {
+          className: CLASSES.formularioSimples,
+          filhos: [rotular('Filtrar por nome', filtroNome)],
+        }),
+        areaErro,
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Clientes cadastrados' }),
+        lista,
+      ],
+    }),
+  )
 
   const mostrarErro = (erro: unknown): void => {
     areaErro.textContent = mensagemAmigavel(erro)
@@ -54,7 +101,7 @@ export function montarClientes(container: HTMLElement): void {
     try {
       const clientes = await window.electronAPI.clientes.listar(filtros)
       if (clientes.length === 0) {
-        lista.replaceChildren(criarTexto('Nenhum cliente encontrado.', 'muted'))
+        lista.replaceChildren(criarTexto('Nenhum cliente encontrado.', CLASSES.muted))
         return
       }
       lista.replaceChildren(...clientes.map(criarItem))
@@ -82,7 +129,7 @@ export function montarClientes(container: HTMLElement): void {
     if (!(alvo instanceof HTMLButtonElement)) return
 
     if (alvo.dataset.acao === 'buscar-cep') {
-      const cep = obrigar<HTMLInputElement>(form, 'input[name="cep"]').value.trim()
+      const cep = campoCep.value.trim()
       if (cep === '') {
         mostrarErro(new Error('CEP_INVALIDO'))
         return
@@ -138,12 +185,9 @@ function textoOpcional(dados: FormData, nome: string): string | null {
 }
 
 function criarItem(cliente: Cliente): HTMLElement {
-  const item = document.createElement('article')
-  item.className = 'item-cliente'
-
-  const titulo = document.createElement('strong')
-  titulo.textContent = cliente.nome
-  item.append(titulo)
+  const filhos: Array<Node | string> = [
+    criarElemento('strong', { className: CLASSES.itemTitulo, texto: cliente.nome }),
+  ]
 
   const contato = [cliente.email, cliente.telefone].filter(naoVazio).join(' · ')
   const endereco = [
@@ -156,37 +200,30 @@ function criarItem(cliente: Cliente): HTMLElement {
     .filter(naoVazio)
     .join(' · ')
 
-  if (contato !== '') item.append(criarTexto(contato, 'muted'))
-  if (endereco !== '') item.append(criarTexto(endereco, 'muted'))
-  if (!cliente.ativo) item.append(criarTexto('Inativo', 'muted'))
+  if (contato !== '') filhos.push(criarTexto(contato, CLASSES.muted))
+  if (endereco !== '') filhos.push(criarTexto(endereco, CLASSES.muted))
+  if (!cliente.ativo) filhos.push(criarTexto('Inativo', CLASSES.muted))
 
   if (cliente.ativo) {
-    const botao = document.createElement('button')
-    botao.className = 'button button-perigo'
-    botao.type = 'button'
-    botao.textContent = 'Inativar'
-    botao.dataset.acao = 'inativar'
+    const botao = criarBotao('Inativar', {
+      variante: 'perigo',
+      acao: 'inativar',
+      pequeno: true,
+    })
     botao.dataset.id = String(cliente.id)
-    item.append(botao)
+    filhos.push(criarElemento('div', { className: CLASSES.acoesItem, filhos: [botao] }))
   }
 
-  return item
+  return criarElemento('article', { className: CLASSES.item, filhos })
 }
 
 function naoVazio(valor: string | null): valor is string {
   return valor !== null && valor !== ''
 }
 
-function criarTexto(texto: string, classe?: string): HTMLElement {
-  const elemento = document.createElement('p')
-  elemento.textContent = texto
-  if (classe) elemento.className = classe
-  return elemento
-}
-
-function obrigar<T extends Element>(container: ParentNode, seletor: string): T {
-  const elemento = container.querySelector<T>(seletor)
-  if (!elemento) throw new Error(`Falha ao montar a tela de clientes: ${seletor}`)
+function criarTexto(texto: string, classe: string): HTMLElement {
+  const elemento = criarElemento('p', { texto })
+  elemento.className = classe
   return elemento
 }
 
@@ -197,4 +234,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (erro.message.startsWith('IPC_INVALIDO:')) return 'Dados inválidos. Confira os campos.'
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de clientes adaptada ao roteador do shell. */
+export class PaginaClientes extends PaginaFuncional {
+  constructor() {
+    super('Clientes', 'Cadastro, busca e consulta de CEP.', montarClientes)
+  }
 }

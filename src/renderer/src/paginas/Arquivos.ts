@@ -1,4 +1,7 @@
 import type { EstadoEquipamento } from '../../../shared/contratos/estados'
+import { criarElemento } from '../nucleo'
+import { CLASSES, criarBotao } from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const ROTULOS_ESTADO: Record<EstadoEquipamento, string> = {
   disponivel: 'Disponível',
@@ -20,28 +23,48 @@ const NUMERO = new Intl.NumberFormat('pt-BR')
 
 /** Tela de arquivos: só chama a API tipada; nunca Node, IPC cru, fetch ou SQL. */
 export function montarArquivos(container: HTMLElement): void {
-  container.innerHTML = `
-    <p class="hint">Selecione um backup .db para restaurar. O aplicativo será reiniciado após a restauração.</p>
+  const botaoSelecionar = criarBotao('Selecionar backup', {
+    variante: 'secundario',
+  })
+  botaoSelecionar.id = 'arquivos-selecionar'
 
-    <div class="acoes-arquivos">
-      <button id="arquivos-selecionar" class="button" type="button">Selecionar backup</button>
-      <button id="arquivos-restaurar" class="button" type="button" disabled>Restaurar backup</button>
-      <button id="arquivos-criar" class="button" type="button">Criar backup</button>
-      <button id="arquivos-exportar" class="button" type="button">Exportar CSV de equipamentos</button>
-    </div>
+  const botaoRestaurar = criarBotao('Restaurar backup', { desabilitado: true })
+  botaoRestaurar.id = 'arquivos-restaurar'
 
-    <p id="arquivos-selecao" class="dica muted caminho-arquivo">Nenhum backup selecionado.</p>
-    <p id="arquivos-status" class="dica caminho-arquivo" role="status" hidden></p>
-    <p id="arquivos-erro" class="erro" role="alert" hidden></p>
-  `
+  const botaoCriar = criarBotao('Criar backup', { variante: 'secundario' })
+  botaoCriar.id = 'arquivos-criar'
 
-  const botaoSelecionar = obrigar<HTMLButtonElement>(container, '#arquivos-selecionar')
-  const botaoRestaurar = obrigar<HTMLButtonElement>(container, '#arquivos-restaurar')
-  const botaoCriar = obrigar<HTMLButtonElement>(container, '#arquivos-criar')
-  const botaoExportar = obrigar<HTMLButtonElement>(container, '#arquivos-exportar')
-  const selecao = obrigar<HTMLElement>(container, '#arquivos-selecao')
-  const status = obrigar<HTMLElement>(container, '#arquivos-status')
-  const areaErro = obrigar<HTMLElement>(container, '#arquivos-erro')
+  const botaoExportar = criarBotao('Exportar CSV de equipamentos', { variante: 'secundario' })
+  botaoExportar.id = 'arquivos-exportar'
+
+  const selecao = criarElemento('p', {
+    className: CLASSES.muted,
+    texto: 'Nenhum backup selecionado.',
+    atributos: { id: 'arquivos-selecao' },
+  })
+  const status = criarElemento('p', {
+    className: CLASSES.aviso,
+    atributos: { id: 'arquivos-status', role: 'status', hidden: '' },
+  })
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'arquivos-erro', role: 'alert', hidden: '' },
+  })
+
+  container.replaceChildren(
+    criarElemento('p', {
+      className: CLASSES.muted,
+      texto:
+        'Selecione um backup .db para restaurar. O aplicativo será reiniciado após a restauração.',
+    }),
+    criarElemento('div', {
+      className: CLASSES.acoes,
+      filhos: [botaoSelecionar, botaoRestaurar, botaoCriar, botaoExportar],
+    }),
+    selecao,
+    status,
+    areaErro,
+  )
 
   let caminhoSelecionado: string | null = null
 
@@ -170,12 +193,6 @@ export function montarArquivos(container: HTMLElement): void {
   botaoExportar.addEventListener('click', () => void exportarCsv())
 }
 
-function obrigar<T extends Element>(container: ParentNode, seletor: string): T {
-  const elemento = container.querySelector<T>(seletor)
-  if (!elemento) throw new Error(`Falha ao montar a tela de arquivos: ${seletor}`)
-  return elemento
-}
-
 function mensagemAmigavel(erro: unknown): string {
   if (erro instanceof Error) {
     if (
@@ -188,4 +205,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (mensagem) return mensagem
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de arquivos adaptada ao roteador do shell. */
+export class PaginaArquivos extends PaginaFuncional {
+  constructor() {
+    super('Arquivos', 'Backup, restauração e exportação CSV.', montarArquivos)
+  }
 }

@@ -1,4 +1,14 @@
 import type { PrevisaoTempo, Reserva, StatusReserva } from '../../../shared/contratos/modelos'
+import { criarElemento } from '../nucleo'
+import {
+  CLASSES,
+  classeStatusReserva,
+  criarBotao,
+  criarEntrada,
+  criarSelecao,
+  rotular,
+} from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const ROTULOS_STATUS: Record<StatusReserva, string> = {
   pendente: 'Pendente',
@@ -23,36 +33,80 @@ const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/
 
 /** Tela de reservas: só chama a API tipada; nunca Node, IPC cru, fetch ou SQL. */
 export function montarReservas(container: HTMLElement): void {
-  container.innerHTML = `
-    <form class="form-reserva">
-      <label>Cliente <select name="clienteId" required></select></label>
-      <label>Equipamento <select name="equipamentoId" required></select></label>
-      <label>Início <input name="inicio" type="datetime-local" required /></label>
-      <label>Fim <input name="fim" type="datetime-local" required /></label>
-      <label>Local da atividade <input name="localAtividade" required maxlength="120" /></label>
-      <button class="button" type="submit">Criar reserva</button>
-    </form>
+  const selecaoCliente = criarSelecao({ nome: 'clienteId', obrigatorio: true })
+  const selecaoEquipamento = criarSelecao({ nome: 'equipamentoId', obrigatorio: true })
+  const campoInicio = criarEntrada({ nome: 'inicio', tipo: 'datetime-local', obrigatorio: true })
+  const campoFim = criarEntrada({ nome: 'fim', tipo: 'datetime-local', obrigatorio: true })
+  const campoLocal = criarEntrada({ nome: 'localAtividade', obrigatorio: true, maxlength: '120' })
 
-    <p id="reservas-erro" class="erro" role="alert" hidden></p>
-    <div id="reservas-lista" class="lista-reservas"><p class="muted">Carregando…</p></div>
+  const form = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Criação de reserva' },
+    filhos: [
+      rotular('Cliente', selecaoCliente),
+      rotular('Equipamento', selecaoEquipamento),
+      rotular('Início', campoInicio),
+      rotular('Fim', campoFim),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [rotular('Local da atividade', campoLocal)],
+      }),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Criar reserva', { tipo: 'submit' })],
+      }),
+    ],
+  })
 
-    <h3 class="titulo-secao">Previsão do tempo</h3>
-    <form class="form-previsao">
-      <label>Local <input name="local" required maxlength="120" /></label>
-      <label>Início <input name="inicio" type="date" required /></label>
-      <label>Fim <input name="fim" type="date" required /></label>
-      <button class="button" type="submit">Consultar previsão</button>
-    </form>
-    <div id="previsao-resultado" class="previsao-resultado" role="status" hidden></div>
-  `
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'reservas-erro', role: 'alert', hidden: '' },
+  })
+  const lista = criarElemento('div', {
+    className: CLASSES.lista,
+    atributos: { id: 'reservas-lista' },
+    filhos: [criarElemento('p', { className: CLASSES.muted, texto: 'Carregando…' })],
+  })
 
-  const form = obrigar<HTMLFormElement>(container, '.form-reserva')
-  const formPrevisao = obrigar<HTMLFormElement>(container, '.form-previsao')
-  const selecaoCliente = obrigar<HTMLSelectElement>(form, 'select[name="clienteId"]')
-  const selecaoEquipamento = obrigar<HTMLSelectElement>(form, 'select[name="equipamentoId"]')
-  const areaErro = obrigar<HTMLElement>(container, '#reservas-erro')
-  const lista = obrigar<HTMLElement>(container, '#reservas-lista')
-  const resultadoPrevisao = obrigar<HTMLElement>(container, '#previsao-resultado')
+  const campoLocalPrevisao = criarEntrada({
+    nome: 'local',
+    obrigatorio: true,
+    maxlength: '120',
+  })
+  const campoInicioPrevisao = criarEntrada({ nome: 'inicio', tipo: 'date', obrigatorio: true })
+  const campoFimPrevisao = criarEntrada({ nome: 'fim', tipo: 'date', obrigatorio: true })
+
+  const formPrevisao = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Consulta de previsão do tempo' },
+    filhos: [
+      rotular('Local', campoLocalPrevisao),
+      rotular('Início', campoInicioPrevisao),
+      rotular('Fim', campoFimPrevisao),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [criarBotao('Consultar previsão', { tipo: 'submit' })],
+      }),
+    ],
+  })
+  const resultadoPrevisao = criarElemento('div', {
+    className: CLASSES.resumo,
+    atributos: { id: 'previsao-resultado', role: 'status', hidden: '' },
+  })
+
+  container.replaceChildren(
+    criarElemento('div', { className: CLASSES.cartao, filhos: [form] }),
+    areaErro,
+    lista,
+    criarElemento('div', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Previsão do tempo' }),
+        formPrevisao,
+        resultadoPrevisao,
+      ],
+    }),
+  )
 
   const mostrarErro = (erro: unknown): void => {
     areaErro.textContent = mensagemAmigavel(erro)
@@ -64,7 +118,7 @@ export function montarReservas(container: HTMLElement): void {
     try {
       const reservas = await window.electronAPI.reservas.listar()
       if (reservas.length === 0) {
-        lista.replaceChildren(criarTexto('Nenhuma reserva encontrada.', 'muted'))
+        lista.replaceChildren(criarTexto('Nenhuma reserva encontrada.', CLASSES.muted))
         return
       }
       lista.replaceChildren(...reservas.map(criarItem))
@@ -168,74 +222,71 @@ export function montarReservas(container: HTMLElement): void {
 }
 
 function criarItem(reserva: Reserva): HTMLElement {
-  const item = document.createElement('article')
-  item.className = 'item-reserva'
-
-  const titulo = document.createElement('strong')
-  titulo.textContent = `Reserva #${reserva.id}`
-  item.append(titulo)
-
-  const status = criarTexto(ROTULOS_STATUS[reserva.status], `status-${reserva.status}`)
-  item.append(status)
+  const filhos: Array<Node | string> = [
+    criarElemento('strong', {
+      className: CLASSES.itemTitulo,
+      texto: `Reserva #${reserva.id}`,
+    }),
+    criarTexto(ROTULOS_STATUS[reserva.status], classeStatusReserva(reserva.status)),
+  ]
 
   const periodo = new Date(reserva.inicio)
   const fim = new Date(reserva.fim)
-  item.append(
-    criarTexto(`${periodo.toLocaleString('pt-BR')} → ${fim.toLocaleString('pt-BR')}`, 'muted'),
+  filhos.push(
+    criarTexto(`${periodo.toLocaleString('pt-BR')} → ${fim.toLocaleString('pt-BR')}`, CLASSES.muted),
   )
-  item.append(
-    criarTexto(`Cliente #${reserva.clienteId} · Equipamento #${reserva.equipamentoId}`, 'muted'),
+  filhos.push(
+    criarTexto(`Cliente #${reserva.clienteId} · Equipamento #${reserva.equipamentoId}`, CLASSES.muted),
   )
-  item.append(criarTexto(`Local: ${reserva.localAtividade ?? 'Não informado'}`))
+  filhos.push(criarTexto(`Local: ${reserva.localAtividade ?? 'Não informado'}`, CLASSES.texto))
 
   if (reserva.status === 'pendente' || reserva.status === 'confirmada') {
-    const acoes = document.createElement('div')
-    acoes.className = 'acoes-reserva'
+    const botoes: HTMLButtonElement[] = []
     if (reserva.status === 'pendente') {
-      acoes.append(criarBotao('Confirmar', 'confirmar', reserva.id))
+      const confirmar = criarBotao('Confirmar', { acao: 'confirmar', pequeno: true })
+      confirmar.dataset.id = String(reserva.id)
+      botoes.push(confirmar)
     }
-    acoes.append(criarBotao('Cancelar', 'cancelar', reserva.id))
-    item.append(acoes)
+    const cancelar = criarBotao('Cancelar', {
+      acao: 'cancelar',
+      variante: 'perigo',
+      pequeno: true,
+    })
+    cancelar.dataset.id = String(reserva.id)
+    botoes.push(cancelar)
+    filhos.push(criarElemento('div', { className: CLASSES.acoesItem, filhos: botoes }))
   }
 
-  return item
-}
-
-function criarBotao(texto: string, acao: string, id: number): HTMLButtonElement {
-  const botao = document.createElement('button')
-  botao.className = `button button-pequeno${acao === 'cancelar' ? ' button-perigo' : ''}`
-  botao.type = 'button'
-  botao.textContent = texto
-  botao.dataset.acao = acao
-  botao.dataset.id = String(id)
-  return botao
+  return criarElemento('article', { className: CLASSES.item, filhos })
 }
 
 function criarPrevisao(previsao: PrevisaoTempo): HTMLElement[] {
-  const titulo = criarTexto(
-    `${previsao.local} · ${previsao.latitude.toFixed(2)}, ${previsao.longitude.toFixed(2)}`,
-    'previsao-titulo',
-  )
-  const dias = document.createElement('ul')
-  dias.className = 'previsao-dias'
+  const titulo = criarElemento('p', {
+    className: CLASSES.resumoTitulo,
+    texto: `${previsao.local} · ${previsao.latitude.toFixed(2)}, ${previsao.longitude.toFixed(2)}`,
+  })
+  const dias = criarElemento('ul', { className: CLASSES.previsaoLista })
   for (const dia of previsao.dias) {
-    const item = document.createElement('li')
-    item.className = 'previsao-dia'
-    item.textContent =
-      `${dia.data} · ${dia.descricao} · ${dia.temperaturaMin}°C a ${dia.temperaturaMax}°C` +
-      ` · ${dia.precipitacaoMm} mm`
+    const item = criarElemento('li', {
+      className: CLASSES.previsaoItem,
+      texto:
+        `${dia.data} · ${dia.descricao} · ${dia.temperaturaMin}°C a ${dia.temperaturaMax}°C` +
+        ` · ${dia.precipitacaoMm} mm`,
+    })
     dias.append(item)
   }
   if (previsao.dias.length === 0) {
-    dias.append(criarTexto('Nenhum dia disponível para o período.', 'muted'))
+    dias.append(criarElemento('li', {
+      className: CLASSES.muted,
+      texto: 'Nenhum dia disponível para o período.',
+    }))
   }
   return [titulo, dias]
 }
 
-function criarTexto(texto: string, classe?: string): HTMLElement {
-  const elemento = document.createElement('p')
-  elemento.textContent = texto
-  if (classe) elemento.className = classe
+function criarTexto(texto: string, classe: string): HTMLElement {
+  const elemento = criarElemento('p', { texto })
+  elemento.className = classe
   return elemento
 }
 
@@ -243,12 +294,6 @@ function paraIso(valor: string): string | null {
   if (valor === '') return null
   const data = new Date(valor)
   return Number.isNaN(data.getTime()) ? null : data.toISOString()
-}
-
-function obrigar<T extends Element>(container: ParentNode, seletor: string): T {
-  const elemento = container.querySelector<T>(seletor)
-  if (!elemento) throw new Error(`Falha ao montar a tela de reservas: ${seletor}`)
-  return elemento
 }
 
 function mensagemAmigavel(erro: unknown): string {
@@ -259,4 +304,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (erro.message.startsWith('IPC_INVALIDO:')) return 'Dados inválidos. Confira os campos.'
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de reservas adaptada ao roteador do shell. */
+export class PaginaReservas extends PaginaFuncional {
+  constructor() {
+    super('Reservas', 'Criação, confirmação e previsão do tempo.', montarReservas)
+  }
 }

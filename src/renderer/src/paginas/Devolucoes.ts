@@ -1,4 +1,14 @@
 import type { CalculoMulta } from '../../../shared/contratos/modelos'
+import { criarElemento } from '../nucleo'
+import {
+  CLASSES,
+  criarAreaTexto,
+  criarBotao,
+  criarEntrada,
+  criarSelecao,
+  rotular,
+} from './ControlesFuncionais'
+import { PaginaFuncional } from './PaginaFuncional'
 
 const MENSAGENS_ERRO: Record<string, string> = {
   DEVOLUCAO_JA_REGISTRADA: 'Esta reserva já tem uma devolução registrada.',
@@ -15,31 +25,48 @@ const REAIS = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 
 /** Tela de devoluções: só chama a API tipada; nunca Node, IPC cru, fetch ou SQL. */
 export function montarDevolucoes(container: HTMLElement): void {
-  container.innerHTML = `
-    <form class="form-devolucao">
-      <label>Reserva confirmada <select name="reservaId" required></select></label>
-      <label>Data/hora da devolução <input name="devolvidoEm" type="datetime-local" required /></label>
-      <label>Observações <textarea name="observacoes" maxlength="500" rows="2"></textarea></label>
-      <div class="acoes-devolucao">
-        <button class="button" type="button" data-acao="calcular">Calcular multa</button>
-        <button class="button" type="button" data-acao="registrar">Registrar devolução</button>
-      </div>
-    </form>
+  const selecao = criarSelecao({ nome: 'reservaId', obrigatorio: true })
+  const campoData = criarEntrada({ nome: 'devolvidoEm', tipo: 'datetime-local', obrigatorio: true })
+  const campoObservacoes = criarAreaTexto('observacoes', '500')
+  const botaoCalcular = criarBotao('Calcular multa', { acao: 'calcular' })
+  const botaoRegistrar = criarBotao('Registrar devolução', { acao: 'registrar' })
 
-    <p id="devolucoes-erro" class="erro" role="alert" hidden></p>
-    <p id="devolucoes-aviso" class="muted" role="status" hidden></p>
-    <div id="multa-resultado" class="multa-resultado" role="status" hidden></div>
-  `
+  const form = criarElemento('form', {
+    className: CLASSES.formulario,
+    atributos: { 'aria-label': 'Registro de devolução' },
+    filhos: [
+      rotular('Reserva confirmada', selecao),
+      rotular('Data/hora da devolução', campoData),
+      criarElemento('div', {
+        className: CLASSES.larguraTotal,
+        filhos: [rotular('Observações', campoObservacoes)],
+      }),
+      criarElemento('div', {
+        className: `${CLASSES.larguraTotal} ${CLASSES.acoes}`,
+        filhos: [botaoCalcular, botaoRegistrar],
+      }),
+    ],
+  })
 
-  const form = obrigar<HTMLFormElement>(container, '.form-devolucao')
-  const selecao = obrigar<HTMLSelectElement>(form, 'select[name="reservaId"]')
-  const campoData = obrigar<HTMLInputElement>(form, 'input[name="devolvidoEm"]')
-  const campoObservacoes = obrigar<HTMLTextAreaElement>(form, 'textarea[name="observacoes"]')
-  const botaoCalcular = obrigar<HTMLButtonElement>(form, 'button[data-acao="calcular"]')
-  const botaoRegistrar = obrigar<HTMLButtonElement>(form, 'button[data-acao="registrar"]')
-  const areaErro = obrigar<HTMLElement>(container, '#devolucoes-erro')
-  const areaAviso = obrigar<HTMLElement>(container, '#devolucoes-aviso')
-  const resultado = obrigar<HTMLElement>(container, '#multa-resultado')
+  const areaErro = criarElemento('p', {
+    className: CLASSES.erro,
+    atributos: { id: 'devolucoes-erro', role: 'alert', hidden: '' },
+  })
+  const areaAviso = criarElemento('p', {
+    className: CLASSES.aviso,
+    atributos: { id: 'devolucoes-aviso', role: 'status', hidden: '' },
+  })
+  const resultado = criarElemento('div', {
+    className: CLASSES.resumo,
+    atributos: { id: 'multa-resultado', role: 'status', hidden: '' },
+  })
+
+  container.replaceChildren(
+    criarElemento('div', { className: CLASSES.cartao, filhos: [form] }),
+    areaErro,
+    areaAviso,
+    resultado,
+  )
 
   const mostrarErro = (erro: unknown): void => {
     areaErro.textContent = mensagemAmigavel(erro)
@@ -176,14 +203,14 @@ function criarResumo(calculo: CalculoMulta): HTMLElement[] {
     ['Valor final', REAIS.format(calculo.valorTotal)],
   ]
 
-  const titulo = criarTexto('Resumo da multa', 'multa-titulo')
-  const lista = document.createElement('dl')
-  lista.className = 'multa-lista'
+  const titulo = criarElemento('p', {
+    className: CLASSES.resumoTitulo,
+    texto: 'Resumo da multa',
+  })
+  const lista = criarElemento('dl', { className: CLASSES.resumoLista })
   for (const [rotulo, valor] of linhas) {
-    const termo = document.createElement('dt')
-    termo.textContent = rotulo
-    const descricao = document.createElement('dd')
-    descricao.textContent = valor
+    const termo = criarElemento('dt', { className: CLASSES.resumoRotulo, texto: rotulo })
+    const descricao = criarElemento('dd', { className: CLASSES.resumoValor, texto: valor })
     lista.append(termo, descricao)
   }
   return [titulo, lista]
@@ -202,23 +229,10 @@ function formatarData(valor: string): string {
   return Number.isNaN(data.getTime()) ? valor : data.toLocaleString('pt-BR')
 }
 
-function criarTexto(texto: string, classe?: string): HTMLElement {
-  const elemento = document.createElement('p')
-  elemento.textContent = texto
-  if (classe) elemento.className = classe
-  return elemento
-}
-
 function paraIso(valor: string): string | null {
   if (valor === '') return null
   const data = new Date(valor)
   return Number.isNaN(data.getTime()) ? null : data.toISOString()
-}
-
-function obrigar<T extends Element>(container: ParentNode, seletor: string): T {
-  const elemento = container.querySelector<T>(seletor)
-  if (!elemento) throw new Error(`Falha ao montar a tela de devoluções: ${seletor}`)
-  return elemento
 }
 
 function mensagemAmigavel(erro: unknown): string {
@@ -228,4 +242,11 @@ function mensagemAmigavel(erro: unknown): string {
     if (mensagem) return mensagem
   }
   return 'Não foi possível concluir a operação.'
+}
+
+/** Tela funcional de devoluções adaptada ao roteador do shell. */
+export class PaginaDevolucoes extends PaginaFuncional {
+  constructor() {
+    super('Devoluções', 'Multas, registro e baixa de equipamentos devolvidos.', montarDevolucoes)
+  }
 }
