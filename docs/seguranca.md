@@ -13,6 +13,10 @@ Este documento consolida a postura de segurança do Electron e do contrato IPC. 
 | `nodeIntegration` | `false` | renderer nunca recebe `require`, `process` ou `fs` |
 | `webSecurity` | `true` | não desativar, nunca |
 | Navegação | restrita | só `file://` do próprio bundle; URLs externas via allowlist |
+| Instância única | `requestSingleInstanceLock` | impede dois processos disputando o mesmo `zenite.db` |
+
+Permissões de dispositivo (câmera, microfone, notificações) são negadas por padrão em
+`JanelaPrincipal`. DevTools, recarga e force reload só existem no menu quando `NODE_ENV=development`.
 
 ## 2. Superfície IPC
 
@@ -43,6 +47,25 @@ Este documento consolida a postura de segurança do Electron e do contrato IPC. 
    ou `brasilapi.com.br` (`src/main/seguranca/UrlsExternas.ts`).
 
 Qualquer outra URL devolve `URL_NAO_PERMITIDA`. Nunca abra `file:`, `javascript:` ou `http:`.
+
+**Evidência de teste:** `src/main/seguranca/UrlsExternas.test.ts` chama
+`urlExternaPermitida('file:///C:/Windows/System32/calc.exe')` e espera `false` — a tentativa de
+abrir um executável local pelo `abrirExterno` é rejeitada antes de chegar ao `shell`.
+
+## 4.1 Origem dos eventos IPC
+
+`RegistroIpc` recebe um `VerificadorOrigem` (injetado pelo `main`) e exige que **tanto o frame
+quanto o `webContents`** estejam na URL carregada pelo app (origem do Vite em dev, arquivo exato
+em produção). Subframes e eventos sem essa estrutura são rejeitados com
+`IPC_ORIGEM_INVALIDA:<canal>`, sem detalhe interno. Fora dos testes, registrar um handler sem
+verificador de origem é erro de inicialização.
+
+## 4.2 Transporte HTTP do main
+
+`src/main/rede/TransporteHttp.ts` usa `net.fetch` injetado, aplica a mesma allowlist das URLs
+externas e `AbortSignal.timeout` (8 s por padrão). Erros são internos (`ErroTransporte`); o
+serviço de domínio decide o código devolvido ao renderer. Vitest usa um cliente falso — o
+Electron nunca é iniciado nos testes.
 
 ## 5. APIs externas no main
 

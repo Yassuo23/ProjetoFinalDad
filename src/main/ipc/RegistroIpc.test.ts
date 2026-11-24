@@ -44,6 +44,19 @@ describe('RegistroIpc', () => {
     expect(tratar).not.toHaveBeenCalled()
   })
 
+  it('rejeita chamada de origem não confiável sem chegar ao serviço', async () => {
+    const ipc = new RegistradorFalso()
+    const registro = new RegistroIpc(ipc, { permitida: () => false })
+    const tratar = vi.fn(async (): Promise<string> => 'ok')
+
+    registro.registrar(CANAIS.appInfo, z.undefined(), tratar)
+
+    await expect(ipc.invocar(CANAIS.appInfo)).rejects.toThrow(
+      `IPC_ORIGEM_INVALIDA:${CANAIS.appInfo}`,
+    )
+    expect(tratar).not.toHaveBeenCalled()
+  })
+
   it('impede dois handlers para o mesmo canal', () => {
     const ipc = new RegistradorFalso()
     const registro = new RegistroIpc(ipc)
