@@ -30,13 +30,22 @@ function inserirReserva(
     inicio: string
     fim: string
     equipamentoId?: number
+    clienteId?: number
     status?: StatusReserva
+    localAtividade?: string
   },
 ): void {
   db.prepare(`
-    INSERT INTO reservas (cliente_id, equipamento_id, inicio, fim, status)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(1, dados.equipamentoId ?? 1, dados.inicio, dados.fim, dados.status ?? 'pendente')
+    INSERT INTO reservas (cliente_id, equipamento_id, inicio, fim, status, local_atividade)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    dados.clienteId ?? 1,
+    dados.equipamentoId ?? 1,
+    dados.inicio,
+    dados.fim,
+    dados.status ?? 'pendente',
+    dados.localAtividade ?? 'Trilha da Serra',
+  )
 }
 
 describe('ReservaRepositorio', () => {
@@ -100,6 +109,116 @@ describe('ReservaRepositorio', () => {
     })
 
     expect(repositorio.existeSobreposicao(1, INICIO, FIM)).toBe(false)
+
+    conexao.fechar()
+  })
+
+  it('lista todas as reservas ordenadas por início descendente', () => {
+    const conexao = bancoComMigracoes()
+    const repositorio = new ReservaRepositorio(conexao.db)
+
+    inserirReserva(conexao.db, {
+      inicio: '2026-12-02T00:00:00.000Z',
+      fim: '2026-12-03T00:00:00.000Z',
+    })
+    inserirReserva(conexao.db, { inicio: FIM, fim: '2026-12-08T00:00:00.000Z' })
+    inserirReserva(conexao.db, {
+      inicio: '2026-11-25T00:00:00.000Z',
+      fim: '2026-11-26T00:00:00.000Z',
+    })
+
+    expect(repositorio.listar().map((reserva) => reserva.inicio)).toEqual([
+      FIM,
+      '2026-12-02T00:00:00.000Z',
+      '2026-11-25T00:00:00.000Z',
+    ])
+
+    conexao.fechar()
+  })
+
+  it('aplica filtros opcionais de cliente, equipamento e status', () => {
+    const conexao = bancoComMigracoes()
+    conexao.db.prepare('INSERT INTO clientes (nome) VALUES (?)').run('Bruno')
+    const repositorio = new ReservaRepositorio(conexao.db)
+
+    inserirReserva(conexao.db, { inicio: INICIO, fim: FIM })
+    inserirReserva(conexao.db, {
+      clienteId: 2,
+      equipamentoId: 2,
+      inicio: '2026-12-06T00:00:00.000Z',
+      fim: '2026-12-08T00:00:00.000Z',
+      status: 'confirmada',
+    })
+
+    expect(repositorio.listar({ clienteId: 2 })).toHaveLength(1)
+    expect(repositorio.listar({ equipamentoId: 2 })).toHaveLength(1)
+    expect(repositorio.listar({ status: 'confirmada' })).toHaveLength(1)
+    expect(repositorio.listar({ clienteId: 1, status: 'confirmada' })).toEqual([])
+    expect(repositorio.listar({ clienteId: 2, equipamentoId: 2, status: 'confirmada' })).toHaveLength(
+      1,
+    )
+
+    conexao.fechar()
+  })
+
+  it('busca por id e devolve null quando não encontra', () => {
+    const conexao = bancoComMigracoes()
+    const repositorio = new ReservaRepositorio(conexao.db)
+    const criado = repositorio.criar({
+      clienteId: 1,
+      equipamentoId: 2,
+      inicio: INICIO,
+      fim: FIM,
+      localAtividade: 'Serra da Mantiqueira',
+    })
+
+    expect(repositorio.buscarPorId(criado.id)).toEqual(criado)
+    expect(repositorio.buscarPorId(999)).toBeNull()
+
+    conexao.fechar()
+  })
+
+  it('cria como pendente e grava o local da atividade', () => {
+    const conexao = bancoComMigracoes()
+    const repositorio = new ReservaRepositorio(conexao.db)
+
+    const criado = repositorio.criar({
+      clienteId: 1,
+      equipamentoId: 2,
+      inicio: INICIO,
+      fim: FIM,
+      localAtividade: 'Serra da Mantiqueira',
+    })
+
+    expect(criado).toMatchObject({
+      clienteId: 1,
+      equipamentoId: 2,
+      inicio: INICIO,
+      fim: FIM,
+      status: 'pendente',
+      localAtividade: 'Serra da Mantiqueira',
+    })
+    expect(typeof criado.criadoEm).toBe('string')
+
+    conexao.fechar()
+  })
+
+  it('confirma e cancela com retorno de linha ausente quando o id não existe', () => {
+    const conexao = bancoComMigracoes()
+    const repositorio = new ReservaRepositorio(conexao.db)
+    const criado = repositorio.criar({
+      clienteId: 1,
+      equipamentoId: 1,
+      inicio: INICIO,
+      fim: FIM,
+      localAtividade: 'Trilha da Serra',
+    })
+
+    expect(repositorio.confirmar(criado.id)?.status).toBe('confirmada')
+    expect(repositorio.cancelar(criado.id)).toBe(true)
+    expect(repositorio.buscarPorId(criado.id)?.status).toBe('cancelada')
+    expect(repositorio.confirmar(999)).toBeNull()
+    expect(repositorio.cancelar(999)).toBe(false)
 
     conexao.fechar()
   })

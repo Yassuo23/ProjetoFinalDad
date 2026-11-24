@@ -45,7 +45,18 @@ function reservasFalso(sobrepostos: readonly number[] = []) {
     (equipamentoId: number, _inicio: string, _fim: string) =>
       sobrepostos.includes(equipamentoId),
   )
-  const repositorio: RepositorioReservas = { existeSobreposicao }
+  const repositorio: RepositorioReservas = {
+    existeSobreposicao,
+    listar: () => {
+      throw new Error('NAO_ESPERADO')
+    },
+    buscarPorId: () => null,
+    criar: () => {
+      throw new Error('NAO_ESPERADO')
+    },
+    confirmar: () => null,
+    cancelar: () => false,
+  }
   return { repositorio, existeSobreposicao }
 }
 
