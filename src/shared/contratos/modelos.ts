@@ -18,6 +18,48 @@ export interface PingPayload {
   timestamp: number
 }
 
+/** Extensões que o contrato permite oferecer em diálogos nativos. */
+export type ExtensaoArquivo = '.db' | '.csv'
+
+export interface FiltroArquivo {
+  nome: string
+  extensoes: ExtensaoArquivo[]
+}
+
+/** O renderer pede o diálogo; ele nunca informa ou constrói um caminho. */
+export interface DialogoAbrirEntrada {
+  titulo?: string
+  filtros?: FiltroArquivo[]
+}
+
+export interface DialogoSalvarEntrada extends DialogoAbrirEntrada {
+  nomeSugerido?: string
+}
+
+/** `caminho: null` é cancelamento do diálogo, não erro. */
+export interface ResultadoDialogo {
+  caminho: string | null
+}
+
+/** Caminho precisa ter vindo de `arquivos:abrir`; o main valida antes de usar. */
+export interface BackupRestaurarEntrada {
+  caminho: string
+}
+
+/** `caminho: null` com `bytes: 0` = cancelamento na diálogo/confirmação, não erro. */
+export type ResultadoOperacaoArquivo =
+  { caminho: string; bytes: number } | { caminho: null; bytes: 0 }
+
+/** O main converte e escapa cada célula; o renderer só agrega os dados. */
+export type CelulaCsv = string | number | boolean | null
+
+export interface ExportacaoCsvEntrada {
+  titulo?: string
+  nomeSugerido?: string
+  cabecalhos: string[]
+  linhas: CelulaCsv[][]
+}
+
 export interface Categoria {
   id: number
   nome: string
@@ -486,6 +528,12 @@ export type CodigoErroDominio =
   | 'LOGIN_DUPLICADO'
   | 'SENHA_INVALIDA'
   | 'USUARIO_INATIVO'
+  // Arquivos, backup e exportação (ADR 0019).
+  | 'ARQUIVO_NAO_ENCONTRADO'
+  | 'CAMINHO_NAO_PERMITIDO'
+  | 'BACKUP_FALHOU'
+  | 'EXPORTACAO_FALHOU'
+  | 'DIALOGO_FALHOU'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio

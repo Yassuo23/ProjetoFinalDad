@@ -302,3 +302,68 @@ export const esquemaUsuarioAutenticar = z.object({
 export const esquemaPainelFiltros = z
   .object({ ano: z.number().int().min(2000).max(2100).optional() })
   .optional()
+
+// ADR 0019 — Arquivos, backup e exportação
+
+const esquemaExtensaoArquivo = z.enum(['.db', '.csv'])
+const esquemaTituloDialogo = z.string().trim().min(1).max(120)
+const esquemaNomeSugerido = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  // Nunca aceita separadores, unidade ou caracteres proibidos em nome de arquivo.
+  .regex(/^[^\\/:*?"<>|]+$/u, 'CAMINHO_NAO_PERMITIDO')
+  .refine((valor) => [...valor].every((caractere) => caractere.charCodeAt(0) >= 32), {
+    message: 'CAMINHO_NAO_PERMITIDO',
+  })
+const esquemaFiltroArquivo = z.object({
+  nome: z.string().trim().min(1).max(80),
+  extensoes: z.array(esquemaExtensaoArquivo).min(1).max(2),
+})
+
+export const esquemaDialogoAbrir = z.object({
+  titulo: esquemaTituloDialogo.optional(),
+  filtros: z.array(esquemaFiltroArquivo).min(1).max(4).optional(),
+})
+
+export const esquemaDialogoSalvar = esquemaDialogoAbrir.extend({
+  nomeSugerido: esquemaNomeSugerido.optional(),
+})
+
+/** `backup:criar` não recebe caminho: o diálogo de salvar é aberto no main. */
+export const esquemaBackupCriar = esquemaSemEntrada
+
+/**
+ * Só a forma do caminho é validada aqui. Allowlist, extensão `.db`, existência e
+ * `realpath` são do serviço, para o erro ser de domínio e não `IPC_INVALIDO`.
+ */
+export const esquemaBackupRestaurar = z.object({
+  caminho: z
+    .string()
+    .trim()
+    .min(1)
+    .max(1024)
+    .refine((valor) => !valor.includes('\0')),
+})
+
+export const esquemaExportacaoCsv = z
+  .object({
+    titulo: esquemaTituloDialogo.optional(),
+    nomeSugerido: esquemaNomeSugerido.optional(),
+    cabecalhos: z.array(z.string().trim().min(1).max(200)).min(1).max(50),
+    linhas: z
+      .array(
+        z
+          .union([z.string().max(1000), z.number().finite(), z.boolean(), z.null()])
+          .array()
+          .max(50),
+      )
+      .max(5000),
+  })
+  .refine(
+    (entrada) => entrada.linhas.every((linha) => linha.length === entrada.cabecalhos.length),
+    {
+      message: 'CSV_INVALIDO',
+    },
+  )

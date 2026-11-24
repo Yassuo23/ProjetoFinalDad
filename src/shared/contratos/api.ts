@@ -29,6 +29,12 @@ import type {
   Devolucao,
   DevolucaoRegistrarEntrada,
   DisponibilidadeResultado,
+  BackupRestaurarEntrada,
+  DialogoAbrirEntrada,
+  DialogoSalvarEntrada,
+  ExportacaoCsvEntrada,
+  ResultadoDialogo,
+  ResultadoOperacaoArquivo,
   Endereco,
   Equipamento,
   EquipamentoAtualizarEntrada,
@@ -58,6 +64,20 @@ export interface ApiZenite {
   appInfo(): Promise<AppInfo>
   abrirExterno(url: string): Promise<void>
   onPing(callback: (payload: PingPayload) => void): () => void
+  arquivos: {
+    abrir(entrada?: DialogoAbrirEntrada): Promise<ResultadoDialogo>
+    salvar(entrada?: DialogoSalvarEntrada): Promise<ResultadoDialogo>
+  }
+  backup: {
+    /** O main abre o diálogo de salvar; cancelamento devolve `caminho: null`. */
+    criar(): Promise<ResultadoOperacaoArquivo>
+    /** `caminho` deve ser o retorno de `arquivos.abrir` com filtro `.db`. */
+    restaurar(entrada: BackupRestaurarEntrada): Promise<ResultadoOperacaoArquivo>
+  }
+  exportacao: {
+    /** O main escolhe o caminho via diálogo com filtro fixo `.csv`. */
+    csv(entrada: ExportacaoCsvEntrada): Promise<ResultadoDialogo>
+  }
   categorias: { listar(): Promise<Categoria[]> }
   clientes: {
     listar(filtros?: ClientesListarFiltros): Promise<Cliente[]>

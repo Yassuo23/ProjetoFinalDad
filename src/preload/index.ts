@@ -1,7 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
 import type { ApiZenite } from '../shared/contratos/api'
-import type { PingPayload } from '../shared/contratos/modelos'
+import type {
+  BackupRestaurarEntrada,
+  DialogoAbrirEntrada,
+  DialogoSalvarEntrada,
+  ExportacaoCsvEntrada,
+  PingPayload,
+} from '../shared/contratos/modelos'
 
 const api: ApiZenite = {
   appInfo: () => ipcRenderer.invoke(CANAIS.appInfo),
@@ -14,6 +20,22 @@ const api: ApiZenite = {
     }
     ipcRenderer.on(CANAIS.ping, listener)
     return () => ipcRenderer.removeListener(CANAIS.ping, listener)
+  },
+
+  arquivos: {
+    abrir: (entrada: DialogoAbrirEntrada = {}) => ipcRenderer.invoke(CANAIS.arquivosAbrir, entrada),
+    salvar: (entrada: DialogoSalvarEntrada = {}) =>
+      ipcRenderer.invoke(CANAIS.arquivosSalvar, entrada),
+  },
+
+  backup: {
+    criar: () => ipcRenderer.invoke(CANAIS.backupCriar),
+    restaurar: (entrada: BackupRestaurarEntrada) =>
+      ipcRenderer.invoke(CANAIS.backupRestaurar, entrada),
+  },
+
+  exportacao: {
+    csv: (entrada: ExportacaoCsvEntrada) => ipcRenderer.invoke(CANAIS.exportacaoCsv, entrada),
   },
 
   categorias: { listar: () => ipcRenderer.invoke(CANAIS.categoriasListar) },
