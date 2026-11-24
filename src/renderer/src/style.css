@@ -446,3 +446,76 @@ dd {
 .previsao-dia {
   margin-bottom: 4px;
 }
+
+.form-devolucao {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.form-devolucao label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--verde-floresta);
+}
+
+.form-devolucao select,
+.form-devolucao input,
+.form-devolucao textarea {
+  border: 1px solid rgba(140, 154, 165, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  background: #fff;
+  color: var(--grafite);
+}
+
+.form-devolucao textarea {
+  min-height: 44px;
+  resize: vertical;
+}
+
+.acoes-devolucao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.multa-resultado {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(111, 175, 224, 0.12);
+}
+
+.multa-titulo {
+  margin: 0 0 8px;
+  font-weight: 600;
+  color: var(--verde-floresta);
+}
+
+.multa-lista {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.multa-lista dt {
+  color: var(--granito);
+}
+
+.multa-lista dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
