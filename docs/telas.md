@@ -85,9 +85,9 @@ Legenda:
 
 ## 2. Matriz de contrato IPC
 
-Situação real em `src/shared/contratos/canais.ts` e `api.ts`: existem apenas `appInfo`,
-`abrirExterno`, `ping`, `categorias:listar`, `clientes:listar`, `equipamentos:listar` e
-`reservas:listar`. Legenda: ✅ pronto · ⚠️ parcial · ❌ ausente.
+Situação real em `src/shared/contratos/canais.ts` e `api.ts`: existem `appInfo`, `abrirExterno`,
+`ping`, `categorias:listar`, `clientes:listar`, `equipamentos:listar`, `reservas:listar` e
+`stripe:criar-checkout` (checkout hospedado da Stripe). Legenda: ✅ pronto · ⚠️ parcial · ❌ ausente.
 
 | Tela | Situação hoje | Depende de novo canal / modelo | Responsável |
 | --- | --- | --- | --- |
@@ -99,7 +99,7 @@ Situação real em `src/shared/contratos/canais.ts` e `api.ts`: existem apenas `
 | Manutenção | ❌ nenhum | `manutencao.listar`, `manutencao.abrir`, `manutencao.concluir` | Arquiteto → ED |
 | Reservas | ⚠️ `reservas.listar` existe | `reservas.disponibilidadePorData`, `reservas.criar`, `clima.previsao` (HTTP no main com allowlist) | Arquiteto → ED |
 | Devoluções | ❌ nenhum | `devolucoes.listarPendentes`, `devolucoes.registrar`, `multas.calcular` | Arquiteto → ED |
-| Pagamentos | ❌ nenhum | `pagamentos.listar`, `pagamentos.registrar` | Arquiteto → ED |
+| Pagamentos | ⚠️ `stripe.criarCheckout` pronto; consulta/baixa ausentes | `pagamentos.listar`, `pagamentos.registrar` | Integrador API + UI/UX → Arquiteto → ED |
 
 `categorias.listar` já existe e alimenta o filtro de categorias em Equipamentos e Reservas.
 
@@ -475,6 +475,10 @@ possibilidade de isenção pelo administrador.
 ---
 
 ### 3.9 Pagamentos
+
+> **Checkout:** o botão de pagar chama `stripe.criarCheckout` no main e abre a URL devolvida com
+> `abrirExterno` (allowlist de `checkout.stripe.com`). A tabela/cards seguem ilustrativos até
+> existir `pagamentos.listar`; a baixa no SQLite depende de `pagamentos.registrar`/webhook.
 
 **Objetivo:** controlar o que foi recebido de reservas e multas, e o que ainda está pendente.
 

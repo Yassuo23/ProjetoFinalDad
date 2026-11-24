@@ -1,4 +1,14 @@
-import type { AppInfo, Categoria, Cliente, Equipamento, PingPayload, Reserva } from './modelos'
+import type {
+  AppInfo,
+  Categoria,
+  Cliente,
+  CriarCheckoutStripePayload,
+  Equipamento,
+  ListarClientesRequisicao,
+  PingPayload,
+  Reserva,
+  SessaoCheckoutStripe,
+} from './modelos'
 
 /** Contrato único da ponte renderer → main. */
 export interface ApiZenite {
@@ -6,9 +16,10 @@ export interface ApiZenite {
   abrirExterno(url: string): Promise<void>
   onPing(callback: (payload: PingPayload) => void): () => void
   categorias: { listar(): Promise<Categoria[]> }
-  clientes: { listar(): Promise<Cliente[]> }
+  clientes: { listar(params?: ListarClientesRequisicao): Promise<Cliente[]> }
   equipamentos: { listar(): Promise<Equipamento[]> }
   reservas: { listar(): Promise<Reserva[]> }
+  stripe: { criarCheckout(payload: CriarCheckoutStripePayload): Promise<SessaoCheckoutStripe> }
 }
 
 declare global {

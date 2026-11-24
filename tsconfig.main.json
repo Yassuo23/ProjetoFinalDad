@@ -6,5 +6,6 @@
     "outDir": "dist",
     "sourceMap": true
   },
-  "include": ["src/main/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/shared/**/*.ts", "src/mock-api/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
 }

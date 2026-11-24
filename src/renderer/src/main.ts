@@ -3,11 +3,13 @@ import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import { criarElemento, Roteador, substituirConteudo } from './nucleo'
 import type { FabricaPagina } from './nucleo'
 import {
+  PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
   PaginaEmConstrucao,
   PaginaEquipamentos,
   PaginaNaoEncontrada,
+  PaginaPagamentos,
   PaginaSobre,
 } from './paginas'
 
@@ -20,7 +22,7 @@ if (!root) {
 const ROTAS = new Map<string, FabricaPagina>([
   ['/dashboard', () => new PaginaDashboard()],
   ['/equipamentos', () => new PaginaEquipamentos()],
-  ['/clientes', () => new PaginaEmConstrucao('Clientes', 'clientes.buscarCep · clientes.salvar')],
+  ['/clientes', () => new PaginaClientes()],
   [
     '/fornecedores',
     () => new PaginaEmConstrucao('Fornecedores', 'fornecedores.listar · fornecedores.salvar'),
@@ -34,10 +36,7 @@ const ROTAS = new Map<string, FabricaPagina>([
     '/devolucoes',
     () => new PaginaEmConstrucao('Devoluções', 'devolucoes.registrar · multas.calcular'),
   ],
-  [
-    '/pagamentos',
-    () => new PaginaEmConstrucao('Pagamentos', 'pagamentos.listar · pagamentos.registrar'),
-  ],
+  ['/pagamentos', () => new PaginaPagamentos()],
   ['/sobre', () => new PaginaSobre()],
   ['/404', () => new PaginaNaoEncontrada()],
 ])

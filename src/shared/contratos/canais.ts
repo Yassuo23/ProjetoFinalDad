@@ -12,6 +12,7 @@ export const CANAIS = {
   clientesListar: 'clientes:listar',
   equipamentosListar: 'equipamentos:listar',
   reservasListar: 'reservas:listar',
+  stripeCriarCheckout: 'stripe:criar-checkout',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

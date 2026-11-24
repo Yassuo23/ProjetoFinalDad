@@ -17,9 +17,12 @@ const api: ApiZenite = {
   },
 
   categorias: { listar: () => ipcRenderer.invoke(CANAIS.categoriasListar) },
-  clientes: { listar: () => ipcRenderer.invoke(CANAIS.clientesListar) },
+  clientes: { listar: (params) => ipcRenderer.invoke(CANAIS.clientesListar, params) },
   equipamentos: { listar: () => ipcRenderer.invoke(CANAIS.equipamentosListar) },
   reservas: { listar: () => ipcRenderer.invoke(CANAIS.reservasListar) },
+  stripe: {
+    criarCheckout: (payload) => ipcRenderer.invoke(CANAIS.stripeCriarCheckout, payload),
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

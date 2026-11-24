@@ -110,6 +110,10 @@ export class Select extends Componente {
     return this.select.value
   }
 
+  definirValor(valor: string): void {
+    this.select.value = valor
+  }
+
   definirErro(mensagem: string | null): void {
     this.mensagemErro.textContent = mensagem ?? ''
     this.mensagemErro.hidden = mensagem === null

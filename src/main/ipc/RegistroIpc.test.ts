@@ -44,6 +44,22 @@ describe('RegistroIpc', () => {
     expect(tratar).not.toHaveBeenCalled()
   })
 
+  it('nunca devolve stack do handler ao renderer', async () => {
+    const ipc = new RegistradorFalso()
+    const registro = new RegistroIpc(ipc)
+    registro.registrar(CANAIS.appInfo, z.undefined(), async () => {
+      throw new Error('falha interna')
+    })
+
+    const erro = await ipc.invocar(CANAIS.appInfo).catch((motivo: unknown) => motivo)
+
+    expect(erro).toBeInstanceOf(Error)
+    if (erro instanceof Error) {
+      expect(erro.message).toBe('falha interna')
+      expect(erro.stack).toBeUndefined()
+    }
+  })
+
   it('impede dois handlers para o mesmo canal', () => {
     const ipc = new RegistradorFalso()
     const registro = new RegistroIpc(ipc)

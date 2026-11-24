@@ -1,6 +1,15 @@
 import type { ZodType } from 'zod'
 import type { Canal } from '../../shared/contratos/canais'
 
+const ERRO_GENERICO = new Error('Não foi possível concluir a operação.')
+
+/** Códigos e stacks ficam no main; o renderer recebe só a mensagem curta. */
+function erroParaRenderer(erro: unknown): Error {
+  if (!(erro instanceof Error)) return ERRO_GENERICO
+  erro.stack = undefined
+  return erro
+}
+
 /** Porta mínima do ipcMain — permite testar sem subir o Electron. */
 export interface RegistradorIpc {
   handle(canal: string, ouvinte: (evento: unknown, ...argumentos: unknown[]) => unknown): void
@@ -24,10 +33,14 @@ export class RegistroIpc {
     this.ipc.handle(canal, async (_evento, bruto: unknown) => {
       const resultado = esquema.safeParse(bruto)
       if (!resultado.success) {
-        // Nunca devolver o detalhe do Zod ao renderer.
-        throw new Error(`IPC_INVALIDO:${canal}`)
+        // Nunca devolver o detalhe do Zod nem stack ao renderer.
+        const falha = new Error(`IPC_INVALIDO:${canal}`)
+        falha.stack = undefined
+        throw falha
       }
-      return tratar(resultado.data)
+      return tratar(resultado.data).catch((erro: unknown): never => {
+        throw erroParaRenderer(erro)
+      })
     })
   }
 

@@ -49,6 +49,34 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 - The renderer talks to Electron exclusively through the typed `window.electronAPI` bridge defined in `src/preload/index.ts`
 - A Content Security Policy is set in `src/renderer/index.html` (relax it only where needed)
 
+## Stripe (checkout hospedado)
+
+A aba **Pagamentos** inicia um checkout via `window.electronAPI.stripe.criarCheckout`. Toda a
+comunicação HTTP com a Stripe acontece no processo principal, em
+`src/main/integracoes/stripe/`; o renderer recebe somente o DTO validado (`id`, `url`, `status`,
+`expiraEm`) e abre a URL com `abrirExterno`, que só aceita `checkout.stripe.com`.
+
+Copie `.env.example` para `.env` e preencha:
+
+| Variável              | Descrição                                                                 |
+| --------------------- | ------------------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`   | Chave secreta (`sk_test_...` em dev). Nunca use chave publicável.          |
+| `STRIPE_API_BASE_URL` | Base da API (ex.: `https://api.stripe.com`). Sem caminho/query/fragmento. |
+| `STRIPE_TIMEOUT_MS`   | Timeout por requisição em ms (1000–60000, padrão 10000).                   |
+| `STRIPE_MOEDA`        | Moeda ISO de 3 letras em minúsculas (padrão `brl`).                        |
+| `STRIPE_SUCCESS_URL`  | URL HTTPS pública de retorno após pagamento aprovado.                      |
+| `STRIPE_CANCEL_URL`   | URL HTTPS pública de retorno quando o cliente cancela.                     |
+
+`.env` é ignorado pelo Git e **não entra no instalador**; ele só é lido quando o app não está
+empacotado. Em produção, forneça as variáveis pelo ambiente do sistema ou cofre do SO — nunca
+embuta a chave secreta no bundle. Requisições usam timeout explícito, `Idempotency-Key` derivado
+da cobrança e mensagens amigáveis: stack, headers, corpo e detalhes da Stripe não cruzam o IPC
+(os códigos de erro ficam apenas no main).
+
+O valor e o tipo da cobrança ainda vêm do formulário (wireframe 3.9); quando existir um serviço
+de pagamentos no main, esse cálculo deve ser movido para lá. O checkout também não persiste a
+baixa automaticamente: `STRIPE_SUCCESS_URL`/`STRIPE_CANCEL_URL` precisam ser páginas HTTPS públicas.
+
 ## Adding your own feature
 
 1. Add a channel string to `CANAIS` in `src/shared/contratos/canais.ts`.
