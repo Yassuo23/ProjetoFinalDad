@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type {
   CodigoErroDominio,
   Equipamento,
+  EquipamentoDisponiveisEntrada,
 } from '../../shared/contratos/modelos'
 import type { RepositorioCategorias } from '../repositorios/CategoriaRepositorio'
 import type { RepositorioEquipamentos } from '../repositorios/EquipamentoRepositorio'
+import type { ServicoDisponibilidade } from './DisponibilidadeServico'
 import { ErroDeDominio } from './ErroDominio'
 import { EquipamentoServico } from './EquipamentoServico'
 
@@ -91,6 +93,11 @@ const categorias: RepositorioCategorias = {
   listar: () => [{ id: 1, nome: 'Camping', descricao: null }],
 }
 
+const disponibilidadeSemSobreposicao: ServicoDisponibilidade = {
+  verificar: () => ({ disponivel: true }),
+  filtrar: (equipamentos) => [...equipamentos],
+}
+
 const dadosNovos = {
   nome: 'Tenda',
   categoriaId: 1,
@@ -113,7 +120,11 @@ function codigoDoErro(acao: () => unknown): CodigoErroDominio {
 
 describe('EquipamentoServico', () => {
   it('cria com categoria válida e nome livre', () => {
-    const servico = new EquipamentoServico(new RepositorioEquipamentosFalso(), categorias)
+    const servico = new EquipamentoServico(
+      new RepositorioEquipamentosFalso(),
+      categorias,
+      disponibilidadeSemSobreposicao,
+    )
 
     expect(servico.criar(dadosNovos)).toMatchObject({ nome: 'Tenda', estado: 'disponivel' })
   })
@@ -121,7 +132,11 @@ describe('EquipamentoServico', () => {
   it('rejeita nome duplicado e categoria inexistente', () => {
     const repositorio = new RepositorioEquipamentosFalso()
     repositorio.criar(dadosNovos)
-    const servico = new EquipamentoServico(repositorio, categorias)
+    const servico = new EquipamentoServico(
+      repositorio,
+      categorias,
+      disponibilidadeSemSobreposicao,
+    )
 
     expect(codigoDoErro(() => servico.criar({ ...dadosNovos, nome: 'tenda' }))).toBe(
       'NOME_DUPLICADO',
@@ -132,7 +147,11 @@ describe('EquipamentoServico', () => {
   })
 
   it('rejeita busca, atualização e inativação de inexistente', () => {
-    const servico = new EquipamentoServico(new RepositorioEquipamentosFalso(), categorias)
+    const servico = new EquipamentoServico(
+      new RepositorioEquipamentosFalso(),
+      categorias,
+      disponibilidadeSemSobreposicao,
+    )
 
     expect(codigoDoErro(() => servico.buscarPorId(42))).toBe('EQUIPAMENTO_NAO_ENCONTRADO')
     expect(codigoDoErro(() => servico.atualizar({ id: 42, nome: 'X' }))).toBe(
@@ -144,11 +163,29 @@ describe('EquipamentoServico', () => {
   it('rejeita período invertido e delega a listagem de disponíveis', () => {
     const repositorio = new RepositorioEquipamentosFalso()
     repositorio.criar(dadosNovos)
-    const servico = new EquipamentoServico(repositorio, categorias)
+    const servico = new EquipamentoServico(
+      repositorio,
+      categorias,
+      disponibilidadeSemSobreposicao,
+    )
 
     expect(servico.listarDisponiveis(PERIODO)).toHaveLength(1)
     expect(codigoDoErro(() => servico.listarDisponiveis({ inicio: PERIODO.fim, fim: PERIODO.inicio }))).toBe(
       'PERIODO_INVALIDO',
     )
+  })
+
+  it('delega o filtro de disponibilidade ao serviço injetado', () => {
+    const repositorio = new RepositorioEquipamentosFalso()
+    repositorio.criar(dadosNovos)
+    const filtrar = vi.fn(
+      (itens: readonly Equipamento[], _periodo: EquipamentoDisponiveisEntrada) => [...itens],
+    )
+    const servico = new EquipamentoServico(repositorio, categorias, { filtrar })
+
+    const disponiveis = servico.listarDisponiveis(PERIODO)
+
+    expect(disponiveis).toHaveLength(1)
+    expect(filtrar).toHaveBeenCalledWith(disponiveis, PERIODO)
   })
 })

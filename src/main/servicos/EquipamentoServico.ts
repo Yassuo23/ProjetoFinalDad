@@ -11,6 +11,7 @@ import type {
 import type {
   RepositorioEquipamentos,
 } from '../repositorios/EquipamentoRepositorio'
+import type { ServicoDisponibilidade } from './DisponibilidadeServico'
 import { ErroDeDominio } from './ErroDominio'
 
 /** Porta usada pelo handler; implementação trocável nos testes. */
@@ -23,11 +24,20 @@ export interface ServicoEquipamentos {
   listarDisponiveis(periodo: EquipamentoDisponiveisEntrada): Equipamento[]
 }
 
+/** Filtro mínimo necessário para listar equipamentos disponíveis. */
+type FiltroDisponibilidade = Pick<ServicoDisponibilidade, 'filtrar'>
+
+/** Mantém o comportamento P1 até a composição de handlers injetar o serviço real. */
+const filtroSemReservas: FiltroDisponibilidade = {
+  filtrar: (equipamentos) => [...equipamentos],
+}
+
 /** Regras de negócio do equipamento. Não conhece IPC, janela nem SQL. */
 export class EquipamentoServico implements ServicoEquipamentos {
   constructor(
     private readonly equipamentos: RepositorioEquipamentos,
     private readonly categorias: RepositorioCategorias,
+    private readonly disponibilidade: FiltroDisponibilidade = filtroSemReservas,
   ) {}
 
   listar(filtros?: EquipamentoListarFiltros): Equipamento[] {
@@ -77,7 +87,7 @@ export class EquipamentoServico implements ServicoEquipamentos {
     if (periodo.inicio >= periodo.fim) {
       throw new ErroDeDominio('PERIODO_INVALIDO', 'O início deve ser anterior ao fim.')
     }
-    return this.equipamentos.listarDisponiveis(periodo)
+    return this.disponibilidade.filtrar(this.equipamentos.listarDisponiveis(periodo), periodo)
   }
 
   private validarCategoria(categoriaId: number): void {
