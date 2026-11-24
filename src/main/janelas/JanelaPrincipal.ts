@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { BrowserWindow } from 'electron'
 
 const LARGURA_INICIAL = 1200
@@ -6,9 +7,15 @@ const ALTURA_INICIAL = 800
 const LARGURA_MINIMA = 800
 const ALTURA_MINIMA = 600
 
+/** URL carregada pela janela — usada tambem como allowlist de origem IPC. */
+export function urlAplicacao(isDev: boolean, urlDev: string | undefined): string {
+  if (isDev && urlDev) return urlDev
+  return pathToFileURL(path.join(__dirname, '../renderer/index.html')).toString()
+}
+
 /**
- * Única janela do aplicativo. Todas as opções de `webPreferences` que envolvem
- * isolamento são fixas aqui: não existe caminho que desligue `sandbox` ou
+ * Unica janela do aplicativo. Todas as opcoes de `webPreferences` que envolvem
+ * isolamento sao fixas aqui: nao existe caminho que desligue `sandbox` ou
  * `contextIsolation` para "fazer funcionar".
  */
 export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined): BrowserWindow {

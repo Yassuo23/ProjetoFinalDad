@@ -7,9 +7,10 @@ import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
 import { registrarHandlers } from './ipc/handlers'
 import { RegistroIpc } from './ipc/RegistroIpc'
-import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
+import { criarJanelaPrincipal, urlAplicacao } from './janelas/JanelaPrincipal'
 import { criarMenuAplicacao } from './janelas/MenuAplicacao'
 import { ContainerAplicacao } from './nucleo/ContainerAplicacao'
+import { origemIpcConfiavel } from './seguranca/OrigemIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -44,7 +45,10 @@ if (!app.requestSingleInstanceLock()) {
     if (!conexaoBanco) throw new Error('Falha ao abrir o banco local.')
 
     const container = new ContainerAplicacao(conexaoBanco.db)
-    const registro = new RegistroIpc(ipcMain)
+    const urlApp = urlAplicacao(isDev, process.env.VITE_DEV_SERVER_URL)
+    const registro = new RegistroIpc(ipcMain, {
+      confiavel: (evento) => origemIpcConfiavel(evento, [urlApp]),
+    })
     registrarHandlers(registro, container)
 
     criarMenuAplicacao(isDev, enviarPing)
