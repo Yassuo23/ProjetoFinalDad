@@ -41,18 +41,40 @@ export function montarEquipamentos(container: HTMLElement): void {
       <label>Filtrar por estado <select id="filtro-estado"><option value="">Todos</option></select></label>
     </div>
 
+    <h3 class="titulo-secao">Verificar disponibilidade</h3>
+    <form class="form-disponibilidade">
+      <label>Equipamento <select name="equipamentoId" required></select></label>
+      <label>Início <input name="inicio" type="datetime-local" required /></label>
+      <label>Fim <input name="fim" type="datetime-local" required /></label>
+      <button class="button" type="submit">Verificar</button>
+    </form>
+    <p id="disponibilidade-resultado" class="resultado-disponibilidade" role="status" hidden></p>
+
     <p id="equipamentos-erro" class="erro" role="alert" hidden></p>
     <div id="equipamentos-lista" class="lista-equipamentos"><p class="muted">Carregando…</p></div>
   `
 
   const form = container.querySelector<HTMLFormElement>('.form-equipamento')
+  const formDisponibilidade = container.querySelector<HTMLFormElement>('.form-disponibilidade')
+  const selecaoEquipamento = container.querySelector<HTMLSelectElement>('select[name="equipamentoId"]')
   const selecaoCategoria = container.querySelector<HTMLSelectElement>('select[name="categoriaId"]')
   const filtroCategoria = container.querySelector<HTMLSelectElement>('#filtro-categoria')
   const filtroEstado = container.querySelector<HTMLSelectElement>('#filtro-estado')
+  const resultado = container.querySelector<HTMLElement>('#disponibilidade-resultado')
   const areaErro = container.querySelector<HTMLElement>('#equipamentos-erro')
   const lista = container.querySelector<HTMLElement>('#equipamentos-lista')
 
-  if (!form || !selecaoCategoria || !filtroCategoria || !filtroEstado || !areaErro || !lista) {
+  if (
+    !form ||
+    !formDisponibilidade ||
+    !selecaoEquipamento ||
+    !selecaoCategoria ||
+    !filtroCategoria ||
+    !filtroEstado ||
+    !resultado ||
+    !areaErro ||
+    !lista
+  ) {
     throw new Error('Falha ao montar a tela de equipamentos')
   }
 
@@ -66,6 +88,12 @@ export function montarEquipamentos(container: HTMLElement): void {
   const mostrarErro = (erro: unknown): void => {
     areaErro.textContent = mensagemAmigavel(erro)
     areaErro.hidden = false
+  }
+
+  const mostrarResultado = (texto: string, disponivel: boolean): void => {
+    resultado.textContent = texto
+    resultado.className = `resultado-disponibilidade ${disponivel ? 'disponivel' : 'indisponivel'}`
+    resultado.hidden = false
   }
 
   const recarregar = async (): Promise<void> => {
@@ -84,6 +112,19 @@ export function montarEquipamentos(container: HTMLElement): void {
       lista.replaceChildren(...equipamentos.map((equipamento) => criarItem(equipamento, categorias)))
       if (equipamentos.length === 0) {
         lista.replaceChildren(criarTexto('Nenhum equipamento encontrado.', 'muted'))
+      }
+
+      const selecionado = selecaoEquipamento.value
+      selecaoEquipamento.replaceChildren(
+        ...equipamentos.map((equipamento) => {
+          const opcao = document.createElement('option')
+          opcao.value = String(equipamento.id)
+          opcao.textContent = equipamento.nome
+          return opcao
+        }),
+      )
+      if (equipamentos.some((equipamento) => String(equipamento.id) === selecionado)) {
+        selecaoEquipamento.value = selecionado
       }
     } catch (erro) {
       mostrarErro(erro)
@@ -127,6 +168,47 @@ export function montarEquipamentos(container: HTMLElement): void {
       .then(() => {
         form.reset()
         return recarregar()
+      })
+      .catch(mostrarErro)
+  })
+
+  formDisponibilidade.addEventListener('submit', (evento) => {
+    evento.preventDefault()
+    const dados = new FormData(formDisponibilidade)
+    const equipamentoId = Number(dados.get('equipamentoId'))
+    const inicio = String(dados.get('inicio') ?? '')
+    const fim = String(dados.get('fim') ?? '')
+
+    if (!Number.isInteger(equipamentoId) || equipamentoId <= 0 || inicio === '' || fim === '') {
+      areaErro.textContent = 'Informe um equipamento e datas válidas.'
+      areaErro.hidden = false
+      return
+    }
+
+    const inicioData = new Date(inicio)
+    const fimData = new Date(fim)
+    if (Number.isNaN(inicioData.getTime()) || Number.isNaN(fimData.getTime())) {
+      areaErro.textContent = 'Informe um equipamento e datas válidas.'
+      areaErro.hidden = false
+      return
+    }
+
+    areaErro.hidden = true
+    resultado.hidden = true
+
+    window.electronAPI.equipamentos
+      .verificarDisponibilidade({
+        equipamentoId,
+        inicio: inicioData.toISOString(),
+        fim: fimData.toISOString(),
+      })
+      .then((resposta) => {
+        if (resposta.disponivel) {
+          mostrarResultado('Disponível', true)
+          return
+        }
+        const mensagem = resposta.motivo ? MENSAGENS_ERRO[resposta.motivo] : undefined
+        mostrarResultado(mensagem ?? 'Indisponível.', false)
       })
       .catch(mostrarErro)
   })

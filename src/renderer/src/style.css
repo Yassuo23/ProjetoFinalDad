@@ -218,6 +218,57 @@ dd {
   font-size: 13px;
 }
 
+.titulo-secao {
+  margin: 20px 0 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--verde-floresta);
+}
+
+.form-disponibilidade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid rgba(140, 154, 165, 0.35);
+  border-radius: 8px;
+}
+
+.form-disponibilidade label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--verde-floresta);
+}
+
+.form-disponibilidade input,
+.form-disponibilidade select {
+  border: 1px solid rgba(140, 154, 165, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+  background: #fff;
+  color: var(--grafite);
+}
+
+.resultado-disponibilidade {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.resultado-disponibilidade.disponivel {
+  color: #1d6b3a;
+}
+
+.resultado-disponibilidade.indisponivel {
+  color: #8b2b20;
+}
+
 .lista-equipamentos {
   display: grid;
   gap: 10px;
