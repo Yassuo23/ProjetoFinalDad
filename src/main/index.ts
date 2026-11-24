@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
+import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
 import type { PingPayload } from '../shared/contratos/modelos'
 import { ConexaoBanco } from './banco/ConexaoBanco'
@@ -8,7 +8,9 @@ import { MIGRACOES } from './banco/migracoes'
 import { registrarHandlers } from './ipc/handlers'
 import { RegistroIpc } from './ipc/RegistroIpc'
 import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
+import { instalarMenu } from './janelas/MenuAplicacao'
 import { aplicarCsp } from './seguranca/Csp'
+import { criarVerificadorOrigem, urlAplicacao } from './seguranca/OrigemIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -38,41 +40,39 @@ function sendPing(): void {
   mainWindow?.webContents.send(CANAIS.ping, payload)
 }
 
-function buildApplicationMenu(): void {
-  const template: Electron.MenuItemConstructorOptions[] = [
-    {
-      label: 'File',
-      submenu: [
-        { label: 'Send Ping', click: () => sendPing() },
-        { type: 'separator' },
-        { role: 'quit' },
-      ],
-    },
-    {
-      label: 'View',
-      submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { type: 'separator' },
-        { role: 'toggleDevTools' },
-      ],
-    },
-  ]
-
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template))
+function focarJanela(): void {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    return
+  }
+  abrirJanela()
 }
 
-app.whenReady().then(() => {
-  aplicarCsp(session.defaultSession, isDev)
-  conexaoBanco = iniciarBanco()
-  registrarHandlers(new RegistroIpc(ipcMain), conexaoBanco.db)
-  buildApplicationMenu()
-  abrirJanela()
+function iniciar(): void {
+  app.whenReady().then(() => {
+    aplicarCsp(session.defaultSession, isDev)
+    conexaoBanco = iniciarBanco()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) abrirJanela()
+    const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname))
+    registrarHandlers(new RegistroIpc(ipcMain, origem), conexaoBanco.db)
+
+    instalarMenu(isDev, { ping: sendPing })
+    abrirJanela()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) abrirJanela()
+    })
   })
-})
+}
+
+// Uma única instância evita dois processos disputando o mesmo arquivo SQLite.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', focarJanela)
+  iniciar()
+}
 
 app.on('before-quit', () => {
   conexaoBanco?.fechar()

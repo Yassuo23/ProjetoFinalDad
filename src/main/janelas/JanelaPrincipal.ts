@@ -11,13 +11,22 @@ export function criarJanelaPrincipal(isDev: boolean): BrowserWindow {
     minHeight: 600,
     show: false,
     title: 'Zênite — Aluguel Outdoor',
+    icon: path.join(__dirname, '../../resources/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
     },
   })
+
+  // Nenhuma permissão de dispositivo é concedida por padrão (câmera, microfone, notificações...).
+  const sessao = janela.webContents.session
+  sessao.setPermissionRequestHandler((_conteudo, _permissao, responder) => {
+    responder(false)
+  })
+  sessao.setPermissionCheckHandler(() => false)
 
   const urlDev = process.env.VITE_DEV_SERVER_URL
   if (isDev && urlDev) {
