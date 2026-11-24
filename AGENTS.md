@@ -10,7 +10,9 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
   exigida pelo typescript-eslint. O lint roda sem type-checking.
 - Três tsconfigs: `tsconfig.base.json`, `tsconfig.main.json` (CJS → `dist/`),
   `tsconfig.renderer.json` (`noEmit`), com `rootDir: src`.
-- Sem framework no renderer: TypeScript puro (ADR 0012 — não use `.tsx`, React ou Vue).
+- Sem framework no renderer: **TypeScript puro** (ADR 0012 — não use `.tsx`, React ou Vue).
+- Estilização **somente com Tailwind CSS v4** via plugin oficial do Vite (ADR 0004 do upstream);
+  sem CSS próprio. Cores, fontes e formas da marca vivem no `@theme` de `src/renderer/src/tailwind.css`.
 - Banco: SQLite local em `app.getPath('userData')/zenite.db`.
 
 ## Comandos
@@ -39,18 +41,22 @@ src/
 │   ├── servicos/               # regra de negócio (POO, injeção por construtor)
 │   ├── repositorios/           # SQL parametrizado + type guard de linha
 │   ├── banco/
-│   │   ├── Banco.ts            # conexão userData/zenite.db
+│   │   ├── ConexaoBanco.ts     # conexão userData/zenite.db
 │   │   ├── Migrador.ts         # migrações versionadas
 │   │   └── migracoes/          # 001..010 — registro só pelo AS
 │   ├── janelas/                # BrowserWindow (sandbox + contextIsolation)
 │   └── seguranca/              # allowlist, navegação, CSP por ambiente
 ├── preload/index.ts            # única ponte renderer → main (só CANAIS + tipos)
 ├── renderer/
-│   ├── index.html              # HTML com CSP de produção
+│   ├── index.html              # HTML com CSP injetada pelo Vite por ambiente
 │   └── src/
-│       ├── main.ts             # monta as telas
-│       ├── style.css           # estilos externos (sem inline)
-│       └── paginas/            # uma função montarX por módulo
+│       ├── main.ts             # shell, sidebar e registro de rotas
+│       ├── nucleo/             # Componente, Roteador e helpers de DOM
+│       ├── componentes/        # design system (Botao, Tabela, Campo...)
+│       ├── layout/             # Sidebar, Cabecalho e AreaConteudo
+│       ├── paginas/            # uma tela por módulo (montarX ou Componente)
+│       ├── servicos/           # adaptadores da ApiZenite para as telas
+│       └── tailwind.css        # @theme da marca — único arquivo de estilo
 └── shared/
     └── contratos/
         ├── canais.ts           # único registro de strings de canal
@@ -68,7 +74,7 @@ src/
 | `especialista-desktop` (ED) | main, preload, janela, hardening, build | `main/index.ts`, `main/janelas/`, `main/seguranca/`, `preload/`, `vite.config.mts` |
 | `backend` | serviços POO e handlers finos | `main/servicos/`, `main/ipc/handlers/*.ts` |
 | `database` | repositórios e migrações de módulo | `main/repositorios/`, `main/banco/migracoes/NNN-*.ts` |
-| `frontend` | renderer TypeScript puro e CSS | `renderer/` |
+| `frontend` | renderer TypeScript puro e Tailwind | `renderer/` |
 | `qa` | gates, testes, smoke e riscos | `*.test.ts`, `docs/entrega-fundacao.md` |
 | `integrador` | PRs, branches, documentação e defesa | `CONTRIBUTING.md`, `README.md`, `docs/*.md`, `.github/` |
 
@@ -87,7 +93,7 @@ para o merge. `.github/CODEOWNERS` espelha esta tabela.
 - Nomenclatura: português do domínio (`Equipamento`, `Reserva`, `Cliente`, `Devolucao`), camelCase
   em código, snake_case em SQL, `montarX` para montar telas. Sem abreviações opacas.
 
-## As 10 regras invioláveis
+## Regras invioláveis
 
 1. Nenhum `.js` de lógica em `src/`. Tudo TypeScript.
 2. Nenhum `any`. Use `unknown` + type guard ou schema.
@@ -99,8 +105,11 @@ para o merge. `.github/CODEOWNERS` espelha esta tabela.
 7. Regra de negócio em serviço; acesso a dados em repositório; SQL sempre parametrizado.
 8. `shell.openExternal` só com allowlist explícita de https e domínios.
 9. `sandbox: true` e `contextIsolation: true` são inegociáveis; CSP de produção sem
-   `'unsafe-inline'`, `ws:` ou `unsafe-eval`.
+   `'unsafe-inline'`, `'ws:'` ou `'unsafe-eval'`.
 10. Cada commit compila (`npm run build`), passa lint e testes, e é mergeável sozinho.
+11. Estilização **só com Tailwind CSS**: sem CSS próprio, sem `<style>`, sem `style=` inline e
+    sem novos arquivos `.css` escritos à mão. Cores e fontes da marca vivem no `@theme` do
+    `tailwind.css`; tudo o mais é utilitário nas classes do renderer.
 
 ## Fluxo de git
 
@@ -118,5 +127,5 @@ para o merge. `.github/CODEOWNERS` espelha esta tabela.
 ## Documentação do enunciado
 
 `README.md` (visão geral), `CONTRIBUTING.md` (fluxo), `docs/seguranca.md` (Electron e hardening),
-`docs/decisoes-ia.md` (MCP e RAG), `docs/divisao-pacotes.md`, `docs/entrega-fundacao.md` e
-`docs/adr/` (decisões difíceis de reverter).
+`docs/decisoes-ia.md` (MCP e RAG), `docs/design-system.md`, `docs/telas.md`,
+`docs/divisao-pacotes.md`, `docs/entrega-fundacao.md` e `docs/adr/` (decisões difíceis de reverter).

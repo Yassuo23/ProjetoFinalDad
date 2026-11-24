@@ -1,7 +1,7 @@
 # Segurança — Zênite
 
 Este documento consolida a postura de segurança do Electron e do contrato IPC. Decisões originais:
-[ADR 0004](adr/0004-hardening-da-janela.md) e
+[ADR 0020](adr/0020-hardening-da-janela.md) e
 [ADR 0002](adr/0002-contrato-de-comunicacao.md).
 
 ## 1. Isolamento da janela

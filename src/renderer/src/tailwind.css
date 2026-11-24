@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Paleta da marca — docs/design-system.md */
+  --color-grafite: #0d1512;
+  --color-floresta: #17302a;
+  --color-lima: #c6f135;
+  --color-geleira: #6fafe0;
+  --color-granito: #8c9aa5;
+  --color-pedra: #ece9e1;
+  --color-superficie: #ffffff;
+  --color-branco: #ffffff;
+
+  /* Semânticas */
+  --color-erro: #b23a2e;
+  --color-erro-suave: #fbe9e6;
+  --color-erro-claro: #f2a59b;
+  --color-alerta: #8a5a00;
+  --color-alerta-suave: #fbf1d6;
+  --color-alerta-claro: #f2c14e;
+  --color-sucesso: #17654b;
+  --color-sucesso-suave: #e3f2d0;
+  --color-sucesso-claro: #c6f135;
+
+  /* Tipografia: pacotes @fontsource aguardam aprovação do Arquiteto;
+     os fallbacks locais (Segoe UI/Arial/Georgia) já atendem à CSP. */
+  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Inter', 'Segoe UI', Arial, system-ui, sans-serif;
+
+  /* Formas */
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-pill: 9999px;
+
+  /* Medidas nomeadas */
+  --spacing-row: 2.25rem;
+  --spacing-sidebar: 15rem;
+
+  /* Elevação */
+  --shadow-card: 0 1px 2px rgb(13 21 18 / 0.06), 0 8px 24px rgb(13 21 18 / 0.05);
+  --shadow-modal: 0 24px 60px rgb(13 21 18 / 0.25);
+}

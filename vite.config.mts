@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
 import { CSP_DEV, CSP_PRODUCAO } from './src/shared/seguranca/politicasCsp'
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url))
@@ -11,6 +12,7 @@ export default defineConfig({
   base: './',
   clearScreen: false,
   plugins: [
+    tailwindcss(),
     {
       name: 'zenite-csp',
       transformIndexHtml(html, contexto) {

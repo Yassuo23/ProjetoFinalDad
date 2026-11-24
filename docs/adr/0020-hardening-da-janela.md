@@ -1,4 +1,6 @@
-# ADR 0004 — Hardening da janela e da superfície externa
+# ADR 0020 — Hardening da janela e da superfície externa
+
+> Renumerado na integração com `origin/main`: o upstream já reserva o ADR 0004 para o Tailwind CSS.
 
 - **Status:** aceito
 - **Data:** 2026-11-23

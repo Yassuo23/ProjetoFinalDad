@@ -18,7 +18,7 @@ sem rebase e sem reescrita de histórico.
 | P6 Devoluções + multa | `8d2b399`–`488a7e1` |
 | P7 Pagamentos | `ebffb2e`–`ec0a8ea` |
 | Governança: sete agentes, CODEOWNERS, convenções POO e documentação do enunciado | ADR 0018, `AGENTS.md`, `.opencode/agents/`, `.github/CODEOWNERS`, `2be9f7b` |
-| Hardening: instância única, menu/atalhos, permissões negadas, verificação de origem IPC, transporte `net.fetch` com timeout | ADR 0004, `d419e55`, `6edbcea`, `5ea54ad` |
+| Hardening: instância única, menu/atalhos, permissões negadas, verificação de origem IPC, transporte `net.fetch` com timeout | ADR 0020, `d419e55`, `6edbcea`, `5ea54ad` |
 | Arquivos nativos: diálogos, backup/restauração, exportação CSV com escape | ADR 0019, `07699ff`, `8c6348d`, `14e7adc`, `9a82ae9`, `59f851e`, `4cfe921` |
 | Segurança documentada com evidências de teste | `docs/seguranca.md`, `88d34dc` |
 
