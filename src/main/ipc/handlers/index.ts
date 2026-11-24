@@ -7,6 +7,7 @@ import { CategoriaRepositorio } from '../../repositorios/CategoriaRepositorio'
 import { ClienteRepositorio } from '../../repositorios/ClienteRepositorio'
 import { DevolucaoRepositorio } from '../../repositorios/DevolucaoRepositorio'
 import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
+import { PagamentoRepositorio } from '../../repositorios/PagamentoRepositorio'
 import { ReservaRepositorio } from '../../repositorios/ReservaRepositorio'
 import { urlExternaPermitida } from '../../seguranca/UrlsExternas'
 import { ClimaServico } from '../../servicos/ClimaServico'
@@ -16,6 +17,7 @@ import { CepServico } from '../../servicos/CepServico'
 import { ClienteServico } from '../../servicos/ClienteServico'
 import { ErroDeDominio } from '../../servicos/ErroDominio'
 import { MultaServico } from '../../servicos/MultaServico'
+import { PagamentoServico } from '../../servicos/PagamentoServico'
 import { CategoriaServico } from '../../servicos/CategoriaServico'
 import { EquipamentoServico } from '../../servicos/EquipamentoServico'
 import { ReservaServico } from '../../servicos/ReservaServico'
@@ -24,6 +26,7 @@ import { registrarCategorias } from './categorias'
 import { registrarClientes } from './clientes'
 import { registrarDevolucoes } from './devolucoes'
 import { registrarEquipamentos } from './equipamentos'
+import { registrarPagamentos } from './pagamentos'
 import { registrarReservas } from './reservas'
 
 function obterAppInfo(): AppInfo {
@@ -76,4 +79,5 @@ export function registrarHandlers(registro: RegistroIpc, db: DatabaseSync): void
       new MultaServico(),
     ),
   )
+  registrarPagamentos(registro, new PagamentoServico(new PagamentoRepositorio(db), reservas))
 }
