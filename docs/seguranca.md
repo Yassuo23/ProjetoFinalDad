@@ -46,6 +46,13 @@ recebe apenas a mensagem pública; o detalhe fica no console do main.
 
 Resultado observado: `npm run test` — 25 testes aprovados após a suíte completa.
 
+## Empacotamento
+
+- `npm run dist`: instalador `release/Zênite Setup 0.1.0.exe` e diretório
+  `release/win-unpacked` gerados por electron-builder sem assinatura de código.
+- Abertura verificada no Windows: processo ativo com título `Zênite — Aluguel Outdoor`
+  e janela principal carregada; processo encerrado logo após a verificação.
+
 ## Riscos residuais
 
 - A CSP é aplicada duas vezes (meta gerada pelo Vite + header `onHeadersReceived`);
@@ -54,5 +61,8 @@ Resultado observado: `npm run test` — 25 testes aprovados após a suíte compl
 - A allowlist de domínios externos precisa ser revisitada se uma nova integração
   HTTP entrar no contrato; o domínio deve entrar em `UrlsExternas` e na política
   CSP antes do código do serviço.
+- O Vite 8 avisa que `vite.config.mts` importa `Csp.ts` sem extensão e com sintaxe
+  ESM sob o loader nativo previsto para o futuro; o build atual usa o loader de
+  bundle e a política gerada foi conferida no HTML de produção.
 - Handlers de módulos de domínio ainda dependem dos serviços do BE; enquanto não
   existem, só os canais de fundação (`appInfo`, `abrirExterno`, `ping`) estão ativos.
