@@ -1,8 +1,16 @@
 import { net } from 'electron'
-import { TransporteHttp } from './TransporteHttp'
+import { TransporteHttpSeguro, type ClienteHttp, type TransporteHttp } from './TransporteHttp'
 
-/** Adapter que injeta `net.fetch` do Electron no cliente testável. */
-export function criarTransporteHttp(timeoutMs?: number): TransporteHttp {
-  const buscar = (url: string, iniciacao: RequestInit): Promise<Response> => net.fetch(url, iniciacao)
-  return timeoutMs === undefined ? new TransporteHttp(buscar) : new TransporteHttp(buscar, timeoutMs)
+/**
+ * Fábrica do transporte para o API Engineer: injete o retorno nos serviços que
+ * consultam CEP, CNPJ, clima e feriados. O `net.fetch` respeita a sessão do app;
+ * a allowlist e o timeout já vêm no `TransporteHttpSeguro`.
+ */
+export function criarTransporteHttp(timeoutMs = 8000): TransporteHttp {
+  const cliente: ClienteHttp = {
+    fetch(url, init) {
+      return net.fetch(url, init)
+    },
+  }
+  return new TransporteHttpSeguro(cliente, timeoutMs)
 }

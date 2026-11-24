@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite'
  */
 export class ConexaoBanco {
   private readonly banco: DatabaseSync
+  private fechada = false
 
   constructor(caminho: string) {
     this.banco = new DatabaseSync(caminho)
@@ -21,7 +22,10 @@ export class ConexaoBanco {
     return this.banco
   }
 
+  /** Idempotente: a restauração fecha antes de copiar e `before-quit` fecha de novo. */
   fechar(): void {
+    if (this.fechada) return
+    this.fechada = true
     this.banco.close()
   }
 }

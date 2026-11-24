@@ -8,11 +8,16 @@ describe('Migrador', () => {
     const conexao = new ConexaoBanco(':memory:')
     const migrador = new Migrador(conexao.db, MIGRACOES)
 
-    expect(migrador.aplicarPendentes()).toBe(1)
+    expect(migrador.aplicarPendentes()).toBe(9)
     expect(migrador.aplicarPendentes()).toBe(0)
 
     const total = conexao.db.prepare('SELECT COUNT(*) AS total FROM categorias').get()
     expect(total?.total).toBe(4)
+
+    const tabelaEquipamentos = conexao.db
+      .prepare("SELECT COUNT(*) AS total FROM sqlite_master WHERE type = 'table' AND name = 'equipamentos'")
+      .get()
+    expect(tabelaEquipamentos?.total).toBe(1)
 
     conexao.fechar()
   })

@@ -1,189 +1,158 @@
-﻿import type {
+import type {
   AppInfo,
-  ArquivoSelecionado,
   Categoria,
-  CelulaCsv,
   Cliente,
-  Devolucao,
-  EnderecoViaCep,
-  Equipamento,
-  Feriado,
-  Fornecedor,
+  ClienteAtualizarEntrada,
+  ClienteCriarEntrada,
+  ClientesListarFiltros,
+  ConsultarCnpjEntrada,
   DadosCnpj,
+  Feriado,
+  FeriadoAtualizarEntrada,
+  FeriadoCriarEntrada,
+  FeriadoImportarEntrada,
+  FeriadosListarFiltros,
+  Fornecedor,
+  FornecedorAtualizarEntrada,
+  FornecedorCriarEntrada,
+  FornecedoresListarFiltros,
+  ItemPorCategoria,
+  ItemReceita,
   Manutencao,
+  ManutencaoAbrirEntrada,
+  ManutencaoConcluirEntrada,
+  ManutencoesListarFiltros,
+  MultaCalcularEntrada,
+  PainelFiltros,
+  ConsultarCepEntrada,
+  CalculoMulta,
+  Devolucao,
+  DevolucaoRegistrarEntrada,
+  DisponibilidadeResultado,
+  BackupRestaurarEntrada,
+  DialogoAbrirEntrada,
+  DialogoSalvarEntrada,
+  ExportacaoCsvEntrada,
+  ResultadoDialogo,
+  ResultadoOperacaoArquivo,
+  Endereco,
+  Equipamento,
+  EquipamentoAtualizarEntrada,
+  EquipamentoCriarEntrada,
+  EquipamentoDisponiveisEntrada,
+  EquipamentoListarFiltros,
   Pagamento,
+  PagamentoRegistrarEntrada,
+  PagamentosListarFiltros,
   PingPayload,
-  PrevisaoClima,
-  ResultadoBackup,
-  ResultadoRestauracao,
+  PrevisaoTempo,
+  ResumoPainel,
+  PrevisaoTempoEntrada,
   Reserva,
+  ReservaCriarEntrada,
+  ReservasListarFiltros,
   Usuario,
-  ValorMulta,
+  UsuarioAtualizarEntrada,
+  UsuarioAutenticarEntrada,
+  UsuarioCriarEntrada,
+  UsuariosListarFiltros,
+  VerificarDisponibilidadeEntrada,
 } from './modelos'
-
-/**
- * Um método por canal nativo. O preload implementa cada um como função
- * específica; nenhum `invoke` genérico é exposto ao renderer.
- */
-export interface ApiRecursosNativos {
-  abrirArquivo(titulo: string, extensoes: readonly string[]): Promise<ArquivoSelecionado | null>
-  salvarArquivo(
-    titulo: string,
-    nomePadrao: string,
-    extensoes: readonly string[],
-  ): Promise<string | null>
-  backupBanco(destino: string): Promise<ResultadoBackup>
-  restaurarBanco(origem: string): Promise<ResultadoRestauracao>
-  exportarCsv(
-    nomeArquivo: string,
-    colunas: readonly string[],
-    linhas: readonly (readonly CelulaCsv[])[],
-  ): Promise<string | null>
-  notificarDevolucaoAtraso(quantidade: number, detalhes: string | null): Promise<void>
-  safeStorageDisponivel(): Promise<boolean>
-  safeStorageCifrar(texto: string): Promise<string | null>
-  safeStorageDecifrar(textoCifrado: string): Promise<string | null>
-}
 
 /** Contrato único da ponte renderer → main. */
 export interface ApiZenite {
   appInfo(): Promise<AppInfo>
   abrirExterno(url: string): Promise<void>
   onPing(callback: (payload: PingPayload) => void): () => void
-
-  categorias: {
-    listar(): Promise<Categoria[]>
-    obter?(id: number): Promise<Categoria>
-    criar?(nome: string, descricao: string | null): Promise<Categoria>
-    atualizar?(id: number, nome: string, descricao: string | null): Promise<Categoria>
-    excluir?(id: number): Promise<void>
+  arquivos: {
+    abrir(entrada?: DialogoAbrirEntrada): Promise<ResultadoDialogo>
+    salvar(entrada?: DialogoSalvarEntrada): Promise<ResultadoDialogo>
   }
-
-  equipamentos: {
-    listar(): Promise<Equipamento[]>
-    obter?(id: number): Promise<Equipamento>
-    criar?(
-      nome: string,
-      categoriaId: number,
-      precoDiaria: number,
-      estado: Equipamento['estado'],
-    ): Promise<Equipamento>
-    atualizar?(
-      id: number,
-      nome: string,
-      categoriaId: number,
-      precoDiaria: number,
-      estado: Equipamento['estado'],
-    ): Promise<Equipamento>
-    excluir?(id: number): Promise<void>
-    disponiveis?(inicio: string, fim: string, categoriaId: number | null): Promise<Equipamento[]>
+  backup: {
+    /** O main abre o diálogo de salvar; cancelamento devolve `caminho: null`. */
+    criar(): Promise<ResultadoOperacaoArquivo>
+    /** `caminho` deve ser o retorno de `arquivos.abrir` com filtro `.db`. */
+    restaurar(entrada: BackupRestaurarEntrada): Promise<ResultadoOperacaoArquivo>
   }
-
+  exportacao: {
+    /** O main escolhe o caminho via diálogo com filtro fixo `.csv`. */
+    csv(entrada: ExportacaoCsvEntrada): Promise<ResultadoDialogo>
+  }
+  categorias: { listar(): Promise<Categoria[]> }
   clientes: {
-    listar(): Promise<Cliente[]>
-    obter?(id: number): Promise<Cliente>
-    criar?(nome: string, email: string | null, telefone: string | null): Promise<Cliente>
-    atualizar?(
-      id: number,
-      nome: string,
-      email: string | null,
-      telefone: string | null,
-    ): Promise<Cliente>
-    excluir?(id: number): Promise<void>
+    listar(filtros?: ClientesListarFiltros): Promise<Cliente[]>
+    buscarPorId(id: number): Promise<Cliente>
+    criar(dados: ClienteCriarEntrada): Promise<Cliente>
+    atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente>
+    inativar(id: number): Promise<void>
+    consultarCep(entrada: ConsultarCepEntrada): Promise<Endereco>
   }
-
-  fornecedores?: {
-    listar(): Promise<Fornecedor[]>
-    obter?(id: number): Promise<Fornecedor>
-    criar?(
-      razaoSocial: string,
-      cnpj: string | null,
-      contato: string | null,
-      telefone: string | null,
-    ): Promise<Fornecedor>
-    atualizar?(
-      id: number,
-      razaoSocial: string,
-      cnpj: string | null,
-      contato: string | null,
-      telefone: string | null,
-    ): Promise<Fornecedor>
-    excluir?(id: number): Promise<void>
+  equipamentos: {
+    listar(filtros?: EquipamentoListarFiltros): Promise<Equipamento[]>
+    buscarPorId(id: number): Promise<Equipamento>
+    criar(dados: EquipamentoCriarEntrada): Promise<Equipamento>
+    atualizar(dados: EquipamentoAtualizarEntrada): Promise<Equipamento>
+    inativar(id: number): Promise<void>
+    listarDisponiveis(periodo: EquipamentoDisponiveisEntrada): Promise<Equipamento[]>
+    verificarDisponibilidade(
+      entrada: VerificarDisponibilidadeEntrada,
+    ): Promise<DisponibilidadeResultado>
   }
-
   reservas: {
-    listar(): Promise<Reserva[]>
-    obter?(id: number): Promise<Reserva>
-    criar?(
-      clienteId: number,
-      equipamentoId: number,
-      inicio: string,
-      fim: string,
-    ): Promise<Reserva>
-    atualizar?(
-      id: number,
-      clienteId: number,
-      equipamentoId: number,
-      inicio: string,
-      fim: string,
-    ): Promise<Reserva>
-    confirmar?(id: number): Promise<Reserva>
-    cancelar?(id: number): Promise<Reserva>
+    listar(filtros?: ReservasListarFiltros): Promise<Reserva[]>
+    buscarPorId(id: number): Promise<Reserva>
+    criar(dados: ReservaCriarEntrada): Promise<Reserva>
+    confirmar(id: number): Promise<Reserva>
+    cancelar(id: number): Promise<void>
+    previsaoTempo(entrada: PrevisaoTempoEntrada): Promise<PrevisaoTempo>
   }
-
-  devolucoes?: {
-    listar(): Promise<Devolucao[]>
-    obter?(id: number): Promise<Devolucao>
-    registrar?(
-      reservaId: number,
-      devolvidaEm: string,
-      estadoRecebido: Devolucao['estadoRecebido'],
-      observacoes: string | null,
-    ): Promise<Devolucao>
-    calcularMulta?(reservaId: number, devolvidaEm: string): Promise<ValorMulta>
+  devolucoes: {
+    registrar(dados: DevolucaoRegistrarEntrada): Promise<Devolucao>
+    buscarPorReserva(reservaId: number): Promise<Devolucao>
   }
-
-  pagamentos?: {
-    listar(): Promise<Pagamento[]>
-    obter?(id: number): Promise<Pagamento>
-    registrar?(
-      reservaId: number,
-      valor: number,
-      pagoEm: string,
-      forma: Pagamento['forma'],
-      observacoes: string | null,
-    ): Promise<Pagamento>
-    baixar?(id: number): Promise<Pagamento>
+  multas: { calcular(entrada: MultaCalcularEntrada): Promise<CalculoMulta> }
+  pagamentos: {
+    listar(filtros?: PagamentosListarFiltros): Promise<Pagamento[]>
+    buscarPorReserva(reservaId: number): Promise<Pagamento>
+    registrar(dados: PagamentoRegistrarEntrada): Promise<Pagamento>
+    confirmar(id: number): Promise<Pagamento>
+    estornar(id: number): Promise<Pagamento>
   }
-
-  manutencoes?: {
-    listar(): Promise<Manutencao[]>
-    obter?(id: number): Promise<Manutencao>
-    abrir?(
-      equipamentoId: number,
-      fornecedorId: number | null,
-      descricao: string,
-    ): Promise<Manutencao>
-    concluir?(id: number, concluidaEm: string): Promise<Manutencao>
+  fornecedores: {
+    listar(filtros?: FornecedoresListarFiltros): Promise<Fornecedor[]>
+    buscarPorId(id: number): Promise<Fornecedor>
+    criar(dados: FornecedorCriarEntrada): Promise<Fornecedor>
+    atualizar(dados: FornecedorAtualizarEntrada): Promise<Fornecedor>
+    inativar(id: number): Promise<void>
+    consultarCnpj(entrada: ConsultarCnpjEntrada): Promise<DadosCnpj>
   }
-
-  usuarios?: {
-    listar(): Promise<Usuario[]>
-    obter?(id: number): Promise<Usuario>
-    criar?(nome: string, login: string, perfil: Usuario['perfil']): Promise<Usuario>
-    atualizar?(id: number, nome: string, perfil: Usuario['perfil'], ativo: boolean): Promise<Usuario>
-    autenticar?(login: string, senha: string): Promise<Usuario>
+  manutencoes: {
+    listar(filtros?: ManutencoesListarFiltros): Promise<Manutencao[]>
+    buscarPorId(id: number): Promise<Manutencao>
+    abrir(dados: ManutencaoAbrirEntrada): Promise<Manutencao>
+    concluir(dados: ManutencaoConcluirEntrada): Promise<Manutencao>
   }
-
-  integracoes?: {
-    buscarCep?(cep: string): Promise<EnderecoViaCep>
-    previsaoClima?(data: string, local: string): Promise<PrevisaoClima>
-    buscarCnpj?(cnpj: string): Promise<DadosCnpj>
-    feriados?(ano: number, uf: string): Promise<Feriado[]>
+  feriados: {
+    listar(filtros?: FeriadosListarFiltros): Promise<Feriado[]>
+    buscarPorId(id: number): Promise<Feriado>
+    criar(dados: FeriadoCriarEntrada): Promise<Feriado>
+    atualizar(dados: FeriadoAtualizarEntrada): Promise<Feriado>
+    remover(id: number): Promise<void>
+    importar(dados: FeriadoImportarEntrada): Promise<Feriado[]>
   }
-
-  /** Opcional até o ED publicar as funções no preload. */
-  nativo?: ApiRecursosNativos
+  usuarios: {
+    listar(filtros?: UsuariosListarFiltros): Promise<Usuario[]>
+    buscarPorId(id: number): Promise<Usuario>
+    criar(dados: UsuarioCriarEntrada): Promise<Usuario>
+    atualizar(dados: UsuarioAtualizarEntrada): Promise<Usuario>
+    inativar(id: number): Promise<void>
+    autenticar(entrada: UsuarioAutenticarEntrada): Promise<Usuario>
+  }
+  painel: {
+    resumo(filtros?: PainelFiltros): Promise<ResumoPainel>
+    porCategoria(filtros?: PainelFiltros): Promise<ItemPorCategoria[]>
+    receita(filtros?: PainelFiltros): Promise<ItemReceita[]>
+  }
 }
 
 declare global {
@@ -191,5 +160,3 @@ declare global {
     electronAPI: ApiZenite
   }
 }
-
-

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.renderer.json",
+  "include": [
+    "src/renderer/src/**/*.ts",
+    "src/shared/**/*.ts",
+    "src/preload/**/*.ts",
+    "vite.config.mts"
+  ]
+}

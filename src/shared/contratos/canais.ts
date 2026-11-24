@@ -3,92 +3,69 @@
  *
  * Este arquivo não pode ter imports nem dependências de runtime: ele é
  * empacotado dentro do preload, que roda sob `sandbox: true`.
- * Nenhum literal de canal pode existir fora deste registro (R4).
  */
 export const CANAIS = {
-  // Fundação / aplicação
   appInfo: 'app:info',
   abrirExterno: 'app:abrir-externo',
   ping: 'app:ping',
-
-  // Categorias (molde de CRUD)
+  arquivosAbrir: 'arquivos:abrir',
+  arquivosSalvar: 'arquivos:salvar',
+  backupCriar: 'backup:criar',
+  backupRestaurar: 'backup:restaurar',
+  exportacaoCsv: 'exportacao:csv',
   categoriasListar: 'categorias:listar',
-  categoriasObter: 'categorias:obter',
-  categoriasCriar: 'categorias:criar',
-  categoriasAtualizar: 'categorias:atualizar',
-  categoriasExcluir: 'categorias:excluir',
-
-  // Equipamentos
-  equipamentosListar: 'equipamentos:listar',
-  equipamentosObter: 'equipamentos:obter',
-  equipamentosCriar: 'equipamentos:criar',
-  equipamentosAtualizar: 'equipamentos:atualizar',
-  equipamentosExcluir: 'equipamentos:excluir',
-  equipamentosDisponiveis: 'equipamentos:disponiveis',
-
-  // Clientes
   clientesListar: 'clientes:listar',
-  clientesObter: 'clientes:obter',
+  clientesBuscarPorId: 'clientes:buscar-por-id',
   clientesCriar: 'clientes:criar',
   clientesAtualizar: 'clientes:atualizar',
-  clientesExcluir: 'clientes:excluir',
-
-  // Fornecedores
+  clientesInativar: 'clientes:inativar',
+  clientesConsultarCep: 'clientes:consultar-cep',
+  equipamentosListar: 'equipamentos:listar',
+  equipamentosBuscarPorId: 'equipamentos:buscar-por-id',
+  equipamentosCriar: 'equipamentos:criar',
+  equipamentosAtualizar: 'equipamentos:atualizar',
+  equipamentosInativar: 'equipamentos:inativar',
+  equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
+  equipamentosVerificarDisponibilidade: 'equipamentos:verificar-disponibilidade',
+  reservasListar: 'reservas:listar',
+  reservasBuscarPorId: 'reservas:buscar-por-id',
+  reservasCriar: 'reservas:criar',
+  reservasConfirmar: 'reservas:confirmar',
+  reservasCancelar: 'reservas:cancelar',
+  reservasPrevisaoTempo: 'reservas:previsao-tempo',
+  devolucoesRegistrar: 'devolucoes:registrar',
+  devolucoesBuscarPorReserva: 'devolucoes:buscar-por-reserva',
+  multasCalcular: 'multas:calcular',
+  pagamentosListar: 'pagamentos:listar',
+  pagamentosBuscarPorReserva: 'pagamentos:buscar-por-reserva',
+  pagamentosRegistrar: 'pagamentos:registrar',
+  pagamentosConfirmar: 'pagamentos:confirmar',
+  pagamentosEstornar: 'pagamentos:estornar',
   fornecedoresListar: 'fornecedores:listar',
-  fornecedoresObter: 'fornecedores:obter',
+  fornecedoresBuscarPorId: 'fornecedores:buscar-por-id',
   fornecedoresCriar: 'fornecedores:criar',
   fornecedoresAtualizar: 'fornecedores:atualizar',
-  fornecedoresExcluir: 'fornecedores:excluir',
-
-  // Reservas
-  reservasListar: 'reservas:listar',
-  reservasObter: 'reservas:obter',
-  reservasCriar: 'reservas:criar',
-  reservasAtualizar: 'reservas:atualizar',
-  reservasCancelar: 'reservas:cancelar',
-  reservasConfirmar: 'reservas:confirmar',
-
-  // Devoluções
-  devolucoesListar: 'devolucoes:listar',
-  devolucoesObter: 'devolucoes:obter',
-  devolucoesRegistrar: 'devolucoes:registrar',
-  devolucoesCalcularMulta: 'devolucoes:calcular-multa',
-
-  // Pagamentos
-  pagamentosListar: 'pagamentos:listar',
-  pagamentosObter: 'pagamentos:obter',
-  pagamentosRegistrar: 'pagamentos:registrar',
-  pagamentosBaixar: 'pagamentos:baixar',
-
-  // Manutenções
+  fornecedoresInativar: 'fornecedores:inativar',
+  fornecedoresConsultarCnpj: 'fornecedores:consultar-cnpj',
   manutencoesListar: 'manutencoes:listar',
-  manutencoesObter: 'manutencoes:obter',
+  manutencoesBuscarPorId: 'manutencoes:buscar-por-id',
   manutencoesAbrir: 'manutencoes:abrir',
   manutencoesConcluir: 'manutencoes:concluir',
-
-  // Usuários
+  feriadosListar: 'feriados:listar',
+  feriadosBuscarPorId: 'feriados:buscar-por-id',
+  feriadosCriar: 'feriados:criar',
+  feriadosAtualizar: 'feriados:atualizar',
+  feriadosRemover: 'feriados:remover',
+  feriadosImportar: 'feriados:importar',
   usuariosListar: 'usuarios:listar',
-  usuariosObter: 'usuarios:obter',
+  usuariosBuscarPorId: 'usuarios:buscar-por-id',
   usuariosCriar: 'usuarios:criar',
   usuariosAtualizar: 'usuarios:atualizar',
+  usuariosInativar: 'usuarios:inativar',
   usuariosAutenticar: 'usuarios:autenticar',
-
-  // Integrações externas (propósito real)
-  cepBuscar: 'integracoes:cep-buscar',
-  climaPrevisao: 'integracoes:clima-previsao',
-  cnpjBuscar: 'integracoes:cnpj-buscar',
-  feriadosListar: 'integracoes:feriados-listar',
-
-  // Recursos nativos (implementação/adapters do ED no main)
-  nativoAbrirArquivo: 'nativo:abrir-arquivo',
-  nativoSalvarArquivo: 'nativo:salvar-arquivo',
-  nativoBackupBanco: 'nativo:backup-banco',
-  nativoRestaurarBanco: 'nativo:restaurar-banco',
-  nativoExportarCsv: 'nativo:exportar-csv',
-  nativoNotificarDevolucaoAtraso: 'nativo:notificar-devolucao-atraso',
-  nativoSafeStorageDisponivel: 'nativo:safe-storage-disponivel',
-  nativoSafeStorageCifrar: 'nativo:safe-storage-cifrar',
-  nativoSafeStorageDecifrar: 'nativo:safe-storage-decifrar',
+  painelResumo: 'painel:resumo',
+  painelPorCategoria: 'painel:por-categoria',
+  painelReceita: 'painel:receita',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

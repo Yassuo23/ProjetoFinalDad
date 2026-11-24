@@ -1,51 +1,79 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ErroSemPermissao } from '../nucleo/erros'
-import { TransporteHttp, type RespostaRede } from './TransporteHttp'
+import { ErroTransporte, TransporteHttpSeguro, type ClienteHttp } from './TransporteHttp'
 
-function resposta(parcial: Partial<RespostaRede> = {}): RespostaRede {
+function clienteQueResponde(resposta: Response, registrar?: (init?: RequestInit) => void): ClienteHttp {
   return {
-    ok: true,
-    status: 200,
-    json: async () => ({ resultado: 'ok' }),
-    ...parcial,
+    fetch: async (_url, init) => {
+      registrar?.(init)
+      return resposta
+    },
   }
 }
 
-describe('TransporteHttp', () => {
-  it('consultar somente dominios da allowlist, com timeout', async () => {
-    const buscar = vi.fn(
-      async (_url: string, _iniciacao: RequestInit): Promise<RespostaRede> => resposta(),
+describe('TransporteHttpSeguro', () => {
+  it('usa fetch com timeout e devolve o JSON validado', async () => {
+    let sinal: AbortSignal | undefined
+    const transporte = new TransporteHttpSeguro(
+      clienteQueResponde(new Response('{"cidade":"São Paulo"}'), (init) => {
+        sinal = init?.signal as AbortSignal | undefined
+      }),
+      3000,
     )
-    const transporte = new TransporteHttp(buscar, 1500)
 
-    await expect(transporte.obterJson('https://viacep.com.br/ws/01001000/json/')).resolves.toEqual({
-      resultado: 'ok',
+    const resultado = await transporte.buscarJson('https://viacep.com.br/ws/01001000/json/', (dado) => {
+      const objeto = dado as { cidade?: string }
+      return objeto.cidade ?? ''
     })
 
-    const iniciacao = buscar.mock.calls[0]?.[1]
-    expect(iniciacao?.method).toBe('GET')
-    expect(iniciacao?.headers).toEqual({ accept: 'application/json' })
-    expect(iniciacao?.signal).toBeInstanceOf(AbortSignal)
+    expect(resultado).toBe('São Paulo')
+    expect(sinal?.aborted).toBe(false)
   })
 
-  it('bloqueia file:// antes de qualquer requisicao', async () => {
-    const buscar = vi.fn(async (): Promise<RespostaRede> => resposta())
-    const transporte = new TransporteHttp(buscar)
+  it('rejeita URL fora da allowlist antes de chamar fetch', async () => {
+    const fetch = vi.fn(async () => new Response('{}'))
+    const transporte = new TransporteHttpSeguro({ fetch })
+
+    await expect(transporte.buscarJson('file:///C:/windows/system32/calc.exe', (d) => d)).rejects.toThrow(
+      'URL_NAO_PERMITIDA',
+    )
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('traduz HTTP não-OK, JSON inválido e validação falha', async () => {
+    const http = new TransporteHttpSeguro(clienteQueResponde(new Response('', { status: 503 })))
+    const json = new TransporteHttpSeguro(clienteQueResponde(new Response('{')))
+    const validacao = new TransporteHttpSeguro(clienteQueResponde(new Response('{}')))
+
+    await expect(http.buscarJson('https://viacep.com.br/ws/x/json/', (d) => d)).rejects.toBeInstanceOf(
+      ErroTransporte,
+    )
+    await expect(json.buscarJson('https://viacep.com.br/ws/x/json/', (d) => d)).rejects.toThrow(
+      'JSON_INVALIDO',
+    )
+    await expect(
+      validacao.buscarJson('https://viacep.com.br/ws/x/json/', () => {
+        throw new Error('formato inesperado')
+      }),
+    ).rejects.toThrow('RESPOSTA_INVALIDA')
+  })
+
+  it('distingue timeout de falha de rede', async () => {
+    const timeout: ClienteHttp = {
+      fetch: async () => {
+        throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
+      },
+    }
+    const rede: ClienteHttp = {
+      fetch: async () => {
+        throw new Error('socket')
+      },
+    }
 
     await expect(
-      transporte.obterJson('file:///C:/Windows/System32/calc.exe'),
-    ).rejects.toBeInstanceOf(ErroSemPermissao)
-    expect(buscar).not.toHaveBeenCalled()
-  })
-
-  it('devolve corpo como unknown e nao expoe detalhe do provedor', async () => {
-    const buscar = vi.fn(async (): Promise<RespostaRede> =>
-      resposta({ ok: false, status: 503, json: async () => ({ segredo: 'token' }) }),
-    )
-    const transporte = new TransporteHttp(buscar)
-
-    await expect(transporte.obterJson('https://brasilapi.com.br/api/cep/v1/01001000')).rejects.toThrow(
-      'Falha HTTP ao consultar servico externo (503).',
-    )
+      new TransporteHttpSeguro(timeout).buscarJson('https://viacep.com.br/ws/x/json/', (d) => d),
+    ).rejects.toThrow('TEMPO_ESGOTADO')
+    await expect(
+      new TransporteHttpSeguro(rede).buscarJson('https://viacep.com.br/ws/x/json/', (d) => d),
+    ).rejects.toThrow('FALHA_DE_REDE')
   })
 })

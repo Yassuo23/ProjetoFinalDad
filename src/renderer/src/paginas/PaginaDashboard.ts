@@ -284,7 +284,9 @@ export class PaginaDashboard extends Componente {
     const multas = dados.devolucoes
       .filter((devolucao) => devolucao.atrasada && devolucao.multa > 0)
       .reduce((total, devolucao) => total + devolucao.multa, 0)
-    const disponiveis = dados.equipamentos.filter((equipamento) => equipamento.disponivel).length
+    const disponiveis = dados.equipamentos.filter(
+      (equipamento) => equipamento.ativo && equipamento.estado === 'disponivel',
+    ).length
 
     const kpis = criarElemento('div', {
       className: CLASSES.gradeKpis,

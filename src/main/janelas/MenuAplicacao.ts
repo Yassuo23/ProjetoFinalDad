@@ -1,27 +1,34 @@
-import { Menu, type MenuItemConstructorOptions } from 'electron'
+import { Menu } from 'electron'
 
-/** Menu nativo. DevTools e recarga ficam disponíveis somente em desenvolvimento. */
-export function criarMenuAplicacao(isDev: boolean, enviarPing: () => void): void {
-  const menuView: MenuItemConstructorOptions[] = [
-    { role: 'reload' },
-    { role: 'forceReload' },
-  ]
+export interface AcoesMenu {
+  ping(): void
+}
 
-  if (isDev) {
-    menuView.push({ type: 'separator' }, { role: 'toggleDevTools' })
-  }
-
-  const modelo: MenuItemConstructorOptions[] = [
+/** Menu em português; DevTools e recarga forçada existem somente em desenvolvimento. */
+export function instalarMenu(isDev: boolean, acoes: AcoesMenu): void {
+  const itens: Electron.MenuItemConstructorOptions[] = [
     {
       label: 'Arquivo',
       submenu: [
-        { label: 'Enviar ping', click: () => enviarPing() },
+        { label: 'Enviar ping', accelerator: 'CmdOrCtrl+P', click: () => acoes.ping() },
         { type: 'separator' },
-        { role: 'quit' },
+        { role: 'quit', label: 'Sair' },
       ],
     },
-    { label: 'Exibir', submenu: menuView },
+    {
+      label: 'Exibir',
+      submenu: [
+        { role: 'reload', label: 'Recarregar', visible: isDev },
+        { role: 'forceReload', label: 'Recarregar forçado', visible: isDev },
+        { type: 'separator', visible: isDev },
+        { role: 'toggleDevTools', label: 'DevTools', visible: isDev },
+      ],
+    },
+    {
+      label: 'Ajuda',
+      submenu: [{ role: 'about', label: 'Sobre o Zênite' }],
+    },
   ]
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(modelo))
+  Menu.setApplicationMenu(Menu.buildFromTemplate(itens))
 }

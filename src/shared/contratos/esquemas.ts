@@ -1,4 +1,5 @@
-﻿import { z } from 'zod'
+import { z } from 'zod'
+import { ESTADOS_EQUIPAMENTO } from './estados'
 
 /**
  * Schemas de validação do main.
@@ -13,253 +14,356 @@ export const esquemaSemEntrada = z.undefined()
 /** URL crua; a allowlist de domínios é aplicada no main antes do openExternal. */
 export const esquemaAbrirExterno = z.url()
 
-// ---------------------------------------------------------------------------
-// --- auxiliares ---
-// ---------------------------------------------------------------------------
+const esquemaId = z.object({ id: z.number().int().positive() })
+const esquemaEstado = z.enum(ESTADOS_EQUIPAMENTO)
+const esquemaDescricao = z.string().trim().max(500).nullish()
 
-const id = z.number().int().positive()
-const textoObrigatorio = z.string().trim().min(1)
-const textoOpcional = z.string().trim().nullable()
-const dataIso = z.iso.datetime()
-const valorMonetario = z.number().finite().nonnegative()
+export const esquemaEquipamentoListar = z
+  .object({
+    categoriaId: z.number().int().positive().optional(),
+    estado: esquemaEstado.optional(),
+  })
+  .optional()
 
-/** Canal de operação por id — usado por obter/excluir/confirmar/baixar etc. */
-export const esquemaId = z.object({ id })
+export const esquemaEquipamentoBuscarPorId = esquemaId
+export const esquemaEquipamentoInativar = esquemaId
 
-const estadoEquipamento = z.enum(['otimo', 'bom', 'regular', 'em_manutencao', 'baixado'])
-const perfilUsuario = z.enum(['administrador', 'atendente', 'visualizador'])
-const formaPagamento = z.enum(['dinheiro', 'pix', 'cartao', 'boleto'])
-
-// ---------------------------------------------------------------------------
-// --- categorias (molde para os demais módulos) ---
-// ---------------------------------------------------------------------------
-
-export const esquemaCriarCategoria = z.object({
-  nome: textoObrigatorio,
-  descricao: textoOpcional,
+export const esquemaEquipamentoCriar = z.object({
+  nome: z.string().trim().min(1).max(120),
+  categoriaId: z.number().int().positive(),
+  precoDiaria: z.number().nonnegative(),
+  valorAquisicao: z.number().nonnegative(),
+  descricao: esquemaDescricao,
 })
 
-export const esquemaAtualizarCategoria = esquemaCriarCategoria.extend({ id })
-
-// ---------------------------------------------------------------------------
-// --- equipamentos ---
-// ---------------------------------------------------------------------------
-
-export const esquemaCriarEquipamento = z.object({
-  nome: textoObrigatorio,
-  categoriaId: id,
-  precoDiaria: valorMonetario,
-  estado: estadoEquipamento,
+export const esquemaEquipamentoAtualizar = esquemaId.extend({
+  nome: z.string().trim().min(1).max(120).optional(),
+  categoriaId: z.number().int().positive().optional(),
+  precoDiaria: z.number().nonnegative().optional(),
+  valorAquisicao: z.number().nonnegative().optional(),
+  estado: esquemaEstado.optional(),
+  descricao: esquemaDescricao,
 })
 
-export const esquemaAtualizarEquipamento = esquemaCriarEquipamento.extend({ id })
+export const esquemaEquipamentoListarDisponiveis = z
+  .object({
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+    categoriaId: z.number().int().positive().optional(),
+  })
+  .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
 
-export const esquemaEquipamentosDisponiveis = z.object({
-  inicio: dataIso,
-  fim: dataIso,
-  categoriaId: id.nullable(),
+/** P4 — mesmo rigor de período, agora com id do equipamento. */
+export const esquemaVerificarDisponibilidade = z
+  .object({
+    equipamentoId: z.number().int().positive(),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+  })
+  .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
+
+// P5 — Reservas e clima
+
+export const esquemaReservaListar = z
+  .object({
+    clienteId: z.number().int().positive().optional(),
+    equipamentoId: z.number().int().positive().optional(),
+    status: z.enum(['pendente', 'confirmada', 'cancelada', 'concluida']).optional(),
+  })
+  .optional()
+
+export const esquemaReservaId = esquemaId
+
+export const esquemaReservaCriar = z
+  .object({
+    clienteId: z.number().int().positive(),
+    equipamentoId: z.number().int().positive(),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+    localAtividade: z.string().trim().min(1).max(120),
+  })
+  .refine((reserva) => reserva.inicio < reserva.fim, { message: 'PERIODO_INVALIDO' })
+
+export const esquemaReservaPrevisao = z
+  .object({
+    local: z.string().trim().min(1).max(120),
+    inicio: z.iso.datetime(),
+    fim: z.iso.datetime(),
+  })
+  .refine((periodo) => periodo.inicio < periodo.fim, { message: 'PERIODO_INVALIDO' })
+
+// P6 — Devoluções e multa
+
+export const esquemaDevolucaoRegistrar = z.object({
+  reservaId: z.number().int().positive(),
+  devolvidoEm: z.iso.datetime(),
+  observacoes: z.string().trim().max(500).nullish(),
 })
 
-// ---------------------------------------------------------------------------
-// --- clientes ---
-// ---------------------------------------------------------------------------
-
-export const esquemaCriarCliente = z.object({
-  nome: textoObrigatorio,
-  email: z.email().nullable(),
-  telefone: textoOpcional,
+export const esquemaDevolucaoBuscarPorReserva = z.object({
+  reservaId: z.number().int().positive(),
 })
 
-export const esquemaAtualizarCliente = esquemaCriarCliente.extend({ id })
+export const esquemaMultaCalcular = z.object({
+  reservaId: z.number().int().positive(),
+  devolvidoEm: z.iso.datetime(),
+})
 
-// ---------------------------------------------------------------------------
-// --- fornecedores ---
-// ---------------------------------------------------------------------------
+// P7 — Pagamentos
 
-const cnpj = z
+export const esquemaPagamentoListar = z
+  .object({
+    reservaId: z.number().int().positive().optional(),
+    status: z.enum(['pendente', 'pago', 'estornado']).optional(),
+  })
+  .optional()
+
+export const esquemaPagamentoBuscarPorReserva = z.object({
+  reservaId: z.number().int().positive(),
+})
+
+export const esquemaPagamentoRegistrar = z.object({
+  reservaId: z.number().int().positive(),
+  valor: z.number().positive(),
+  forma: z.enum(['dinheiro', 'pix', 'cartao_credito', 'cartao_debito']),
+})
+
+export const esquemaPagamentoId = z.object({ id: z.number().int().positive() })
+
+// P2 — Clientes e CEP
+
+/** Aceita 01001-000 e 01001000; a normalização para dígitos é do serviço no main. */
+const esquemaCep = z.string().regex(/^\d{5}-?\d{3}$/, 'CEP_INVALIDO')
+const esquemaTextoOpcional = z.string().trim().max(120).nullish()
+const esquemaEmail = z.email().nullish()
+
+export const esquemaClienteListar = z
+  .object({
+    nome: z.string().trim().max(120).optional(),
+    ativo: z.boolean().optional(),
+  })
+  .optional()
+
+export const esquemaClienteBuscarPorId = esquemaId
+export const esquemaClienteInativar = esquemaId
+export const esquemaConsultarCep = z.object({ cep: esquemaCep })
+
+const camposCliente = {
+  email: esquemaEmail,
+  telefone: z.string().trim().max(20).nullish(),
+  cep: esquemaCep.nullish(),
+  logradouro: esquemaTextoOpcional,
+  numero: z.string().trim().max(10).nullish(),
+  complemento: esquemaTextoOpcional,
+  bairro: esquemaTextoOpcional,
+  cidade: esquemaTextoOpcional,
+  uf: z.string().trim().length(2).nullish(),
+}
+
+export const esquemaClienteCriar = z.object({
+  nome: z.string().trim().min(1).max(120),
+  ...camposCliente,
+})
+
+export const esquemaClienteAtualizar = esquemaId.extend({
+  nome: z.string().trim().min(1).max(120).optional(),
+  ...camposCliente,
+})
+
+// P3 — Fornecedores e CNPJ
+
+const esquemaCnpj = z.string().regex(/^\d{2}\.?\d{3}\.?\d{3}\/?\d{2}-?\d{2}$/, 'CNPJ_INVALIDO')
+
+export const esquemaFornecedorListar = z
+  .object({
+    razaoSocial: z.string().trim().max(120).optional(),
+    ativo: z.boolean().optional(),
+  })
+  .optional()
+
+export const esquemaFornecedorBuscarPorId = esquemaId
+export const esquemaFornecedorInativar = esquemaId
+export const esquemaConsultarCnpj = z.object({ cnpj: esquemaCnpj })
+
+const camposFornecedor = {
+  nomeFantasia: z.string().trim().max(120).nullish(),
+  cnpj: esquemaCnpj,
+  email: esquemaEmail.nullish(),
+  telefone: z.string().trim().max(20).nullish(),
+  cep: esquemaCep.nullish(),
+  cidade: z.string().trim().max(120).nullish(),
+  uf: z.string().trim().length(2).nullish(),
+}
+
+export const esquemaFornecedorCriar = z.object({
+  razaoSocial: z.string().trim().min(1).max(120),
+  ...camposFornecedor,
+})
+
+export const esquemaFornecedorAtualizar = esquemaId.extend({
+  razaoSocial: z.string().trim().min(1).max(120).optional(),
+  nomeFantasia: z.string().trim().max(120).nullish(),
+  cnpj: esquemaCnpj.optional(),
+  email: esquemaEmail.nullish(),
+  telefone: z.string().trim().max(20).nullish(),
+  cep: esquemaCep.nullish(),
+  cidade: z.string().trim().max(120).nullish(),
+  uf: z.string().trim().length(2).nullish(),
+})
+
+// P8 — Manutenção
+
+export const esquemaManutencaoListar = z
+  .object({
+    equipamentoId: z.number().int().positive().optional(),
+    status: z.enum(['aberta', 'concluida']).optional(),
+  })
+  .optional()
+
+export const esquemaManutencaoBuscarPorId = esquemaId
+
+export const esquemaManutencaoAbrir = z.object({
+  equipamentoId: z.number().int().positive(),
+  descricao: z.string().trim().min(1).max(500),
+  custo: z.number().nonnegative().nullish(),
+})
+
+export const esquemaManutencaoConcluir = esquemaId.extend({
+  custo: z.number().nonnegative().nullish(),
+})
+
+// P9 — Feriados
+
+export const esquemaFeriadoListar = z
+  .object({
+    ano: z.number().int().min(2000).max(2100).optional(),
+    uf: z.string().trim().length(2).optional(),
+    tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']).optional(),
+  })
+  .optional()
+
+export const esquemaFeriadoBuscarPorId = esquemaId
+
+export const esquemaFeriadoCriar = z.object({
+  data: z.iso.date(),
+  nome: z.string().trim().min(1).max(120),
+  tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']),
+  uf: z.string().trim().length(2).optional(),
+})
+
+export const esquemaFeriadoAtualizar = esquemaId.extend({
+  data: z.iso.date().optional(),
+  nome: z.string().trim().min(1).max(120).optional(),
+  tipo: z.enum(['nacional', 'estadual', 'municipal', 'personalizado']).optional(),
+  uf: z.string().trim().length(2).optional(),
+})
+
+export const esquemaFeriadoRemover = esquemaId
+
+export const esquemaFeriadoImportar = z.object({
+  ano: z.number().int().min(2000).max(2100),
+  uf: z.string().trim().length(2).optional(),
+})
+
+// P10 — Usuários e perfis
+
+export const esquemaUsuarioListar = z
+  .object({
+    perfil: z.enum(['administrador', 'operador', 'visualizador']).optional(),
+    ativo: z.boolean().optional(),
+  })
+  .optional()
+
+export const esquemaUsuarioBuscarPorId = esquemaId
+
+export const esquemaUsuarioCriar = z.object({
+  nome: z.string().trim().min(1).max(120),
+  login: z.string().trim().min(3).max(60),
+  senha: z.string().min(8).max(128),
+  perfil: z.enum(['administrador', 'operador', 'visualizador']),
+})
+
+export const esquemaUsuarioAtualizar = esquemaId.extend({
+  nome: z.string().trim().min(1).max(120).optional(),
+  login: z.string().trim().min(3).max(60).optional(),
+  perfil: z.enum(['administrador', 'operador', 'visualizador']).optional(),
+  ativo: z.boolean().optional(),
+})
+
+export const esquemaUsuarioInativar = esquemaId
+
+export const esquemaUsuarioAutenticar = z.object({
+  login: z.string().trim().min(3).max(60),
+  senha: z.string().min(1).max(128),
+})
+
+// P11 — Painel
+
+export const esquemaPainelFiltros = z
+  .object({ ano: z.number().int().min(2000).max(2100).optional() })
+  .optional()
+
+// ADR 0019 — Arquivos, backup e exportação
+
+const esquemaExtensaoArquivo = z.enum(['.db', '.csv'])
+const esquemaTituloDialogo = z.string().trim().min(1).max(120)
+const esquemaNomeSugerido = z
   .string()
   .trim()
-  .regex(/^\d{14}$/, 'CNPJ deve conter 14 digitos')
-
-export const esquemaCriarFornecedor = z.object({
-  razaoSocial: textoObrigatorio,
-  cnpj: cnpj.nullable(),
-  contato: textoOpcional,
-  telefone: textoOpcional,
+  .min(1)
+  .max(120)
+  // Nunca aceita separadores, unidade ou caracteres proibidos em nome de arquivo.
+  .regex(/^[^\\/:*?"<>|]+$/u, 'CAMINHO_NAO_PERMITIDO')
+  .refine((valor) => [...valor].every((caractere) => caractere.charCodeAt(0) >= 32), {
+    message: 'CAMINHO_NAO_PERMITIDO',
+  })
+const esquemaFiltroArquivo = z.object({
+  nome: z.string().trim().min(1).max(80),
+  extensoes: z.array(esquemaExtensaoArquivo).min(1).max(2),
 })
 
-export const esquemaAtualizarFornecedor = esquemaCriarFornecedor.extend({ id })
-
-// ---------------------------------------------------------------------------
-// --- reservas ---
-// ---------------------------------------------------------------------------
-
-export const esquemaPeriodo = z.object({
-  inicio: dataIso,
-  fim: dataIso,
+export const esquemaDialogoAbrir = z.object({
+  titulo: esquemaTituloDialogo.optional(),
+  filtros: z.array(esquemaFiltroArquivo).min(1).max(4).optional(),
 })
 
-export const esquemaCriarReserva = z.object({
-  clienteId: id,
-  equipamentoId: id,
-  inicio: dataIso,
-  fim: dataIso,
+export const esquemaDialogoSalvar = esquemaDialogoAbrir.extend({
+  nomeSugerido: esquemaNomeSugerido.optional(),
 })
 
-export const esquemaAtualizarReserva = esquemaCriarReserva.extend({ id })
+/** `backup:criar` não recebe caminho: o diálogo de salvar é aberto no main. */
+export const esquemaBackupCriar = esquemaSemEntrada
 
-// ---------------------------------------------------------------------------
-// --- devolucoes e multas ---
-// ---------------------------------------------------------------------------
-
-export const esquemaRegistrarDevolucao = z.object({
-  reservaId: id,
-  devolvidaEm: dataIso,
-  estadoRecebido: estadoEquipamento,
-  observacoes: textoOpcional,
-})
-
-export const esquemaCalcularMulta = z.object({
-  reservaId: id,
-  devolvidaEm: dataIso,
-})
-
-// ---------------------------------------------------------------------------
-// --- pagamentos ---
-// ---------------------------------------------------------------------------
-
-export const esquemaRegistrarPagamento = z.object({
-  reservaId: id,
-  valor: valorMonetario,
-  pagoEm: dataIso,
-  forma: formaPagamento,
-  observacoes: textoOpcional,
-})
-
-// ---------------------------------------------------------------------------
-// --- manutencoes ---
-// ---------------------------------------------------------------------------
-
-export const esquemaAbrirManutencao = z.object({
-  equipamentoId: id,
-  fornecedorId: id.nullable(),
-  descricao: textoObrigatorio,
-})
-
-export const esquemaConcluirManutencao = z.object({
-  id,
-  concluidaEm: dataIso,
-})
-
-// ---------------------------------------------------------------------------
-// --- usuarios ---
-// ---------------------------------------------------------------------------
-
-export const esquemaCriarUsuario = z.object({
-  nome: textoObrigatorio,
-  login: textoObrigatorio,
-  perfil: perfilUsuario,
-})
-
-export const esquemaAtualizarUsuario = z.object({
-  id,
-  nome: textoObrigatorio,
-  perfil: perfilUsuario,
-  ativo: z.boolean(),
-})
-
-export const esquemaAutenticar = z.object({
-  login: textoObrigatorio,
-  senha: z.string().min(1),
-})
-
-// ---------------------------------------------------------------------------
-// --- integracoes externas ---
-// ---------------------------------------------------------------------------
-
-export const esquemaCepBuscar = z.object({
-  cep: z
+/**
+ * Só a forma do caminho é validada aqui. Allowlist, extensão `.db`, existência e
+ * `realpath` são do serviço, para o erro ser de domínio e não `IPC_INVALIDO`.
+ */
+export const esquemaBackupRestaurar = z.object({
+  caminho: z
     .string()
     .trim()
-    .regex(/^\d{8}$/, 'CEP deve conter 8 digitos'),
+    .min(1)
+    .max(1024)
+    .refine((valor) => !valor.includes('\0')),
 })
 
-export const esquemaClimaPrevisao = z.object({
-  data: z.iso.date(),
-  local: textoObrigatorio,
-})
-
-export const esquemaCnpjBuscar = z.object({
-  cnpj,
-})
-
-export const esquemaFeriadosListar = z.object({
-  ano: z.number().int().min(2000).max(2100),
-  uf: z.string().trim().length(2).toUpperCase(),
-})
-
-// ---------------------------------------------------------------------------
-// --- recursos nativos (main decide; preload só transporta) ---
-// ---------------------------------------------------------------------------
-
-const nomeArquivoSeguro = z.string().trim().min(1).max(120).regex(/^[^\\/:*?"<>|]+$/)
-const extensoesArquivo = z.array(z.string().regex(/^\.[a-z0-9]+$/i)).min(1).max(10)
-const caminhoBanco = z.string().trim().min(1).max(260).regex(/\.db$/i)
-const textoCifrado = z
-  .string()
-  .trim()
-  .min(4)
-  .max(8192)
-  .regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Texto cifrado deve estar em base64')
-
-export const esquemaAbrirArquivo = z.object({
-  titulo: textoObrigatorio.max(80),
-  extensoes: extensoesArquivo,
-})
-
-export const esquemaSalvarArquivo = z.object({
-  titulo: textoObrigatorio.max(80),
-  nomePadrao: nomeArquivoSeguro,
-  extensoes: extensoesArquivo,
-})
-
-export const esquemaBackupBanco = z.object({ destino: caminhoBanco })
-
-export const esquemaRestaurarBanco = z.object({ origem: caminhoBanco })
-
-export const esquemaExportarCsv = z.object({
-  nomeArquivo: nomeArquivoSeguro.regex(/\.csv$/i, 'Nome deve terminar em .csv'),
-  colunas: z.array(textoObrigatorio.max(80)).min(1).max(40),
-  linhas: z
-    .array(z.array(z.union([z.string().max(1000), z.number().finite(), z.null()])).max(40))
-    .max(5000),
-})
-
-export const esquemaNotificacaoDevolucaoAtraso = z.object({
-  quantidade: z.number().int().positive(),
-  detalhes: z.string().trim().max(240).nullable(),
-})
-
-export const esquemaSafeStorageCifrar = z.object({
-  texto: z.string().min(1).max(4096),
-})
-
-export const esquemaSafeStorageDecifrar = z.object({ textoCifrado })
-
-// ---------------------------------------------------------------------------
-// --- schema de erro (formato único da ponte) ---
-// ---------------------------------------------------------------------------
-
-export const esquemaErroApi = z.object({
-  codigo: z.enum([
-    'VALIDACAO',
-    'NAO_ENCONTRADO',
-    'CONFLITO',
-    'REGRA_NEGOCIO',
-    'INTEGRACAO_INDISPONIVEL',
-    'SEM_PERMISSAO',
-    'INTERNO',
-  ]),
-  mensagem: z.string(),
-  canal: z.string(),
-})
+export const esquemaExportacaoCsv = z
+  .object({
+    titulo: esquemaTituloDialogo.optional(),
+    nomeSugerido: esquemaNomeSugerido.optional(),
+    cabecalhos: z.array(z.string().trim().min(1).max(200)).min(1).max(50),
+    linhas: z
+      .array(
+        z
+          .union([z.string().max(1000), z.number().finite(), z.boolean(), z.null()])
+          .array()
+          .max(50),
+      )
+      .max(5000),
+  })
+  .refine(
+    (entrada) => entrada.linhas.every((linha) => linha.length === entrada.cabecalhos.length),
+    {
+      message: 'CSV_INVALIDO',
+    },
+  )

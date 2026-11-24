@@ -1,29 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { ErroSemPermissao } from '../nucleo/erros'
-import { urlExternaPermitida, validarUrlExterna } from './UrlsExternas'
+import { urlExternaPermitida } from './UrlsExternas'
 
-describe('UrlsExternas', () => {
-  it('rejeita file:///C:/Windows/System32/calc.exe', () => {
-    const ataque = 'file:///C:/Windows/System32/calc.exe'
-    expect(urlExternaPermitida(ataque)).toBe(false)
-    expect(() => validarUrlExterna(ataque)).toThrow(ErroSemPermissao)
-  })
-
-  it('rejeita http, esquemas exóticos e domínios fora da allowlist', () => {
-    expect(urlExternaPermitida('http://electronjs.org/docs')).toBe(false)
-    expect(urlExternaPermitida('mailto:suporte@zenite.com.br')).toBe(false)
-    expect(urlExternaPermitida('https://google.com')).toBe(false)
-    expect(() => validarUrlExterna('http://electronjs.org')).toThrow(ErroSemPermissao)
-  })
-
-  it('aceita https dos domínios usados pelo app e seus subdomínios', () => {
-    expect(urlExternaPermitida('https://www.electronjs.org/docs')).toBe(true)
-    expect(urlExternaPermitida('https://viacep.com.br/ws/01001000/json/')).toBe(true)
+describe('urlExternaPermitida', () => {
+  it('aceita apenas https nos domínios da allowlist', () => {
+    expect(urlExternaPermitida('https://electronjs.org/docs')).toBe(true)
     expect(urlExternaPermitida('https://api.open-meteo.com/v1/forecast')).toBe(true)
-    expect(urlExternaPermitida('https://brasilapi.com.br/api/cep/v1/01001000')).toBe(true)
+    expect(urlExternaPermitida('https://viacep.com.br/ws/01001000/json/')).toBe(true)
+    expect(urlExternaPermitida('https://brasilapi.com.br/api/cnpj/v1/00000000000191')).toBe(true)
+    expect(urlExternaPermitida('https://subdomain.electronjs.org/docs')).toBe(true)
   })
 
-  it('rejeita URL malformada sem lançar erro cru', () => {
-    expect(() => validarUrlExterna('%%%')).toThrow(ErroSemPermissao)
+  it('rejeita esquemas locais e domínios fora da lista', () => {
+    expect(urlExternaPermitida('file:///C:/Windows/System32/calc.exe')).toBe(false)
+    expect(urlExternaPermitida('http://electronjs.org/docs')).toBe(false)
+    expect(urlExternaPermitida('https://evil.com/?next=electronjs.org')).toBe(false)
+    expect(urlExternaPermitida('https://electronjs.org.evil.com')).toBe(false)
+    expect(urlExternaPermitida('nao-e-uma-url')).toBe(false)
   })
 })

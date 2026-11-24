@@ -1,83 +1,99 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'node:path'
+import { app, BrowserWindow, ipcMain, session } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
 import type { PingPayload } from '../shared/contratos/modelos'
+import { CicloBanco, type PortaCicloBanco } from './banco/CicloBanco'
 import { ConexaoBanco } from './banco/ConexaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
 import { registrarHandlers } from './ipc/handlers'
 import { RegistroIpc } from './ipc/RegistroIpc'
-import { criarJanelaPrincipal, urlAplicacao } from './janelas/JanelaPrincipal'
-import { criarMenuAplicacao } from './janelas/MenuAplicacao'
-import { ContainerAplicacao } from './nucleo/ContainerAplicacao'
-import { aplicarCsp } from './seguranca/CspMain'
-import { negarPermissoesDispositivo } from './seguranca/Permissoes'
-import { origemIpcConfiavel } from './seguranca/OrigemIpc'
+import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
+import { instalarMenu } from './janelas/MenuAplicacao'
+import { aplicarCsp } from './seguranca/Csp'
+import { ArquivosNativos } from './seguranca/ArquivosNativos'
+import { criarVerificadorOrigem, urlAplicacao } from './seguranca/OrigemIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
 
-let janelaPrincipal: BrowserWindow | null = null
-let conexaoBanco: ConexaoBanco | null = null
+let mainWindow: BrowserWindow | null = null
+let cicloBanco: PortaCicloBanco | null = null
 
-function iniciarBanco(): void {
-  const caminho = path.join(app.getPath('userData'), 'zenite.db')
-  conexaoBanco = new ConexaoBanco(caminho)
-  new Migrador(conexaoBanco.db, MIGRACOES).aplicarPendentes()
+function caminhoBanco(): string {
+  return path.join(app.getPath('userData'), 'zenite.db')
 }
 
-function enviarPing(): void {
+function iniciarBanco(caminho: string): ConexaoBanco {
+  const conexao = new ConexaoBanco(caminho)
+  new Migrador(conexao.db, MIGRACOES).aplicarPendentes()
+  return conexao
+}
+
+function abrirJanela(): void {
+  mainWindow = criarJanelaPrincipal(isDev)
+  mainWindow.once('ready-to-show', () => mainWindow?.show())
+  mainWindow.on('closed', () => {
+    mainWindow = null
+  })
+}
+
+function sendPing(): void {
   const payload: PingPayload = {
     message: 'Ping from the main process',
     timestamp: Date.now(),
   }
-  janelaPrincipal?.webContents.send(CANAIS.ping, payload)
+  mainWindow?.webContents.send(CANAIS.ping, payload)
 }
 
 function focarJanela(): void {
-  if (!janelaPrincipal) return
-  if (janelaPrincipal.isMinimized()) janelaPrincipal.restore()
-  janelaPrincipal.focus()
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    return
+  }
+  abrirJanela()
 }
 
-if (!app.requestSingleInstanceLock()) {
-  app.quit()
-} else {
+function iniciar(): void {
   app.whenReady().then(() => {
-    aplicarCsp(isDev)
-    negarPermissoesDispositivo()
-    iniciarBanco()
-    if (!conexaoBanco) throw new Error('Falha ao abrir o banco local.')
+    aplicarCsp(session.defaultSession, isDev)
 
-    const container = new ContainerAplicacao(conexaoBanco.db)
-    const urlApp = urlAplicacao(isDev, process.env.VITE_DEV_SERVER_URL)
-    const registro = new RegistroIpc(ipcMain, {
-      confiavel: (evento) => origemIpcConfiavel(evento, [urlApp]),
+    const caminho = caminhoBanco()
+    cicloBanco = new CicloBanco(iniciarBanco(caminho), caminho, {
+      // Agenda o reinício para depois da resposta IPC: `app.exit` é imediato.
+      reiniciar: () => {
+        setTimeout(() => {
+          app.relaunch()
+          app.exit(0)
+        }, 100)
+      },
     })
-    registrarHandlers(registro, container)
 
-    criarMenuAplicacao(isDev, enviarPing)
-    janelaPrincipal = criarJanelaPrincipal(isDev, process.env.VITE_DEV_SERVER_URL)
-    janelaPrincipal.on('closed', () => {
-      janelaPrincipal = null
-    })
+    const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname))
+    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco, new ArquivosNativos())
+
+    instalarMenu(isDev, { ping: sendPing })
+    abrirJanela()
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        janelaPrincipal = criarJanelaPrincipal(isDev, process.env.VITE_DEV_SERVER_URL)
-      } else {
-        focarJanela()
-      }
+      if (BrowserWindow.getAllWindows().length === 0) abrirJanela()
     })
   })
 }
 
-app.on('second-instance', () => focarJanela())
+// Uma única instância evita dois processos disputando o mesmo arquivo SQLite.
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  app.on('second-instance', focarJanela)
+  iniciar()
+}
+
+app.on('before-quit', () => {
+  cicloBanco?.fechar()
+  cicloBanco = null
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
-})
-
-app.on('before-quit', () => {
-  conexaoBanco?.fechar()
-  conexaoBanco = null
 })

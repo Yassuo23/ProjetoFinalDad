@@ -1,5 +1,8 @@
-﻿/** Tipos de domínio compartilhados. Só `type`/`interface`: somem no build. */
-import type { Canal } from './canais'
+/** Tipos de domínio compartilhados. Só `type`/`interface`: somem no build. */
+
+import type { EstadoEquipamento } from './estados'
+
+export type { EstadoEquipamento } from './estados'
 
 export interface AppInfo {
   name: string
@@ -15,6 +18,48 @@ export interface PingPayload {
   timestamp: number
 }
 
+/** Extensões que o contrato permite oferecer em diálogos nativos. */
+export type ExtensaoArquivo = '.db' | '.csv'
+
+export interface FiltroArquivo {
+  nome: string
+  extensoes: ExtensaoArquivo[]
+}
+
+/** O renderer pede o diálogo; ele nunca informa ou constrói um caminho. */
+export interface DialogoAbrirEntrada {
+  titulo?: string
+  filtros?: FiltroArquivo[]
+}
+
+export interface DialogoSalvarEntrada extends DialogoAbrirEntrada {
+  nomeSugerido?: string
+}
+
+/** `caminho: null` é cancelamento do diálogo, não erro. */
+export interface ResultadoDialogo {
+  caminho: string | null
+}
+
+/** Caminho precisa ter vindo de `arquivos:abrir`; o main valida antes de usar. */
+export interface BackupRestaurarEntrada {
+  caminho: string
+}
+
+/** `caminho: null` com `bytes: 0` = cancelamento na diálogo/confirmação, não erro. */
+export type ResultadoOperacaoArquivo =
+  { caminho: string; bytes: number } | { caminho: null; bytes: 0 }
+
+/** O main converte e escapa cada célula; o renderer só agrega os dados. */
+export type CelulaCsv = string | number | boolean | null
+
+export interface ExportacaoCsvEntrada {
+  titulo?: string
+  nomeSugerido?: string
+  cabecalhos: string[]
+  linhas: CelulaCsv[][]
+}
+
 export interface Categoria {
   id: number
   nome: string
@@ -26,19 +71,119 @@ export interface Cliente {
   nome: string
   email: string | null
   telefone: string | null
+  cep: string | null
+  logradouro: string | null
+  numero: string | null
+  complemento: string | null
+  bairro: string | null
+  cidade: string | null
+  uf: string | null
+  /** Inativação lógica: cliente com reserva nunca é apagado. */
+  ativo: boolean
 }
 
-/** Estado físico do equipamento — enum fechado, usado em filtros e manutenção. */
-export type EstadoEquipamento = 'otimo' | 'bom' | 'regular' | 'em_manutencao' | 'baixado'
+export interface ClientesListarFiltros {
+  nome?: string
+  ativo?: boolean
+}
+
+/** Endereço devolvido pela consulta de CEP; preenchido pelo main, não pelo renderer. */
+export interface Endereco {
+  cep: string
+  logradouro: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
+}
+
+export interface ConsultarCepEntrada {
+  cep: string
+}
+
+export interface ClienteCriarEntrada {
+  nome: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+export interface ClienteAtualizarEntrada {
+  id: number
+  nome?: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
 
 export interface Equipamento {
   id: number
   nome: string
   categoriaId: number
   precoDiaria: number
+  /** Base configurável do cálculo de multa de atraso (P6). */
+  valorAquisicao: number
+  estado: EstadoEquipamento
+  /** Inativação lógica: nunca apague equipamento com histórico de reserva. */
+  ativo: boolean
+  descricao: string | null
+}
+
+export interface EquipamentoListarFiltros {
+  categoriaId?: number
+  estado?: EstadoEquipamento
+}
+
+export interface EquipamentoIdEntrada {
+  id: number
+}
+
+export interface EquipamentoCriarEntrada {
+  nome: string
+  categoriaId: number
+  precoDiaria: number
+  valorAquisicao: number
+  descricao?: string | null
+}
+
+export interface EquipamentoAtualizarEntrada extends EquipamentoIdEntrada {
+  nome?: string
+  categoriaId?: number
+  precoDiaria?: number
+  valorAquisicao?: number
+  estado?: EstadoEquipamento
+  descricao?: string | null
+}
+
+export interface EquipamentoDisponiveisEntrada {
+  inicio: string
+  fim: string
+  categoriaId?: number
+}
+
+/** P4 — verificação pontual para um equipamento e período. */
+export interface VerificarDisponibilidadeEntrada {
+  equipamentoId: number
+  inicio: string
+  fim: string
+}
+
+export interface DisponibilidadeResultado {
   disponivel: boolean
-  /** Opcional enquanto o renderer legado não é atualizado pelo FE. */
-  readonly estado?: EstadoEquipamento
+  /** Presente quando `disponivel` é false; o renderer traduz o código. */
+  motivo?: CodigoErroDominio
 }
 
 export type StatusReserva = 'pendente' | 'confirmada' | 'cancelada' | 'concluida'
@@ -50,300 +195,347 @@ export interface Reserva {
   inicio: string
   fim: string
   status: StatusReserva
+  /** Local da atividade — base da previsão do tempo (P5). */
+  localAtividade: string | null
+  criadoEm: string
 }
 
-// ---------------------------------------------------------------------------
-// Novas entidades do domínio
-// ---------------------------------------------------------------------------
-
-export interface Fornecedor {
-  id: number
-  razaoSocial: string
-  cnpj: string | null
-  contato: string | null
-  telefone: string | null
+export interface ReservasListarFiltros {
+  clienteId?: number
+  equipamentoId?: number
+  status?: StatusReserva
 }
 
+export interface ReservaCriarEntrada {
+  clienteId: number
+  equipamentoId: number
+  inicio: string
+  fim: string
+  localAtividade: string
+}
+
+export interface PrevisaoTempoEntrada {
+  local: string
+  inicio: string
+  fim: string
+}
+
+export interface PrevisaoDia {
+  data: string
+  temperaturaMin: number
+  temperaturaMax: number
+  precipitacaoMm: number
+  descricao: string
+}
+
+export interface PrevisaoTempo {
+  local: string
+  latitude: number
+  longitude: number
+  dias: PrevisaoDia[]
+}
+
+/** P6 — devolução e cálculo de multa por atraso. */
 export interface Devolucao {
   id: number
   reservaId: number
-  devolvidaEm: string
-  estadoRecebido: EstadoEquipamento
-  valorMulta: number
+  devolvidoEm: string
   observacoes: string | null
+  diasAtraso: number
+  valorDiaria: number
+  valorMulta: number
 }
+
+export interface DevolucaoRegistrarEntrada {
+  reservaId: number
+  devolvidoEm: string
+  observacoes?: string | null
+}
+
+export interface MultaCalcularEntrada {
+  reservaId: number
+  devolvidoEm: string
+}
+
+export interface CalculoMulta {
+  diasAtraso: number
+  diasCarencia: number
+  valorDiaria: number
+  valorLocacao: number
+  baseCalculo: number
+  percentualDiario: number
+  valorMultaBruta: number
+  valorMulta: number
+  valorTotal: number
+  tetoAplicado: boolean
+}
+
+/** P7 — pagamento único por reserva, com status próprio. */
+export type FormaPagamento = 'dinheiro' | 'pix' | 'cartao_credito' | 'cartao_debito'
+export type StatusPagamento = 'pendente' | 'pago' | 'estornado'
 
 export interface Pagamento {
   id: number
   reservaId: number
   valor: number
-  pagoEm: string
-  forma: 'dinheiro' | 'pix' | 'cartao' | 'boleto'
-  observacoes: string | null
+  forma: FormaPagamento
+  status: StatusPagamento
+  pagoEm: string | null
+  criadoEm: string
 }
 
-export interface Manutencao {
-  id: number
-  equipamentoId: number
-  fornecedorId: number | null
-  descricao: string
-  abertaEm: string
-  concluidaEm: string | null
+export interface PagamentoRegistrarEntrada {
+  reservaId: number
+  valor: number
+  forma: FormaPagamento
 }
 
-/** Perfis de acesso — regra mora no serviço de usuários; aqui é só o vocabulário. */
-export type PerfilUsuario = 'administrador' | 'atendente' | 'visualizador'
+export interface PagamentosListarFiltros {
+  reservaId?: number
+  status?: StatusPagamento
+}
 
-export interface Usuario {
+/**
+ * Códigos de erro de domínio. O IPC rejeita com `Error.message === codigo`;
+ * o renderer traduz o código para texto amigável, sem detalhe de driver/Zod.
+ */
+/** P3 — Fornecedores e consulta de CNPJ. */
+export interface Fornecedor {
   id: number
-  nome: string
-  login: string
-  perfil: PerfilUsuario
+  razaoSocial: string
+  nomeFantasia: string | null
+  cnpj: string
+  email: string | null
+  telefone: string | null
+  cep: string | null
+  cidade: string | null
+  uf: string | null
   ativo: boolean
-}
-
-// ---------------------------------------------------------------------------
-// DTOs de integração (respostas normalizadas, nunca o JSON bruto do provedor)
-// ---------------------------------------------------------------------------
-
-export interface EnderecoViaCep {
-  cep: string
-  logradouro: string
-  bairro: string
-  localidade: string
-  uf: string
-}
-
-export interface PrevisaoClima {
-  data: string
-  local: string
-  temperaturaMin: number
-  temperaturaMax: number
-  descricao: string
-  probabilidadeChuva: number
 }
 
 export interface DadosCnpj {
   cnpj: string
   razaoSocial: string
-  situacao: string
+  nomeFantasia: string | null
+  cidade: string | null
+  uf: string | null
 }
+
+export interface ConsultarCnpjEntrada {
+  cnpj: string
+}
+
+export interface FornecedoresListarFiltros {
+  razaoSocial?: string
+  ativo?: boolean
+}
+
+export interface FornecedorCriarEntrada {
+  razaoSocial: string
+  nomeFantasia?: string | null
+  cnpj: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+export interface FornecedorAtualizarEntrada {
+  id: number
+  razaoSocial?: string
+  nomeFantasia?: string | null
+  cnpj?: string
+  email?: string | null
+  telefone?: string | null
+  cep?: string | null
+  cidade?: string | null
+  uf?: string | null
+}
+
+/** P8 — Manutenção muda o estado do equipamento na conclusão. */
+export type StatusManutencao = 'aberta' | 'concluida'
+
+export interface Manutencao {
+  id: number
+  equipamentoId: number
+  descricao: string
+  status: StatusManutencao
+  abertaEm: string
+  concluidaEm: string | null
+  custo: number | null
+}
+
+export interface ManutencaoAbrirEntrada {
+  equipamentoId: number
+  descricao: string
+  custo?: number | null
+}
+
+export interface ManutencaoConcluirEntrada {
+  id: number
+  custo?: number | null
+}
+
+export interface ManutencoesListarFiltros {
+  equipamentoId?: number
+  status?: StatusManutencao
+}
+
+/** P9 — Catálogo de feriados; `uf = ''` representa âmbito nacional. */
+export type TipoFeriado = 'nacional' | 'estadual' | 'municipal' | 'personalizado'
 
 export interface Feriado {
+  id: number
   data: string
   nome: string
+  tipo: TipoFeriado
+  uf: string
 }
 
-// ---------------------------------------------------------------------------
-// Erros de domínio tipados — o renderer recebe só o código + mensagem pública.
-// ---------------------------------------------------------------------------
+export interface FeriadoCriarEntrada {
+  data: string
+  nome: string
+  tipo: TipoFeriado
+  uf?: string
+}
+
+export interface FeriadoAtualizarEntrada {
+  id: number
+  data?: string
+  nome?: string
+  tipo?: TipoFeriado
+  uf?: string
+}
+
+export interface FeriadoImportarEntrada {
+  ano: number
+  uf?: string
+}
+
+export interface FeriadosListarFiltros {
+  ano?: number
+  uf?: string
+  tipo?: TipoFeriado
+}
+
+/** P10 — Perfis locais; a senha nunca sai do main. */
+export type Perfil = 'administrador' | 'operador' | 'visualizador'
+
+export interface Usuario {
+  id: number
+  nome: string
+  login: string
+  perfil: Perfil
+  ativo: boolean
+  criadoEm: string
+}
+
+export interface UsuarioCriarEntrada {
+  nome: string
+  login: string
+  senha: string
+  perfil: Perfil
+}
+
+export interface UsuarioAtualizarEntrada {
+  id: number
+  nome?: string
+  login?: string
+  perfil?: Perfil
+  ativo?: boolean
+}
+
+export interface UsuarioAutenticarEntrada {
+  login: string
+  senha: string
+}
+
+export interface UsuariosListarFiltros {
+  perfil?: Perfil
+  ativo?: boolean
+}
+
+/** P11 — Agregados de leitura; nenhum dado novo é persistido. */
+export interface PainelFiltros {
+  ano?: number
+}
+
+export interface ResumoPainel {
+  equipamentosAtivos: number
+  equipamentosDisponiveis: number
+  equipamentosEmManutencao: number
+  reservasPendentes: number
+  reservasConfirmadas: number
+  reservasConcluidas: number
+  clientesAtivos: number
+  valorLocacao: number
+  valorMultas: number
+  valorRecebido: number
+}
+
+export interface ItemPorCategoria {
+  categoriaId: number
+  nome: string
+  equipamentos: number
+  reservas: number
+}
+
+export interface ItemReceita {
+  mes: string
+  locacao: number
+  multas: number
+  recebido: number
+}
 
 export type CodigoErroDominio =
-  | 'VALIDACAO'
-  | 'NAO_ENCONTRADO'
-  | 'CONFLITO'
-  | 'REGRA_NEGOCIO'
-  | 'INTEGRACAO_INDISPONIVEL'
-  | 'SEM_PERMISSAO'
-  | 'INTERNO'
+  | 'EQUIPAMENTO_NAO_ENCONTRADO'
+  | 'EQUIPAMENTO_INATIVO'
+  | 'CATEGORIA_NAO_ENCONTRADA'
+  | 'NOME_DUPLICADO'
+  | 'PERIODO_INVALIDO'
+  | 'ITEM_INDISPONIVEL'
+  | 'RESERVA_JA_CANCELADA'
+  | 'URL_NAO_PERMITIDA'
+  | 'CLIENTE_NAO_ENCONTRADO'
+  | 'EMAIL_DUPLICADO'
+  | 'CEP_INVALIDO'
+  | 'CEP_NAO_ENCONTRADO'
+  | 'RESERVA_NAO_ENCONTRADA'
+  | 'RESERVA_JA_CONFIRMADA'
+  | 'LOCAL_NAO_ENCONTRADO'
+  | 'PREVISAO_INDISPONIVEL'
+  | 'DEVOLUCAO_JA_REGISTRADA'
+  | 'DEVOLUCAO_DATA_INVALIDA'
+  | 'RESERVA_NAO_CONFIRMADA'
+  | 'MULTA_BASE_INDISPONIVEL'
+  | 'PAGAMENTO_NAO_ENCONTRADO'
+  | 'PAGAMENTO_JA_REGISTRADO'
+  | 'PAGAMENTO_JA_PAGO'
+  | 'PAGAMENTO_JA_ESTORNADO'
+  | 'VALOR_PAGAMENTO_INVALIDO'
+  | 'FORNECEDOR_NAO_ENCONTRADO'
+  | 'CNPJ_INVALIDO'
+  | 'CNPJ_NAO_ENCONTRADO'
+  | 'CNPJ_DUPLICADO'
+  | 'MANUTENCAO_NAO_ENCONTRADA'
+  | 'MANUTENCAO_JA_ABERTA'
+  | 'MANUTENCAO_JA_CONCLUIDA'
+  | 'FERIADO_NAO_ENCONTRADO'
+  | 'FERIADO_JA_EXISTENTE'
+  | 'FERIADOS_INDISPONIVEIS'
+  | 'USUARIO_NAO_ENCONTRADO'
+  | 'LOGIN_DUPLICADO'
+  | 'SENHA_INVALIDA'
+  | 'USUARIO_INATIVO'
+  // Arquivos, backup e exportação (ADR 0019).
+  | 'ARQUIVO_NAO_ENCONTRADO'
+  | 'CAMINHO_NAO_PERMITIDO'
+  | 'BACKUP_FALHOU'
+  | 'EXPORTACAO_FALHOU'
+  | 'DIALOGO_FALHOU'
 
-/** Formato único de erro que atravessa a ponte. Sem stack, SQL ou segredo. */
-export interface ErroApi {
+export interface ErroDominio {
   readonly codigo: CodigoErroDominio
   readonly mensagem: string
-  readonly canal: Canal
-}
-
-// ---------------------------------------------------------------------------
-// Payloads de comando (CRUD e ações de domínio)
-// ---------------------------------------------------------------------------
-
-export interface IdPayload {
-  readonly id: number
-}
-
-export interface CriarCategoriaPayload {
-  readonly nome: string
-  readonly descricao: string | null
-}
-
-export interface AtualizarCategoriaPayload extends IdPayload, CriarCategoriaPayload {}
-
-export interface CriarEquipamentoPayload {
-  readonly nome: string
-  readonly categoriaId: number
-  readonly precoDiaria: number
-  readonly estado: EstadoEquipamento
-}
-
-export interface AtualizarEquipamentoPayload extends IdPayload, CriarEquipamentoPayload {}
-
-export interface PeriodoPayload {
-  readonly inicio: string
-  readonly fim: string
-}
-
-export interface EquipamentosDisponiveisPayload extends PeriodoPayload {
-  readonly categoriaId: number | null
-}
-
-export interface CriarClientePayload {
-  readonly nome: string
-  readonly email: string | null
-  readonly telefone: string | null
-}
-
-export interface AtualizarClientePayload extends IdPayload, CriarClientePayload {}
-
-export interface CriarFornecedorPayload {
-  readonly razaoSocial: string
-  readonly cnpj: string | null
-  readonly contato: string | null
-  readonly telefone: string | null
-}
-
-export interface AtualizarFornecedorPayload extends IdPayload, CriarFornecedorPayload {}
-
-export interface CriarReservaPayload {
-  readonly clienteId: number
-  readonly equipamentoId: number
-  readonly inicio: string
-  readonly fim: string
-}
-
-export interface AtualizarReservaPayload extends IdPayload, CriarReservaPayload {}
-
-export interface RegistrarDevolucaoPayload {
-  readonly reservaId: number
-  readonly devolvidaEm: string
-  readonly estadoRecebido: EstadoEquipamento
-  readonly observacoes: string | null
-}
-
-export interface CalcularMultaPayload {
-  readonly reservaId: number
-  readonly devolvidaEm: string
-}
-
-export interface ValorMulta {
-  readonly valor: number
-  readonly diasAtraso: number
-}
-
-export interface RegistrarPagamentoPayload {
-  readonly reservaId: number
-  readonly valor: number
-  readonly pagoEm: string
-  readonly forma: Pagamento['forma']
-  readonly observacoes: string | null
-}
-
-export interface AbrirManutencaoPayload {
-  readonly equipamentoId: number
-  readonly fornecedorId: number | null
-  readonly descricao: string
-}
-
-export interface ConcluirManutencaoPayload extends IdPayload {
-  readonly concluidaEm: string
-}
-
-export interface CriarUsuarioPayload {
-  readonly nome: string
-  readonly login: string
-  readonly perfil: PerfilUsuario
-}
-
-export interface AtualizarUsuarioPayload extends IdPayload {
-  readonly nome: string
-  readonly perfil: PerfilUsuario
-  readonly ativo: boolean
-}
-
-export interface AutenticarPayload {
-  readonly login: string
-  readonly senha: string
-}
-
-export interface CepBuscarPayload {
-  readonly cep: string
-}
-
-export interface ClimaPrevisaoPayload {
-  readonly data: string
-  readonly local: string
-}
-
-export interface CnpjBuscarPayload {
-  readonly cnpj: string
-}
-
-export interface FeriadosListarPayload {
-  readonly ano: number
-  readonly uf: string
-}
-
-// ---------------------------------------------------------------------------
-// Recursos nativos — payloads e retornos da ponte (somente tipos)
-// ---------------------------------------------------------------------------
-
-/** Extensões dos diálogos, sempre com ponto inicial (ex.: `.csv`). */
-export interface AbrirArquivoPayload {
-  readonly titulo: string
-  readonly extensoes: readonly string[]
-}
-
-export interface ArquivoSelecionado {
-  readonly caminho: string
-  readonly nome: string
-}
-
-export interface SalvarArquivoPayload {
-  readonly titulo: string
-  readonly nomePadrao: string
-  readonly extensoes: readonly string[]
-}
-
-/** O main grava a cópia em `destino`; o renderer já escolheu o caminho. */
-export interface BackupBancoPayload {
-  readonly destino: string
-}
-
-export interface ResultadoBackup {
-  readonly caminho: string
-  readonly bytes: number
-}
-
-/** Restauração é destrutiva: o main valida a origem e protege o banco atual. */
-export interface RestaurarBancoPayload {
-  readonly origem: string
-}
-
-export interface ResultadoRestauracao {
-  readonly caminho: string
-  readonly bytes: number
-}
-
-export type CelulaCsv = string | number | null
-
-/** `linhas` não inclui cabeçalho; ele vem de `colunas`. */
-export interface ExportarCsvPayload {
-  readonly nomeArquivo: string
-  readonly colunas: readonly string[]
-  readonly linhas: readonly (readonly CelulaCsv[])[]
-}
-
-/** A regra que identifica atrasos mora no serviço de devoluções; aqui vai só o aviso. */
-export interface NotificacaoDevolucaoAtrasoPayload {
-  readonly quantidade: number
-  readonly detalhes: string | null
-}
-
-export interface SafeStorageCifrarPayload {
-  readonly texto: string
-}
-
-export interface SafeStorageDecifrarPayload {
-  /** Texto cifrado em base64, como devolvido por `safeStorage`. */
-  readonly textoCifrado: string
 }

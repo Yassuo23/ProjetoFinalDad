@@ -71,79 +71,56 @@ export function hojeISO(): string {
   return diaISO(0)
 }
 
+function clienteExemplo(
+  id: number,
+  nome: string,
+  email: string,
+  telefone: string,
+): Cliente {
+  return {
+    id,
+    nome,
+    email,
+    telefone,
+    cep: null,
+    logradouro: null,
+    numero: null,
+    complemento: null,
+    bairro: null,
+    cidade: null,
+    uf: null,
+    ativo: true,
+  }
+}
+
+function reservaExemplo(
+  id: number,
+  clienteId: number,
+  equipamentoId: number,
+  inicio: string,
+  fim: string,
+  status: Reserva['status'],
+): Reserva {
+  return { id, clienteId, equipamentoId, inicio, fim, status, localAtividade: null, criadoEm: diaISO(-7) }
+}
+
 const CLIENTES_EXEMPLO: readonly Cliente[] = [
-  { id: 201, nome: 'Ana Souza', email: 'ana@exemplo.test', telefone: '(11) 98888-0001' },
-  { id: 202, nome: 'Carlos Lima', email: 'carlos@exemplo.test', telefone: '(21) 97777-0002' },
-  { id: 203, nome: 'Joana Ribeiro', email: 'joana@exemplo.test', telefone: '(31) 96666-0003' },
-  { id: 204, nome: 'Marcos Alves', email: 'marcos@exemplo.test', telefone: '(41) 95555-0004' },
-  { id: 205, nome: 'Paula Mendes', email: 'paula@exemplo.test', telefone: '(51) 94444-0005' },
+  clienteExemplo(201, 'Ana Souza', 'ana@exemplo.test', '(11) 98888-0001'),
+  clienteExemplo(202, 'Carlos Lima', 'carlos@exemplo.test', '(21) 97777-0002'),
+  clienteExemplo(203, 'Joana Ribeiro', 'joana@exemplo.test', '(31) 96666-0003'),
+  clienteExemplo(204, 'Marcos Alves', 'marcos@exemplo.test', '(41) 95555-0004'),
+  clienteExemplo(205, 'Paula Mendes', 'paula@exemplo.test', '(51) 94444-0005'),
 ]
 
 const RESERVAS_EXEMPLO: readonly Reserva[] = [
-  {
-    id: 1001,
-    clienteId: 201,
-    equipamentoId: 101,
-    inicio: diaISO(0),
-    fim: diaISO(2),
-    status: 'confirmada',
-  },
-  {
-    id: 1002,
-    clienteId: 202,
-    equipamentoId: 103,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'pendente',
-  },
-  {
-    id: 1003,
-    clienteId: 203,
-    equipamentoId: 105,
-    inicio: diaISO(-1),
-    fim: diaISO(0),
-    status: 'confirmada',
-  },
-  {
-    id: 1004,
-    clienteId: 204,
-    equipamentoId: 104,
-    inicio: diaISO(0),
-    fim: diaISO(3),
-    status: 'confirmada',
-  },
-  {
-    id: 1005,
-    clienteId: 205,
-    equipamentoId: 107,
-    inicio: diaISO(-2),
-    fim: diaISO(-1),
-    status: 'confirmada',
-  },
-  {
-    id: 1006,
-    clienteId: 201,
-    equipamentoId: 102,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'cancelada',
-  },
-  {
-    id: 1007,
-    clienteId: 202,
-    equipamentoId: 106,
-    inicio: diaISO(-1),
-    fim: diaISO(1),
-    status: 'confirmada',
-  },
-  {
-    id: 1008,
-    clienteId: 203,
-    equipamentoId: 101,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'pendente',
-  },
+  reservaExemplo(1001, 201, 101, diaISO(0), diaISO(2), 'confirmada'),
+  reservaExemplo(1002, 202, 103, diaISO(0), diaISO(1), 'pendente'),
+  reservaExemplo(1003, 203, 105, diaISO(-1), diaISO(0), 'confirmada'),
+  reservaExemplo(1004, 204, 104, diaISO(0), diaISO(3), 'confirmada'),
+  reservaExemplo(1005, 205, 107, diaISO(-2), diaISO(-1), 'confirmada'),
+  reservaExemplo(1006, 201, 102, diaISO(0), diaISO(1), 'cancelada'),
+  reservaExemplo(1007, 202, 106, diaISO(-1), diaISO(1), 'confirmada'),
+  reservaExemplo(1008, 203, 101, diaISO(0), diaISO(1), 'pendente'),
 ]
 
 /** Pagamentos/multas são ilustrativos: ainda não existe canal nem modelo no contrato. */
@@ -166,7 +143,9 @@ const PREVISAO_EXEMPLO: PrevisaoTempo = {
 }
 
 function calcularFrota(equipamentos: readonly Equipamento[], dadosDeExemplo: boolean): StatusFrota {
-  const disponivel = equipamentos.filter((equipamento) => equipamento.disponivel).length
+  const disponivel = equipamentos.filter(
+    (equipamento) => equipamento.ativo && equipamento.estado === 'disponivel',
+  ).length
   return {
     disponivel,
     reservado: equipamentos.length - disponivel,

@@ -1,32 +1,23 @@
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
-import { BrowserWindow } from 'electron'
-import { protegerNavegacao } from '../seguranca/NavegacaoSegura'
+import { app, BrowserWindow } from 'electron'
+import { aplicarNavegacaoSegura } from '../seguranca/NavegacaoSegura'
 
-const LARGURA_INICIAL = 1200
-const ALTURA_INICIAL = 800
-const LARGURA_MINIMA = 800
-const ALTURA_MINIMA = 600
+/** No instalador o icone vem do executavel; no dev, de resources/. */
+const iconeJanela = app.isPackaged
+  ? undefined
+  : path.join(__dirname, '../../../resources/icon.png')
 
-/** URL carregada pela janela — usada tambem como allowlist de origem IPC. */
-export function urlAplicacao(isDev: boolean, urlDev: string | undefined): string {
-  if (isDev && urlDev) return urlDev
-  return pathToFileURL(path.join(__dirname, '../../renderer/index.html')).toString()
-}
-
-/**
- * Unica janela do aplicativo. Todas as opcoes de `webPreferences` que envolvem
- * isolamento sao fixas aqui: nao existe caminho que desligue `sandbox` ou
- * `contextIsolation` para "fazer funcionar".
- */
-export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined): BrowserWindow {
+/** Cria a única janela do app, já com isolamento e navegação restrita. */
+export function criarJanelaPrincipal(isDev: boolean): BrowserWindow {
   const janela = new BrowserWindow({
-    width: LARGURA_INICIAL,
-    height: ALTURA_INICIAL,
-    minWidth: LARGURA_MINIMA,
-    minHeight: ALTURA_MINIMA,
+    width: 1200,
+    height: 800,
+    minWidth: 800,
+    minHeight: 600,
+    center: true,
     show: false,
     title: 'Zênite — Aluguel Outdoor',
+    icon: iconeJanela,
     webPreferences: {
       preload: path.join(__dirname, '../../preload/index.js'),
       contextIsolation: true,
@@ -36,24 +27,22 @@ export function criarJanelaPrincipal(isDev: boolean, urlDev: string | undefined)
     },
   })
 
-  const webContents = janela.webContents
-  protegerNavegacao(
-    {
-      aoNavegar: (ouvinte) => webContents.on('will-navigate', ouvinte),
-      aoNavegarQuadro: (ouvinte) =>
-        webContents.on('will-frame-navigate', (detalhes) => ouvinte(detalhes, detalhes.url)),
-      aoAbrirJanela: (negar) => webContents.setWindowOpenHandler(negar),
-    },
-    urlAplicacao(isDev, urlDev),
-  )
+  // Nenhuma permissão de dispositivo é concedida por padrão (câmera, microfone, notificações...).
+  const sessao = janela.webContents.session
+  sessao.setPermissionRequestHandler((_conteudo, _permissao, responder) => {
+    responder(false)
+  })
+  sessao.setPermissionCheckHandler(() => false)
 
+  const urlDev = process.env.VITE_DEV_SERVER_URL
   if (isDev && urlDev) {
     void janela.loadURL(urlDev)
+    janela.webContents.openDevTools({ mode: 'detach' })
   } else {
     void janela.loadFile(path.join(__dirname, '../../renderer/index.html'))
   }
 
-  janela.once('ready-to-show', () => janela.show())
-  if (isDev) webContents.openDevTools({ mode: 'detach' })
+  aplicarNavegacaoSegura(janela.webContents)
+
   return janela
 }

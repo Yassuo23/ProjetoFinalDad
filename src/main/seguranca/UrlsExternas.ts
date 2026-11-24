@@ -1,8 +1,9 @@
-import { ErroSemPermissao } from '../nucleo/erros'
-
 /**
- * Allowlist de links externos. URL vinda do renderer é sempre não confiável:
- * apenas `https:` e domínios explicitamente enumerados podem chegar ao `shell`.
+ * Allowlist de links externos abertos pelo renderer.
+ *
+ * Sem isso, um conteúdo injectado poderia pedir ao main para abrir
+ * `file:///C:/Windows/System32/calc.exe` — o renderer nunca deve decidir
+ * qual programa o sistema operacional executa.
  */
 const DOMINIOS_PERMITIDOS = [
   'electronjs.org',
@@ -21,12 +22,5 @@ export function urlExternaPermitida(bruta: string): boolean {
     )
   } catch {
     return false
-  }
-}
-
-/** Usada pelo handler antes de chamar `shell.openExternal`. */
-export function validarUrlExterna(bruta: string): void {
-  if (!urlExternaPermitida(bruta)) {
-    throw new ErroSemPermissao('Link externo nao permitido.')
   }
 }

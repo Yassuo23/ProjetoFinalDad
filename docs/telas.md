@@ -7,6 +7,9 @@
 - **Base:** `docs/requisitos-cliente.md`, `docs/design-system.md`, `src/shared/contratos/`
 - **Implementação:** `frontend-developer` (componentes e estados), Arquiteto/ED (novos canais)
 
+> A governança integrada (ADR 0018) absorve `frontend-developer` e UI/UX Designer no `frontend`
+> (FE), dono único do renderer. Os arquivos de agente do upstream são referência de especialidade.
+
 Wireframes em texto. Eles descrevem **estrutura, conteúdo e comportamento**, não pixels. As
 classes vêm do `docs/design-system.md`; aqui os componentes são referenciados pelo nome
 (`tabela`, `campo`, `badge`, `modal`, `toast`, `estado vazio`, `carregando`, `erro`).

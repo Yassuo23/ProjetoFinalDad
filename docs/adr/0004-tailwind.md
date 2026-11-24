@@ -58,5 +58,7 @@ Adotar Tailwind CSS v4 no renderer pelo plugin oficial do Vite:
 - O `<meta>` de CSP atual ainda mantém `'unsafe-inline'` e `ws:` para suportar o HMR do
   Vite em desenvolvimento; endurecer o CSP de produção (regra 9 do `AGENTS.md`) fica como
   trabalho separado, com build-time transform, para não quebrar `npm run dev`.
+  **Atualização (merge `3503f19`):** o transform de build já injeta a CSP por ambiente em
+  `vite.config.mts` — produção rigorosa, desenvolvimento com HMR — conforme ADR 0020.
 - Revisitar se o `@tailwindcss/vite` passar a exigir Vite 9+ ou se o renderer ganhar um
   framework com requisitos próprios de estilização.

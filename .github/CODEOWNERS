@@ -1,0 +1,37 @@
+# Zênite — donos por pasta (ADR 0018).
+# Times do GitHub ainda não existem: @willcotil é o owner operacional de todos os arquivos.
+# A tabela de papéis em AGENTS.md é a fonte de verdade de quem edita o quê.
+
+# Fundação — contrato e ponte (AS + ED)
+/src/shared/contratos/        @willcotil
+/src/preload/                 @willcotil
+/src/main/index.ts            @willcotil
+/src/main/ipc/handlers/index.ts @willcotil
+/src/main/janelas/            @willcotil
+/src/main/seguranca/          @willcotil
+/src/main/banco/migracoes/index.ts @willcotil
+/docs/adr/                    @willcotil
+/AGENTS.md                    @willcotil
+/vite.config.mts              @willcotil
+/tsconfig*.json               @willcotil
+/package.json                 @willcotil
+
+# Backend — regras e handlers finos
+/src/main/servicos/           @willcotil
+/src/main/ipc/handlers/*.ts   @willcotil
+
+# Database — repositórios e migrações de módulo
+/src/main/repositorios/       @willcotil
+/src/main/banco/migracoes/[0-9][0-9][0-9]-*.ts @willcotil
+
+# Frontend — renderer puro (ADR 0012)
+/src/renderer/                @willcotil
+/src/renderer/index.html      @willcotil
+
+# QA e Integração
+*.test.ts                     @willcotil
+/docs/                        @willcotil
+/README.md                    @willcotil
+/CONTRIBUTING.md              @willcotil
+/.github/                     @willcotil
+/.opencode/agents/            @willcotil

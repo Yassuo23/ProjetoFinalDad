@@ -184,7 +184,7 @@ export class PaginaEquipamentos extends Componente {
       nome: equipamento.nome,
       categoria: nomesCategorias.get(equipamento.categoriaId) ?? 'Sem categoria',
       precoDiaria: equipamento.precoDiaria,
-      disponivel: equipamento.disponivel,
+      disponivel: equipamento.ativo && equipamento.estado === 'disponivel',
     }))
     this.areaLista.append(
       new Tabela<LinhaEquipamento>({
