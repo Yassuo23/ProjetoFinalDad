@@ -1,4 +1,3 @@
 {
-  "extends": "../../tsconfig.main.json",
-  "include": ["src/main/**/*.ts", "src/shared/**/*.ts"]
+  "extends": "../../tsconfig.main.json"
 }
