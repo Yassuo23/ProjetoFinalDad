@@ -11,6 +11,7 @@ import { RegistroIpc } from './ipc/RegistroIpc'
 import { criarJanelaPrincipal } from './janelas/JanelaPrincipal'
 import { instalarMenu } from './janelas/MenuAplicacao'
 import { aplicarCsp } from './seguranca/Csp'
+import { ArquivosNativos } from './seguranca/ArquivosNativos'
 import { criarVerificadorOrigem, urlAplicacao } from './seguranca/OrigemIpc'
 
 const isDev = process.env.NODE_ENV === 'development'
@@ -69,7 +70,7 @@ function iniciar(): void {
     })
 
     const origem = criarVerificadorOrigem(urlAplicacao(isDev, __dirname))
-    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco.db)
+    registrarHandlers(new RegistroIpc(ipcMain, origem), cicloBanco, new ArquivosNativos())
 
     instalarMenu(isDev, { ping: sendPing })
     abrirJanela()
