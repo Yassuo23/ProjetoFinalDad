@@ -1,6 +1,7 @@
 export { ServicoAplicacao } from './ServicoAplicacao'
 export { ServicoPing } from './ServicoPing'
 export { ServicoClientes } from './ServicoClientes'
+export { ServicoIntegracoes } from './ServicoIntegracoes'
 export { EquipamentoServico } from './EquipamentoServico'
 export type { ResultadoCategorias, ResultadoEquipamentos } from './EquipamentoServico'
 export { ServicoReservas } from './ServicoReservas'

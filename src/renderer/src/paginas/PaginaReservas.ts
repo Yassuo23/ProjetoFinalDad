@@ -423,7 +423,7 @@ export class PaginaReservas extends Componente {
         if (this.itens.has(equipamento.id)) {
           this.itens.delete(equipamento.id)
         } else {
-          this.itens.set(equipamento.id, 0)
+          this.itens.set(equipamento.id, equipamento.valorDiaria ?? 0)
         }
         this.lista?.definirSelecionado(null)
         this.lista?.definirOpcoes(this.opcoesDisponiveis())
@@ -564,6 +564,17 @@ export class PaginaReservas extends Componente {
           ],
         }),
       )
+      if (selecionada.altaDemandaPrevista === true) {
+        filhos.push(
+          criarElemento('p', {
+            className: CLASSES.leituraLinha,
+            filhos: [
+              criarElemento('span', { className: CLASSES.leituraTitulo, texto: 'Demanda: ' }),
+              new Badge({ texto: 'Alta demanda prevista', tom: 'alerta' }).raiz,
+            ],
+          }),
+        )
+      }
     }
 
     if (this.itens.size === 0) {

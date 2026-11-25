@@ -21,7 +21,8 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
 - **Disponibilidade:** `Disponível` · `Indisponível` · `Em manutenção`. `equipamentos:listar-disponiveis`
   exige `disponibilidade = 'Disponível'` e ausência de reserva no período.
 - **Ativo:** continua sendo exclusão lógica; não é usado como disponibilidade.
-- **Diária:** fora do contrato até que exista valor de tabela em `Equipamento`.
+- **Diária:** `Equipamento.valorDiaria` é exibido e gravado no formulário e usado como sugestão
+  ao selecionar o item em Reservas; a diária acordada continua em `ItemReserva.valorDiaria`.
 
 ### Ainda fora do escopo
 
@@ -34,34 +35,50 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
 
 ### Estado atual
 
-- `DashboardServico.carregar()` tenta `window.electronAPI.reservas.listar()`,
-  `window.electronAPI.clientes.listar()` e reutiliza `EquipamentoServico.listar()` (que já possui
-  fallback próprio). Nenhuma string de canal aparece no renderer.
-- Se qualquer fonte falhar, o painel inteiro usa o conjunto de exemplo tipado com `Reserva` e
-  `Cliente` do contrato e com os equipamentos devolvidos pelo próprio `EquipamentoServico`. O
-  resultado expõe `dadosDeExemplo: true`.
-- A tela exibe uma faixa discreta com “dados de exemplo / offline” e continua renderizando os
-  KPIs, a agenda, o clima e a frota. `EstadoErro` fica reservado a uma falha inesperada do
-  próprio serviço agregador.
-- A coluna “Tipo” da agenda é derivada de `Reserva.inicio`/`Reserva.fim` comparados com a data local:
-  `fim === hoje` significa devolução; caso contrário, retirada. O horário é ilustrativo somente no
-  conjunto de exemplo — em dados reais a célula mostra “—”.
+- `DashboardServico.carregar()` consulta diretamente `reservas.listar`, `clientes.listar`,
+  `equipamentos.listar`, `itensReserva.listar` e `pagamentos.listar` pela API tipada. Não há mais
+  conjunto de exemplo no agregador: fonte que falha vira lista vazia e é nomeada em
+  `fontesIndisponiveis`, exibida numa faixa “dados parciais”. As demais colunas continuam reais.
+- O card “Previsão do tempo” usa `integracoes.previsaoTempo({ data: hojeISO() })` — a data das
+  reservas da agenda, nunca uma cidade ou chave. `estado: 'indisponivel'` vira badge
+  “indisponível” e texto “A locação não fica bloqueada.”; nenhum valor fictício é exibido.
+- `integracoes.feriados({ ano })` é consultado para sinalizar feriado nacional na data atual. Se
+  indisponível, o subtitle volta ao texto padrão e o motivo entra em `integracoesIndisponiveis`.
+- `PaginaReservas` consome `Reserva.previsaoTempo` e `Reserva.altaDemandaPrevista` gravados pelo
+  main ao confirmar. O renderer não reexecuta a regra de alta demanda, clima ou feriados.
+- A fungibilidade de pagamento usa `valorMulta > 0` → “Multa”, `Estornado` → “Estornado”,
+  `Pago` → “Pago” e o restante → “Pendente”. Faturamento com pagamentos disponíveis é
+  “confirmado”; sem eles, é “estimativa” pelas diárias dos itens.
+- A coluna “Tipo” da agenda deriva de `dataInicio`/`dataFim` comparados com a data local:
+  `fim === hoje` significa devolução; caso contrário, retirada. `Reserva` não tem horário, então a
+  célula mostra “—”.
 
 ### Tipos locais do renderer
 
 Nenhum campo novo foi acrescentado a `src/shared/contratos`. Os tipos abaixo vivem em
 `src/renderer/src/servicos/DashboardServico.ts`:
 
-| Tipo local                             | Uso na tela                                     | Lacuna no contrato / endpoint                                                                                                                                        |
-| -------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PagamentoItem`, `StatusPagamento`     | coluna “Pagamento / Multa” e KPI de faturamento | faltam `pagamentos.listar` e `multas.calcular` (com modelo de pagamento)                                                                                             |
-| `PrevisaoTempo`, `CondicaoClima`       | card “Previsão do tempo”                        | falta `clima.previsao` — chamada HTTP deve ser feita no main, com allowlist; por isso `previsaoExemplo` é sempre `true` e o card está marcado como “exemplo”         |
-| `StatusFrota.manutencao`               | contador “Manutenção”                           | `Equipamento` só tem `disponivel: boolean`; falta `estadoConservacao` ou `manutencao.listar`. Com dados reais o valor é `null` e a tela mostra “—”; no exemplo é `1` |
-| `Faturamento.estimado`                 | KPI “Faturamento do dia”                        | sem canal de pagamentos, o valor real é estimado pela diária dos equipamentos das reservas de hoje e identificado com badge “estimativa”                             |
-| `DevolucaoPendente.atrasada`, `.multa` | KPI “Devoluções pendentes” e destaque de atraso | faltam `devolucoes.listarPendentes`, `multas.calcular` e vínculo `Reserva` → devolução                                                                               |
-| horário da agenda                      | coluna “Horário”                                | `Reserva` não possui campo de horário; necessário novo campo no modelo e no schema                                                                                   |
+| Tipo local                             | Uso na tela                                     | Origem / observação                                                                                         |
+| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `PagamentoItem`, `StatusPagamento`     | coluna “Pagamento / Multa” e KPI de faturamento | `pagamentos.listar`; `estornado` é apresentação do `StatusPagamento` do contrato                             |
+| `PrevisaoTempo`, `CondicaoClima`       | card “Previsão do tempo”                        | tradução de `RespostaPrevisaoTempo`; `condicao: null` e temperaturas `null` são renderizados como “—”        |
+| `StatusFrota.manutencao`               | contador “Manutenção”                           | derivado de `estadoConservacao`/`disponibilidade`, ambos já presentes em `Equipamento`                       |
+| `Faturamento.estimado`                 | KPI “Faturamento do dia”                        | `false` quando `pagamentos.listar` responde; `true` apenas na ausência total de pagamentos                   |
+| `DevolucaoPendente.atrasada`, `.multa` | KPI “Devoluções pendentes” e destaque de atraso | agregação local de reservas/clientes/itens/pagamentos; valor de multa vem de `Pagamento.valorMulta`          |
+| `fontesIndisponiveis`                  | faixa “dados parciais”                          | cada fonte IPC que lançou exceção é listada; nenhuma linha é inventada                                      |
 
-### Handoff
+### Handoff — canais sem handler
 
-Os canais/models acima precisam ser decididos pelo Arquiteto e expostos pelo ED. Até lá, a tela
-permanece 100% tipada no renderer, sem acesso a Node, SQL ou strings de canal.
+Estes canais existem no contrato e no preload, mas **não têm handler registrado** em
+`src/main/ipc/handlers/index.ts`; o renderer não os chama:
+
+- `dashboard:resumo` — quando registrado, substitui a agregação local por `ResumoDashboard`,
+  inclusive `financeiro` (nulo para atendente).
+- `devolucoes:listar-pendentes` — quando registrado, substitui a agregação local de pendências e
+  traz `valorMultaEstimado` já calculado no main.
+- `devolucoes:calcular-multa` — quando registrado, permite prévia da multa sem registrar a
+  devolução. Hoje a multa definitiva é calculada no main por `devolucoes:criar` e exibida via
+  `Pagamento.valorMulta`; o renderer não reimplementa a regra (domingos/feriados).
+
+`auth:*` e `usuarios:*` permanecem fora de escopo por determinação do usuário; o fluxo atual de
+perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece no renderer.

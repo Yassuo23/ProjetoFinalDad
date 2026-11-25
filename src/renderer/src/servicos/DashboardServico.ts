@@ -1,14 +1,21 @@
 import type {
   Cliente,
+  CondicaoTempo,
   Equipamento,
+  IntegracaoIndisponivel,
   ItemReserva,
+  MotivoIndisponibilidade,
+  PrevisaoTempoDisponivel,
   Reserva,
+  RespostaFeriados,
+  RespostaPrevisaoTempo,
+  StatusPagamento as StatusPagamentoContrato,
 } from '../../../shared/contratos/modelos'
-import { EquipamentoServico } from './EquipamentoServico'
+import { ServicoIntegracoes } from './ServicoIntegracoes'
 
-/** Tipos locais do renderer: clima e KPIs ainda são apresentação, não contrato. */
+/** Tipos locais de apresentação: nenhum deles reexecuta regra de negócio do main. */
 
-export type StatusPagamento = 'pago' | 'pendente' | 'multa'
+export type StatusPagamento = 'pago' | 'pendente' | 'multa' | 'estornado'
 
 export interface PagamentoItem {
   readonly reservaId: number
@@ -19,17 +26,20 @@ export interface PagamentoItem {
 export type CondicaoClima = 'ensolarado' | 'nublado' | 'chuva'
 
 export interface PrevisaoTempo {
-  readonly condicao: CondicaoClima
+  readonly condicao: CondicaoClima | null
   readonly descricao: string
-  readonly temperaturaC: number
-  readonly ventoKmH: number
+  readonly temperaturaMinC: number | null
+  readonly temperaturaMaxC: number | null
+  readonly ventoKmH: number | null
   readonly recomendacao: string
+  readonly disponivel: boolean
+  readonly motivo: MotivoIndisponibilidade | null
 }
 
 export interface StatusFrota {
   readonly disponivel: number
   readonly reservado: number
-  readonly manutencao: number | null
+  readonly manutencao: number
 }
 
 export interface DevolucaoPendente {
@@ -55,155 +65,101 @@ export interface DadosDashboard {
   readonly itensReserva: readonly ItemReserva[]
   readonly pagamentos: readonly PagamentoItem[]
   readonly previsao: PrevisaoTempo
-  readonly previsaoExemplo: boolean
+  readonly feriadoHoje: string | null
+  readonly integracoesIndisponiveis: readonly IntegracaoIndisponivel[]
   readonly frota: StatusFrota
   readonly devolucoes: readonly DevolucaoPendente[]
   readonly faturamento: Faturamento
-  readonly dadosDeExemplo: boolean
+  /** Fontes que não responderam; as demais são exibidas como dados reais. */
+  readonly fontesIndisponiveis: readonly string[]
 }
 
-function diaISO(deslocamento = 0): string {
+interface Fonte<T> {
+  readonly itens: readonly T[]
+  readonly falhou: boolean
+}
+
+/** Data local de hoje em ISO — usada pela tela para filtrar a agenda. */
+export function hojeISO(): string {
   const data = new Date()
-  data.setDate(data.getDate() + deslocamento)
   const ano = data.getFullYear()
   const mes = String(data.getMonth() + 1).padStart(2, '0')
   const dia = String(data.getDate()).padStart(2, '0')
   return `${ano}-${mes}-${dia}`
 }
 
-/** Data local de hoje em ISO — usada pela tela para filtrar a agenda. */
-export function hojeISO(): string {
-  return diaISO(0)
-}
-
-const ATUALIZADO_EXEMPLO = '2026-01-01T00:00:00.000Z'
-
-const CLIENTES_EXEMPLO: readonly Cliente[] = [
-  {
-    id: 201,
-    nome: 'Ana Souza',
-    cpf: '111.444.777-35',
-    email: 'ana@exemplo.test',
-    telefone: '(11) 98888-0001',
-    cep: '01310-100',
-    logradouro: 'Av. Paulista',
-    numero: '1000',
-    complemento: null,
-    bairro: 'Bela Vista',
-    cidade: 'São Paulo',
-    uf: 'SP',
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-  {
-    id: 202,
-    nome: 'Carlos Lima',
-    cpf: '222.333.444-05',
-    email: 'carlos@exemplo.test',
-    telefone: '(21) 97777-0002',
-    cep: null,
-    logradouro: null,
-    numero: null,
-    complemento: null,
-    bairro: null,
-    cidade: null,
-    uf: null,
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-]
-
-const RESERVAS_EXEMPLO: readonly Reserva[] = [
-  {
-    id: 1001,
-    clienteId: 201,
-    dataReserva: `${diaISO(-1)}T12:00:00.000Z`,
-    dataInicio: diaISO(0),
-    dataFim: diaISO(2),
-    statusReserva: 'Confirmada',
-    previsaoTempo: 'Nublado, 24 °C',
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-  {
-    id: 1002,
-    clienteId: 202,
-    dataReserva: `${diaISO(0)}T09:00:00.000Z`,
-    dataInicio: diaISO(0),
-    dataFim: diaISO(1),
-    statusReserva: 'Pendente',
-    previsaoTempo: null,
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-  {
-    id: 1003,
-    clienteId: 201,
-    dataReserva: `${diaISO(-3)}T15:00:00.000Z`,
-    dataInicio: diaISO(-1),
-    dataFim: diaISO(0),
-    statusReserva: 'Confirmada',
-    previsaoTempo: null,
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-  {
-    id: 1004,
-    clienteId: 202,
-    dataReserva: `${diaISO(-2)}T10:00:00.000Z`,
-    dataInicio: diaISO(-2),
-    dataFim: diaISO(-1),
-    statusReserva: 'Cancelada',
-    previsaoTempo: null,
-    ativo: true,
-    atualizadoEm: ATUALIZADO_EXEMPLO,
-  },
-]
-
-const ITENS_RESERVA_EXEMPLO: readonly ItemReserva[] = [
-  { reservaId: 1001, equipamentoId: 101, valorDiaria: 90 },
-  { reservaId: 1002, equipamentoId: 103, valorDiaria: 140 },
-  { reservaId: 1003, equipamentoId: 105, valorDiaria: 75 },
-  { reservaId: 1004, equipamentoId: 101, valorDiaria: 90 },
-]
-
-/** Pagamentos/multas são ilustrativos quando o banco não responde. */
-const PAGAMENTOS_EXEMPLO: readonly PagamentoItem[] = [
-  { reservaId: 1001, status: 'pago', valor: 180 },
-  { reservaId: 1002, status: 'pendente', valor: 140 },
-  { reservaId: 1003, status: 'multa', valor: 95 },
-]
-
-/** Sem endpoint de clima no renderer: este valor é sempre identificado na tela. */
-const PREVISAO_EXEMPLO: PrevisaoTempo = {
-  condicao: 'nublado',
-  descricao: 'Parcialmente nublado',
-  temperaturaC: 24,
-  ventoKmH: 12,
-  recomendacao: 'Bom para trilha e ciclismo',
+async function buscar<T>(promessa: Promise<readonly T[]>): Promise<Fonte<T>> {
+  try {
+    return { itens: await promessa, falhou: false }
+  } catch {
+    return { itens: [], falhou: true }
+  }
 }
 
 function statusPagamentoLocal(
-  status: 'Pendente' | 'Pago' | 'Estornado',
+  status: StatusPagamentoContrato,
   valorMulta: number,
 ): StatusPagamento {
   if (valorMulta > 0) return 'multa'
+  if (status === 'Estornado') return 'estornado'
   if (status === 'Pago') return 'pago'
   return 'pendente'
 }
 
-function calcularFrota(
-  equipamentos: readonly Equipamento[],
-  dadosDeExemplo: boolean,
-): StatusFrota {
-  const manutencao = equipamentos.filter(
-    (equipamento) => equipamento.estadoConservacao === 'Em Manutenção',
+function condicaoDaPrevisao(condicao: CondicaoTempo | null): CondicaoClima | null {
+  if (condicao === 'Ensolarado') return 'ensolarado'
+  if (condicao === 'Nublado') return 'nublado'
+  if (condicao === 'Chuvoso') return 'chuva'
+  return null
+}
+
+function recomendacaoDaPrevisao(resposta: PrevisaoTempoDisponivel): string {
+  if (resposta.condicao === 'Chuvoso') return 'Leve capa de chuva e calçado aderente.'
+  if (resposta.condicao === 'Ensolarado') return 'Bom para trilha e ciclismo; use proteção solar.'
+  if (resposta.condicao === 'Nublado') return 'Condição estável para atividades ao ar livre.'
+  return 'Confira as condições antes de retirar os equipamentos.'
+}
+
+function mapearPrevisao(resposta: RespostaPrevisaoTempo): PrevisaoTempo {
+  if (resposta.estado === 'indisponivel') {
+    return {
+      condicao: null,
+      descricao: 'Previsão indisponível para esta data.',
+      temperaturaMinC: null,
+      temperaturaMaxC: null,
+      ventoKmH: null,
+      recomendacao: 'A locação não fica bloqueada.',
+      disponivel: false,
+      motivo: resposta.motivo,
+    }
+  }
+  return {
+    condicao: condicaoDaPrevisao(resposta.condicao),
+    descricao: resposta.descricao ?? 'Sem descrição informada pelo serviço.',
+    temperaturaMinC: resposta.temperaturaMinC,
+    temperaturaMaxC: resposta.temperaturaMaxC,
+    ventoKmH: resposta.ventoKmH,
+    recomendacao: recomendacaoDaPrevisao(resposta),
+    disponivel: true,
+    motivo: null,
+  }
+}
+
+function calcularFrota(equipamentos: readonly Equipamento[]): StatusFrota {
+  const emManutencao = equipamentos.filter(
+    (equipamento) =>
+      equipamento.estadoConservacao === 'Em Manutenção' ||
+      equipamento.disponibilidade === 'Em manutenção',
   ).length
-  const disponivel = equipamentos.length - manutencao
+  const disponivel = equipamentos.filter(
+    (equipamento) =>
+      equipamento.disponibilidade === 'Disponível' &&
+      equipamento.estadoConservacao !== 'Em Manutenção',
+  ).length
   return {
     disponivel,
-    reservado: 0,
-    manutencao: dadosDeExemplo || manutencao > 0 ? manutencao : null,
+    reservado: Math.max(0, equipamentos.length - emManutencao - disponivel),
+    manutencao: emManutencao,
   }
 }
 
@@ -253,14 +209,13 @@ function calcularFaturamento(
   itens: readonly ItemReserva[],
   pagamentos: readonly PagamentoItem[],
   hoje: string,
-  usarPagamentos: boolean,
 ): Faturamento {
   const reservasDoDia = reservas.filter(
     (reserva) => reserva.dataInicio === hoje && reserva.statusReserva !== 'Cancelada',
   )
   const idsDoDia = new Set(reservasDoDia.map((reserva) => reserva.id))
 
-  if (usarPagamentos && pagamentos.length > 0) {
+  if (pagamentos.length > 0) {
     return {
       valor: pagamentos
         .filter((item) => item.status === 'pago' && idsDoDia.has(item.reservaId))
@@ -269,7 +224,6 @@ function calcularFaturamento(
     }
   }
 
-  // Sem pagamentos confirmados: estimativa pelas diárias dos itens reservados.
   const diarias = new Map<number, number>()
   for (const item of itens) {
     diarias.set(item.reservaId, (diarias.get(item.reservaId) ?? 0) + item.valorDiaria)
@@ -280,98 +234,100 @@ function calcularFaturamento(
   }
 }
 
-/** Agrega as fontes do banco e aplica fallback tipado quando uma falha. */
+/** Agrega apenas dados persistidos. Falha parcial nunca inventa registro. */
 export class DashboardServico {
-  private readonly equipamentoServico = new EquipamentoServico()
+  private readonly integracoes = new ServicoIntegracoes()
 
   async carregar(): Promise<DadosDashboard> {
-    const [reservas, clientes, resultadoEquipamentos, itens, pagamentos] = await Promise.all([
-      this.listarReservas(),
-      this.listarClientes(),
-      this.equipamentoServico.listar(),
-      this.listarItens(),
-      this.listarPagamentos(),
-    ])
+    const hoje = hojeISO()
+    const [reservas, clientes, equipamentos, itens, pagamentos, previsao, feriados] =
+      await Promise.all([
+        buscar(window.electronAPI.reservas.listar()),
+        buscar(window.electronAPI.clientes.listar()),
+        buscar(window.electronAPI.equipamentos.listar()),
+        buscar(window.electronAPI.itensReserva.listar()),
+        this.listarPagamentos(),
+        this.consultarPrevisao(hoje),
+        this.consultarFeriados(hoje),
+      ])
 
-    const dadosDeExemplo =
-      reservas === null ||
-      clientes === null ||
-      itens === null ||
-      pagamentos === null ||
-      resultadoEquipamentos.dadosDeExemplo
-    const reservasAtivas: readonly Reserva[] = dadosDeExemplo ? RESERVAS_EXEMPLO : (reservas ?? [])
-    const clientesAtivos: readonly Cliente[] = dadosDeExemplo ? CLIENTES_EXEMPLO : (clientes ?? [])
-    const equipamentosAtivos = resultadoEquipamentos.itens
-    const itensAtivos: readonly ItemReserva[] = dadosDeExemplo
-      ? ITENS_RESERVA_EXEMPLO
-      : (itens ?? [])
-    const pagamentosAtivos: readonly PagamentoItem[] = dadosDeExemplo
-      ? PAGAMENTOS_EXEMPLO
-      : (pagamentos ?? [])
-    const hoje = diaISO(0)
+    const fontesIndisponiveis: string[] = []
+    if (reservas.falhou) fontesIndisponiveis.push('reservas')
+    if (clientes.falhou) fontesIndisponiveis.push('clientes')
+    if (equipamentos.falhou) fontesIndisponiveis.push('equipamentos')
+    if (itens.falhou) fontesIndisponiveis.push('itens de reserva')
+    if (pagamentos.falhou) fontesIndisponiveis.push('pagamentos')
+
+    const integracoesIndisponiveis: IntegracaoIndisponivel[] = []
+    if (previsao.estado === 'indisponivel') {
+      integracoesIndisponiveis.push({ integracao: 'previsao-tempo', motivo: previsao.motivo })
+    }
+    if (feriados.estado === 'indisponivel') {
+      integracoesIndisponiveis.push({ integracao: 'feriados', motivo: feriados.motivo })
+    }
+
+    const feriadoHoje =
+      feriados.estado === 'disponivel'
+        ? (feriados.feriados.find((feriado) => feriado.data === hoje)?.nome ?? null)
+        : null
 
     return {
-      reservas: reservasAtivas,
-      clientes: clientesAtivos,
-      equipamentos: equipamentosAtivos,
-      itensReserva: itensAtivos,
-      pagamentos: pagamentosAtivos,
-      previsao: PREVISAO_EXEMPLO,
-      previsaoExemplo: true,
-      frota: calcularFrota(equipamentosAtivos, dadosDeExemplo),
+      reservas: reservas.itens,
+      clientes: clientes.itens,
+      equipamentos: equipamentos.itens,
+      itensReserva: itens.itens,
+      pagamentos: pagamentos.itens,
+      previsao: mapearPrevisao(previsao),
+      feriadoHoje,
+      integracoesIndisponiveis,
+      frota: calcularFrota(equipamentos.itens),
       devolucoes: montarDevolucoes(
-        reservasAtivas,
-        clientesAtivos,
-        equipamentosAtivos,
-        itensAtivos,
-        pagamentosAtivos,
+        reservas.itens,
+        clientes.itens,
+        equipamentos.itens,
+        itens.itens,
+        pagamentos.itens,
         hoje,
       ),
       faturamento: calcularFaturamento(
-        reservasAtivas,
-        itensAtivos,
-        pagamentosAtivos,
+        reservas.itens,
+        itens.itens,
+        pagamentos.itens,
         hoje,
-        !dadosDeExemplo,
       ),
-      dadosDeExemplo,
+      fontesIndisponiveis,
     }
   }
 
-  private async listarReservas(): Promise<readonly Reserva[] | null> {
+  private async listarPagamentos(): Promise<Fonte<PagamentoItem>> {
+    return buscar(
+      window.electronAPI.pagamentos.listar().then((pagamentos) =>
+        pagamentos.map((item) => ({
+          reservaId: item.reservaId,
+          status: statusPagamentoLocal(item.statusPagamento, item.valorMulta),
+          valor: item.valorTotal,
+        })),
+      ),
+    )
+  }
+
+  private async consultarPrevisao(data: string): Promise<RespostaPrevisaoTempo> {
     try {
-      return await window.electronAPI.reservas.listar()
+      return await this.integracoes.previsaoTempo({ data })
     } catch {
-      return null
+      return { estado: 'indisponivel', data, motivo: 'SERVICO_FORA' }
     }
   }
 
-  private async listarClientes(): Promise<readonly Cliente[] | null> {
-    try {
-      return await window.electronAPI.clientes.listar()
-    } catch {
-      return null
+  private async consultarFeriados(data: string): Promise<RespostaFeriados> {
+    const ano = Number(data.slice(0, 4))
+    if (!Number.isInteger(ano)) {
+      return { estado: 'indisponivel', ano: 0, motivo: 'PESQUISA_INVALIDA', feriados: [] }
     }
-  }
-
-  private async listarItens(): Promise<readonly ItemReserva[] | null> {
     try {
-      return await window.electronAPI.itensReserva.listar()
+      return await this.integracoes.feriados({ ano })
     } catch {
-      return null
-    }
-  }
-
-  private async listarPagamentos(): Promise<readonly PagamentoItem[] | null> {
-    try {
-      const pagamentos = await window.electronAPI.pagamentos.listar()
-      return pagamentos.map((item) => ({
-        reservaId: item.reservaId,
-        status: statusPagamentoLocal(item.statusPagamento, item.valorMulta),
-        valor: item.valorTotal,
-      }))
-    } catch {
-      return null
+      return { estado: 'indisponivel', ano, motivo: 'SERVICO_FORA', feriados: [] }
     }
   }
 }

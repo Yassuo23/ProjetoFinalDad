@@ -26,7 +26,7 @@ import {
   registrarAtalhos,
   substituirConteudo,
 } from '../nucleo'
-import { ServicoFornecedores } from '../servicos'
+import { ServicoFornecedores, ServicoIntegracoes } from '../servicos'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -39,6 +39,9 @@ const CLASSES = {
   coluna: 'flex min-h-0 min-w-0 flex-col gap-3',
   gradeContainer: 'max-w-2xl',
   gradeCampos: 'grid grid-cols-1 gap-4 md:grid-cols-2',
+  campoComAcao: 'flex flex-col gap-2',
+  linhaAcao: 'flex justify-end',
+  ajudaIntegracao: 'text-xs text-floresta/70',
   tabelaScroll: 'max-h-96 overflow-y-auto',
   cabecalhoFixo: 'sticky top-0 z-10 bg-floresta text-pedra',
   avisoDesatualizado:
@@ -123,6 +126,7 @@ const COLUNAS: readonly ColunaTabela<Fornecedor>[] = [
 
 export class PaginaFornecedores extends Componente {
   private readonly servico = new ServicoFornecedores()
+  private readonly integracoes = new ServicoIntegracoes()
   private readonly toasts = new AreaToast()
   private readonly cancelarAtalhos: () => void
   private readonly cancelarPerfil: () => void
@@ -144,6 +148,8 @@ export class PaginaFornecedores extends Componente {
   private areaConteudo: HTMLElement | null = null
   private campoBusca: Campo | null = null
   private selectTipo: Select | null = null
+  private botaoCnpj: Botao | null = null
+  private consultandoCnpj = false
   private modal: Modal | null = null
   private busca = ''
   private tipo = ''
@@ -409,11 +415,36 @@ export class PaginaFornecedores extends Componente {
     }
 
     this.campos = campos
+
+    const botaoCnpj = new Botao({
+      id: 'fornecedor-cnpj-buscar',
+      texto: 'Buscar dados do CNPJ',
+      variante: 'secundario',
+      aoClicar: () => {
+        void this.consultarCnpj()
+      },
+    })
+    this.botaoCnpj = botaoCnpj
+    const cnpjComAcao = criarElemento('div', {
+      className: CLASSES.campoComAcao,
+      filhos: [
+        campos.cnpj.raiz,
+        criarElemento('div', {
+          className: CLASSES.linhaAcao,
+          filhos: [botaoCnpj.raiz],
+        }),
+        criarElemento('p', {
+          className: CLASSES.ajudaIntegracao,
+          texto: 'Consulta opcional: preenche a razão social quando o serviço estiver disponível.',
+        }),
+      ],
+    })
+
     return criarElemento('div', {
       className: CLASSES.gradeCampos,
       filhos: [
         campos.nome.raiz,
-        campos.cnpj.raiz,
+        cnpjComAcao,
         campos.tipo.raiz,
         campos.email.raiz,
         campos.telefone.raiz,
@@ -631,6 +662,57 @@ export class PaginaFornecedores extends Componente {
       this.campoBusca?.definirValor('')
       this.selectTipo?.definirValor('')
       this.atualizarTabela()
+    }
+  }
+
+  private async consultarCnpj(): Promise<void> {
+    const digitos = somenteDigitos(this.formulario.cnpj)
+    if (digitos.length !== 14) {
+      this.campos?.cnpj.definirErro('Informe um CNPJ com 14 dígitos antes de consultar.')
+      return
+    }
+    if (this.consultandoCnpj) {
+      return
+    }
+
+    this.consultandoCnpj = true
+    this.botaoCnpj?.definirDesabilitado(true)
+    try {
+      const resposta = await this.integracoes.cnpj(digitos)
+      if (resposta.estado === 'disponivel') {
+        const razaoSocial = resposta.dados.razaoSocial.trim()
+        if (razaoSocial !== '') {
+          this.formulario.nome = razaoSocial
+          this.campos?.nome.definirValor(razaoSocial)
+          this.campos?.nome.definirErro(null)
+        }
+        this.campos?.cnpj.definirErro(null)
+        this.toasts.exibir({
+          titulo: 'CNPJ consultado',
+          mensagem:
+            razaoSocial === ''
+              ? 'Dados recebidos. Confira os campos manualmente.'
+              : `Razão social preenchida: ${razaoSocial}. Confira os demais dados.`,
+          tom: 'sucesso',
+        })
+        return
+      }
+
+      this.toasts.exibir({
+        titulo: 'Consulta indisponível',
+        mensagem:
+          'O serviço de CNPJ não respondeu. Preencha os dados manualmente; o cadastro continua disponível.',
+        tom: 'alerta',
+      })
+    } catch {
+      this.toasts.exibir({
+        titulo: 'Não foi possível consultar',
+        mensagem: 'Continue preenchendo manualmente. A consulta não bloqueia o cadastro.',
+        tom: 'alerta',
+      })
+    } finally {
+      this.consultandoCnpj = false
+      this.botaoCnpj?.definirDesabilitado(false)
     }
   }
 

@@ -90,6 +90,7 @@ interface FormularioEquipamento {
   estadoConservacao: string
   disponibilidade: string
   fornecedorId: string
+  valorDiaria: string
 }
 
 interface CamposFormulario {
@@ -98,6 +99,7 @@ interface CamposFormulario {
   readonly estadoConservacao: Select
   readonly disponibilidade: Select
   readonly fornecedor: Select
+  readonly valorDiaria: Campo
 }
 
 interface Confirmacao {
@@ -114,6 +116,7 @@ interface LinhaEquipamento {
   readonly estadoConservacao: EstadoConservacao
   readonly disponibilidade: DisponibilidadeEquipamento
   readonly fornecedor: string
+  readonly valorDiaria: number
   readonly ativo: boolean
 }
 
@@ -165,6 +168,15 @@ function idFornecedor(valor: string): number | null {
   return Number.isInteger(id) && id > 0 ? id : null
 }
 
+function valorDiariaDoFormulario(valor: string): number {
+  const numero = Number(valor)
+  return Number.isFinite(numero) && numero >= 0 ? numero : 0
+}
+
+function moeda(valor: number): string {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
 function formularioVazio(): FormularioEquipamento {
   return {
     nome: '',
@@ -172,6 +184,7 @@ function formularioVazio(): FormularioEquipamento {
     estadoConservacao: '',
     disponibilidade: '',
     fornecedorId: '',
+    valorDiaria: '0',
   }
 }
 
@@ -188,6 +201,7 @@ function formularioDe(
     estadoConservacao: equipamento.estadoConservacao,
     disponibilidade: equipamento.disponibilidade,
     fornecedorId: id === null || !fornecedorDisponivel ? '' : String(id),
+    valorDiaria: (equipamento.valorDiaria ?? 0).toFixed(2),
   }
 }
 
@@ -245,6 +259,12 @@ const COLUNAS: readonly ColunaTabela<LinhaEquipamento>[] = [
       }).raiz,
   },
   { chave: 'fornecedor', rotulo: 'Fornecedor', ordenavel: true },
+  {
+    chave: 'valorDiaria',
+    rotulo: 'Diária',
+    ordenavel: true,
+    celula: (linha) => moeda(linha.valorDiaria),
+  },
   {
     chave: 'ativo',
     rotulo: 'Situação',
@@ -680,6 +700,19 @@ export class PaginaEquipamentos extends Componente {
           campos.fornecedor.definirErro(null)
         },
       }),
+      valorDiaria: new Campo({
+        id: 'equipamento-valor-diaria',
+        rotulo: 'Diária (R$)',
+        tipo: 'number',
+        valorInicial: estado.valorDiaria,
+        placeholder: '0.00',
+        ajuda: 'Valor de tabela sugerido ao montar uma reserva.',
+        desabilitado,
+        aoAlterar: (valor) => {
+          estado.valorDiaria = valor
+          campos.valorDiaria.definirErro(null)
+        },
+      }),
     }
 
     this.campos = campos
@@ -691,6 +724,7 @@ export class PaginaEquipamentos extends Componente {
         campos.estadoConservacao.raiz,
         campos.disponibilidade.raiz,
         campos.fornecedor.raiz,
+        campos.valorDiaria.raiz,
       ],
     })
   }
@@ -757,6 +791,7 @@ export class PaginaEquipamentos extends Componente {
       estadoConservacao: equipamento.estadoConservacao,
       disponibilidade: equipamento.disponibilidade,
       fornecedor: this.nomeFornecedor(equipamento.fornecedorId),
+      valorDiaria: equipamento.valorDiaria ?? 0,
       ativo: equipamento.ativo,
     }))
     const tabela = new Tabela<LinhaEquipamento>({
@@ -988,6 +1023,14 @@ export class PaginaEquipamentos extends Componente {
         this.fornecedores.some((fornecedor) => fornecedor.id === fornecedorId))
     marcar(campos.fornecedor, fornecedorValido ? null : 'Selecione um fornecedor válido.')
 
+    const diaria = Number(this.formulario.valorDiaria)
+    marcar(
+      campos.valorDiaria,
+      this.formulario.valorDiaria.trim() === '' || (Number.isFinite(diaria) && diaria >= 0)
+        ? null
+        : 'Informe uma diária maior ou igual a zero.',
+    )
+
     return valido
   }
 
@@ -1023,6 +1066,7 @@ export class PaginaEquipamentos extends Componente {
       estadoConservacao,
       disponibilidade,
       fornecedorId: idFornecedor(this.formulario.fornecedorId),
+      valorDiaria: valorDiariaDoFormulario(this.formulario.valorDiaria),
     }
 
     this.salvando = true

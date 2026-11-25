@@ -3,7 +3,7 @@ import { Badge, Botao, Carregando, EstadoErro, EstadoVazio, Tabela } from '../co
 import type { ColunaTabela, TomBadge } from '../componentes'
 import { Componente, criarElemento, criarIcone, substituirConteudo } from '../nucleo'
 import { DashboardServico, hojeISO } from '../servicos'
-import type { CondicaoClima, DadosDashboard, StatusPagamento } from '../servicos'
+import type { CondicaoClima, DadosDashboard, PrevisaoTempo, StatusPagamento } from '../servicos'
 
 const CLASSES = {
   pagina: 'flex flex-col gap-6',
@@ -31,6 +31,7 @@ const CLASSES = {
   climaIcone: 'size-10 shrink-0 stroke-current text-floresta',
   temperatura: 'font-display text-3xl text-grafite',
   condicao: 'text-sm text-grafite',
+  previsaoIndisponivel: 'text-sm text-floresta/70',
   detalhes: 'mt-4 grid grid-cols-2 gap-3 border-t border-granito/30 pt-4',
   detalheRotulo: 'text-xs font-semibold uppercase tracking-wider text-floresta',
   detalheValor: 'mt-1 text-sm text-grafite',
@@ -82,15 +83,6 @@ const ICONES_CLIMA: Readonly<Record<CondicaoClima, string>> = {
     'M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6L4.2 4.2M19.8 19.8l-1.4-1.4M18.4 5.6l1.4-1.4M4.2 19.8l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
   nublado: 'M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z',
   chuva: 'M7 15h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7zM8 19l-1 2M13 19l-1 2M18 19l-1 2',
-}
-
-/** Horários ilustrativos: Reserva não possui campo de horário no contrato. */
-const HORARIOS_EXEMPLO: Readonly<Record<number, string>> = {
-  1001: '09:00',
-  1002: '10:30',
-  1003: '14:00',
-  1004: '15:30',
-  1008: '16:30',
 }
 
 type TipoAgenda = 'retirada' | 'devolucao'
@@ -164,14 +156,20 @@ function rotuloPagamento(status: StatusPagamento): string {
   if (status === 'pago') {
     return 'Pago'
   }
-  return status === 'multa' ? 'Multa' : 'Pendente'
+  if (status === 'multa') {
+    return 'Multa'
+  }
+  return status === 'estornado' ? 'Estornado' : 'Pendente'
 }
 
 function tomPagamento(status: StatusPagamento): TomBadge {
   if (status === 'pago') {
     return 'sucesso'
   }
-  return status === 'multa' ? 'erro' : 'alerta'
+  if (status === 'multa') {
+    return 'erro'
+  }
+  return status === 'estornado' ? 'neutro' : 'alerta'
 }
 
 function formatarMoeda(valor: number): string {
@@ -203,7 +201,7 @@ export class PaginaDashboard extends Componente {
     }
   }
 
-  private criarCabecalho(): HTMLElement {
+  private criarCabecalho(feriadoHoje: string | null = null): HTMLElement {
     const novaReserva = new Botao({
       texto: 'Nova reserva',
       aoClicar: () => {
@@ -226,7 +224,10 @@ export class PaginaDashboard extends Componente {
             criarElemento('h2', { className: CLASSES.titulo, texto: 'Dashboard' }),
             criarElemento('p', {
               className: CLASSES.subtitulo,
-              texto: 'O que acontece hoje na locadora, em um só lugar.',
+              texto:
+                feriadoHoje === null
+                  ? 'O que acontece hoje na locadora, em um só lugar.'
+                  : `Hoje é ${feriadoHoje}. Veja o que acontece na locadora, em um só lugar.`,
             }),
           ],
         }),
@@ -238,16 +239,15 @@ export class PaginaDashboard extends Componente {
     })
   }
 
-  private criarBannerOffline(): HTMLElement {
+  private criarBanner(dados: DadosDashboard): HTMLElement {
     return criarElemento('div', {
       className: CLASSES.banner,
       atributos: { role: 'status' },
       filhos: [
-        new Badge({ texto: 'dados de exemplo', tom: 'alerta' }).raiz,
+        new Badge({ texto: 'dados parciais', tom: 'alerta' }).raiz,
         criarElemento('p', {
           className: CLASSES.bannerTexto,
-          texto:
-            'Modo offline: exibindo dados de exemplo para reservas, clientes e equipamentos. Os dados reais aparecem assim que os serviços locais responderem.',
+          texto: `Não foi possível consultar: ${dados.fontesIndisponiveis.join(', ')}. Os demais dados exibidos vêm do sistema.`,
         }),
       ],
     })
@@ -272,9 +272,9 @@ export class PaginaDashboard extends Componente {
   }
 
   private mostrarDados(dados: DadosDashboard): void {
-    const filhos: Array<Node> = [this.criarCabecalho()]
-    if (dados.dadosDeExemplo) {
-      filhos.push(this.criarBannerOffline())
+    const filhos: Array<Node> = [this.criarCabecalho(dados.feriadoHoje)]
+    if (dados.fontesIndisponiveis.length > 0) {
+      filhos.push(this.criarBanner(dados))
     }
 
     const reservasHoje = dados.reservas.filter(
@@ -285,7 +285,9 @@ export class PaginaDashboard extends Componente {
       .filter((devolucao) => devolucao.atrasada && devolucao.multa > 0)
       .reduce((total, devolucao) => total + devolucao.multa, 0)
     const disponiveis = dados.equipamentos.filter(
-      (equipamento) => equipamento.estadoConservacao !== 'Em Manutenção',
+      (equipamento) =>
+        equipamento.disponibilidade === 'Disponível' &&
+        equipamento.estadoConservacao !== 'Em Manutenção',
     ).length
 
     const kpis = criarElemento('div', {
@@ -437,7 +439,7 @@ export class PaginaDashboard extends Componente {
       .map((reserva) => {
         const equipamentoId = equipamentosPorReserva.get(reserva.id)
         return {
-          horario: dados.dadosDeExemplo ? (HORARIOS_EXEMPLO[reserva.id] ?? '—') : '—',
+          horario: '—',
           cliente: nomesClientes.get(reserva.clienteId) ?? `Cliente #${reserva.clienteId}`,
           equipamento:
             equipamentoId === undefined
@@ -452,6 +454,10 @@ export class PaginaDashboard extends Componente {
 
   private criarClima(dados: DadosDashboard): HTMLElement {
     const previsao = dados.previsao
+    const icone =
+      previsao.condicao === null
+        ? criarElemento('span', { className: CLASSES.previsaoIndisponivel, texto: '—' })
+        : criarIcone(ICONES_CLIMA[previsao.condicao], CLASSES.climaIcone)
     const cartao = criarElemento('article', {
       className: CLASSES.cartao,
       filhos: [
@@ -462,22 +468,25 @@ export class PaginaDashboard extends Componente {
               className: CLASSES.tituloSecao,
               texto: 'Previsão do tempo',
             }),
-            dados.previsaoExemplo
-              ? new Badge({ texto: 'exemplo', tom: 'alerta' }).raiz
-              : new Badge({ texto: 'atualizado', tom: 'sucesso' }).raiz,
+            previsao.disponivel
+              ? new Badge({ texto: 'atualizado', tom: 'sucesso' }).raiz
+              : new Badge({ texto: 'indisponível', tom: 'alerta' }).raiz,
           ],
         }),
         criarElemento('div', {
           className: CLASSES.climaPrincipal,
           filhos: [
-            criarIcone(ICONES_CLIMA[previsao.condicao], CLASSES.climaIcone),
+            icone,
             criarElemento('div', {
               filhos: [
                 criarElemento('p', {
                   className: CLASSES.temperatura,
-                  texto: `${previsao.temperaturaC}°C`,
+                  texto: this.formatarTemperatura(previsao),
                 }),
-                criarElemento('p', { className: CLASSES.condicao, texto: previsao.descricao }),
+                criarElemento('p', {
+                  className: previsao.disponivel ? CLASSES.condicao : CLASSES.previsaoIndisponivel,
+                  texto: previsao.descricao,
+                }),
               ],
             }),
           ],
@@ -485,32 +494,40 @@ export class PaginaDashboard extends Componente {
         criarElemento('dl', {
           className: CLASSES.detalhes,
           filhos: [
-            criarElemento('div', {
-              filhos: [
-                criarElemento('dt', { className: CLASSES.detalheRotulo, texto: 'Vento' }),
-                criarElemento('dd', {
-                  className: CLASSES.detalheValor,
-                  texto: `${previsao.ventoKmH} km/h`,
-                }),
-              ],
-            }),
-            criarElemento('div', {
-              filhos: [
-                criarElemento('dt', {
-                  className: CLASSES.detalheRotulo,
-                  texto: 'Recomendação',
-                }),
-                criarElemento('dd', {
-                  className: CLASSES.detalheValor,
-                  texto: previsao.recomendacao,
-                }),
-              ],
-            }),
+            this.criarDetalhe(
+              'Vento',
+              previsao.ventoKmH === null ? '—' : `${previsao.ventoKmH} km/h`,
+            ),
+            this.criarDetalhe('Recomendação', previsao.recomendacao),
           ],
         }),
       ],
     })
     return cartao
+  }
+
+  private criarDetalhe(rotulo: string, valor: string): HTMLElement {
+    return criarElemento('div', {
+      filhos: [
+        criarElemento('dt', { className: CLASSES.detalheRotulo, texto: rotulo }),
+        criarElemento('dd', { className: CLASSES.detalheValor, texto: valor }),
+      ],
+    })
+  }
+
+  private formatarTemperatura(previsao: PrevisaoTempo): string {
+    const minima = previsao.temperaturaMinC
+    const maxima = previsao.temperaturaMaxC
+    if (minima === null && maxima === null) {
+      return '—'
+    }
+    if (minima === null) {
+      return `${maxima} °C`
+    }
+    if (maxima === null) {
+      return `${minima} °C`
+    }
+    return minima === maxima ? `${minima} °C` : `${minima}–${maxima} °C`
   }
 
   private criarFrota(dados: DadosDashboard): HTMLElement {
