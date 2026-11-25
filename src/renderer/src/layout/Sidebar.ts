@@ -155,7 +155,9 @@ export class Sidebar extends Componente {
       }
 
       link.tabIndex = 0
-      const ativo = caminho === this.caminhoAtivo
+      const ativo =
+        caminho === this.caminhoAtivo ||
+        (caminho === '/reservas' && this.caminhoAtivo === '/reservas/nova')
       link.className = ativo ? CLASSES.itemAtivo : CLASSES.itemInativo
       if (ativo) {
         link.setAttribute('aria-current', 'page')

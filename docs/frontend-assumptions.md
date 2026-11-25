@@ -58,14 +58,14 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
 Nenhum campo novo foi acrescentado a `src/shared/contratos`. Os tipos abaixo vivem em
 `src/renderer/src/servicos/DashboardServico.ts`:
 
-| Tipo local                             | Uso na tela                                     | Origem / observação                                                                                         |
-| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `PagamentoItem`, `StatusPagamento`     | coluna “Pagamento / Multa” e KPI de faturamento | `pagamentos.listar`; `estornado` é apresentação do `StatusPagamento` do contrato                             |
-| `PrevisaoTempo`, `CondicaoClima`       | card “Previsão do tempo”                        | tradução de `RespostaPrevisaoTempo`; `condicao: null` e temperaturas `null` são renderizados como “—”        |
-| `StatusFrota.manutencao`               | contador “Manutenção”                           | derivado de `estadoConservacao`/`disponibilidade`, ambos já presentes em `Equipamento`                       |
-| `Faturamento.estimado`                 | KPI “Faturamento do dia”                        | `false` quando `pagamentos.listar` responde; `true` apenas na ausência total de pagamentos                   |
-| `DevolucaoPendente.atrasada`, `.multa` | KPI “Devoluções pendentes” e destaque de atraso | agregação local de reservas/clientes/itens/pagamentos; valor de multa vem de `Pagamento.valorMulta`          |
-| `fontesIndisponiveis`                  | faixa “dados parciais”                          | cada fonte IPC que lançou exceção é listada; nenhuma linha é inventada                                      |
+| Tipo local                             | Uso na tela                                     | Origem / observação                                                                                   |
+| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `PagamentoItem`, `StatusPagamento`     | coluna “Pagamento / Multa” e KPI de faturamento | `pagamentos.listar`; `estornado` é apresentação do `StatusPagamento` do contrato                      |
+| `PrevisaoTempo`, `CondicaoClima`       | card “Previsão do tempo”                        | tradução de `RespostaPrevisaoTempo`; `condicao: null` e temperaturas `null` são renderizados como “—” |
+| `StatusFrota.manutencao`               | contador “Manutenção”                           | derivado de `estadoConservacao`/`disponibilidade`, ambos já presentes em `Equipamento`                |
+| `Faturamento.estimado`                 | KPI “Faturamento do dia”                        | `false` quando `pagamentos.listar` responde; `true` apenas na ausência total de pagamentos            |
+| `DevolucaoPendente.atrasada`, `.multa` | KPI “Devoluções pendentes” e destaque de atraso | agregação local de reservas/clientes/itens/pagamentos; valor de multa vem de `Pagamento.valorMulta`   |
+| `fontesIndisponiveis`                  | faixa “dados parciais”                          | cada fonte IPC que lançou exceção é listada; nenhuma linha é inventada                                |
 
 ### Handoff — canais sem handler
 
@@ -116,7 +116,7 @@ perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece
 - **Estados e movimento:** `EstadoVazio` ganhou ilustrações SVG originais em traço 1,5 px, uma por
   contexto (reservas, equipamentos, categorias, manutenção, pessoas), desenhadas em `criarIlustracao`
   com `createElementNS` e `path` tipados. `Tabela` usa skeleton (`Carregando` com `variante:
-  'skeleton'`) no lugar do spinner. Animações e transições receberam `motion-reduce:animate-none` /
+'skeleton'`) no lugar do spinner. Animações e transições receberam `motion-reduce:animate-none` /
   `motion-reduce:transition-none` em todos os componentes e páginas, conforme DS §9.6. O traço de
   `criarIcone` passou de 1,75 para 1,5 px, conforme DS §9.4.
 
@@ -130,3 +130,41 @@ perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece
   de UX, sem impacto em validação ou contrato.
 - As ilustrações são autorais e não substituem nenhum asset oficial; foram adotadas porque o DS as
   descreve em texto e não há SVG original no repositório.
+
+## Reservas — consulta e formulário focado
+
+### Decisões aplicadas
+
+- `#/reservas` é a consulta: filtros locais de cliente/status/período, tabela, detalhes e ações
+  “Ver”, “Editar”, “Cancelar” e “Inativar”. `#/reservas/nova` é o formulário: cliente, período,
+  equipamentos e resumo, sem tabela de consulta junto. A edição abre nesta segunda rota.
+- A sidebar mantém “Reservas” ativa nos dois caminhos; o Dashboard leva “Nova reserva (Ctrl+N)”
+  e a ação do estado vazio a `#/reservas/nova`, com atalho `Ctrl+N` registrado somente enquanto o
+  Dashboard está montado.
+- Clientes, reservas e categorias são carregados em tarefas separadas. Falha em `clientes.listar`
+  não zera as reservas, e lista vazia legítima vira estado “Cadastrar cliente”. O botão leva a
+  `#/clientes` e guarda o rascunho (datas, categoria e itens) na memória do módulo do renderer;
+  ao voltar, o formulário é restaurado.
+- A disponibilidade é recalculada automaticamente após mudança de datas, com debounce de 250 ms,
+  token de requisição e descarte de respostas desatualizadas. Antes da primeira consulta válida,
+  o estado é neutro (“Informe as datas para ver equipamentos”). Erro mantém “Tentar novamente”.
+- O botão de confirmação fica desabilitado enquanto faltar cliente, período válido ou itens, com
+  os motivos visíveis ao lado e em `title`/`aria-describedby`. A criação usa `reservas:criar`
+  seguido de `reservas:atualizar` para `Confirmada`; se a segunda chamada falhar, a tela navega
+  para a consulta com aviso de confirmação não concluída, sem afirmar que confirmou.
+- Clima e feriados continuam sendo responsabilidade do main (`previsaoTempo` /
+  `altaDemandaPrevista`). Previsão vazia não bloqueia nem abre modal: a consulta mostra
+  “Indisponível (a reserva não fica bloqueada).” e o toast de sucesso registra a indisponibilidade.
+- A diária sugerida vem de `Equipamento.valorDiaria ?? 0`, exibida com `FormatadorPtBr.moeda`;
+  a diária acordada segue em `ItemReserva.valorDiaria`. Nenhum dado fictício é inventado.
+
+### Handoff / risco residual
+
+- Nenhum canal, schema, handler ou função fina do preload faltou: `clientes.listar`,
+  `equipamentos.listarDisponiveis`, `reservas.criar`, `reservas.atualizar` e `itensReserva.*`
+  já estão em `src/preload/index.ts` e tipados em `src/shared/contratos/api.ts`.
+- Rascunho, edição pendente e destaque pós-confirmação vivem apenas na memória do módulo do
+  renderer. Um recarregamento completo da aplicação entre ida a Clientes e volta descarta o
+  rascunho; isso foi aceito como solução simples, sem novo contrato nem persistência local.
+- Não há login por trás da checagem de administrador além do perfil já existente no renderer; a
+  regra continua a mesma das outras telas. Nenhuma dependência nova foi instalada.

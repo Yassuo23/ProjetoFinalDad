@@ -1,7 +1,13 @@
 import type { StatusReserva } from '../../../shared/contratos/modelos'
 import { Badge, Botao, Carregando, EstadoErro, EstadoVazio, Tabela } from '../componentes'
 import type { ColunaTabela, TomBadge } from '../componentes'
-import { Componente, criarElemento, criarIcone, substituirConteudo } from '../nucleo'
+import {
+  Componente,
+  criarElemento,
+  criarIcone,
+  registrarAtalhos,
+  substituirConteudo,
+} from '../nucleo'
 import { DashboardServico, hojeISO } from '../servicos'
 import { formatadorPtBr } from '../util'
 import type { CondicaoClima, DadosDashboard, PrevisaoTempo, StatusPagamento } from '../servicos'
@@ -179,13 +185,32 @@ function pluralizar(quantidade: number, singular: string, plural: string): strin
 
 export class PaginaDashboard extends Componente {
   private readonly servico = new DashboardServico()
+  private readonly cancelarAtalhos: () => void
 
   constructor() {
     super(criarElemento('section', { className: CLASSES.pagina }))
+    this.cancelarAtalhos = registrarAtalhos({
+      aoNovo: () => {
+        window.location.hash = '#/reservas/nova'
+      },
+      aoBuscar: () => {},
+      aoRecarregar: () => {
+        void this.carregar()
+      },
+      aoEditar: () => {},
+      aoConfirmar: () => {},
+      aoCancelar: () => {},
+      emCampo: () => false,
+      modalAberto: () => false,
+    })
   }
 
   protected aoMontar(): void {
     void this.carregar()
+  }
+
+  protected aoDesmontar(): void {
+    this.cancelarAtalhos()
   }
 
   private async carregar(): Promise<void> {
@@ -200,9 +225,9 @@ export class PaginaDashboard extends Componente {
 
   private criarCabecalho(feriadoHoje: string | null = null): HTMLElement {
     const novaReserva = new Botao({
-      texto: 'Nova reserva',
+      texto: 'Nova reserva (Ctrl+N)',
       aoClicar: () => {
-        window.location.hash = '#/reservas'
+        window.location.hash = '#/reservas/nova'
       },
     })
     const registrarDevolucao = new Botao({
@@ -394,9 +419,9 @@ export class PaginaDashboard extends Componente {
         titulo: 'Nenhuma reserva para hoje',
         mensagem: 'Cadastre uma nova reserva para começar o dia.',
         acao: {
-          texto: 'Nova reserva',
+          texto: 'Cadastrar nova reserva',
           aoClicar: () => {
-            window.location.hash = '#/reservas'
+            window.location.hash = '#/reservas/nova'
           },
         },
       }).montar(vazio)
