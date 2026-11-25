@@ -1,6 +1,14 @@
 import type {
   AppInfo,
+  AutenticarEntrada,
+  BootstrapEntrada,
+  CalculoMulta,
+  CalculoMultaEntrada,
   Categoria,
+  CategoriaAtualizarEntrada,
+  CategoriaCriarEntrada,
+  CategoriaDetalhe,
+  CategoriaListarFiltros,
   Cliente,
   ClienteAtualizarEntrada,
   ClienteCriarEntrada,
@@ -9,12 +17,15 @@ import type {
   DevolucaoAtualizarEntrada,
   DevolucaoCriarEntrada,
   DevolucaoListarFiltros,
+  DevolucaoPendente,
   EnderecoCep,
   Equipamento,
   EquipamentoAtualizarEntrada,
   EquipamentoCriarEntrada,
   EquipamentoListarFiltros,
+  EstadoSessao,
   ChaveItemReservaEntrada,
+  FeriadosEntrada,
   ItemReserva,
   ItemReservaAtualizarEntrada,
   ItemReservaCriarEntrada,
@@ -24,16 +35,33 @@ import type {
   FornecedorCriarEntrada,
   FornecedorListarFiltros,
   IdEntrada,
+  OrdemManutencao,
+  OrdemManutencaoAtualizarEntrada,
+  OrdemManutencaoCriarEntrada,
+  OrdemManutencaoConcluirEntrada,
+  OrdemManutencaoListarFiltros,
   Pagamento,
   PagamentoAtualizarEntrada,
   PagamentoCriarEntrada,
   PagamentoListarFiltros,
   PeriodoEntrada,
   PingPayload,
+  PrevisaoTempoEntrada,
   Reserva,
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
+  RespostaCnpj,
+  RespostaFeriados,
+  RespostaPrevisaoTempo,
+  ResumoDashboard,
+  ResumoDashboardEntrada,
+  Sessao,
+  UsuarioAlterarSenhaEntrada,
+  UsuarioAtualizarEntrada,
+  UsuarioCriarEntrada,
+  UsuarioListarFiltros,
+  UsuarioPublico,
 } from './modelos'
 
 /** Contrato único da ponte renderer → main. */
@@ -42,8 +70,29 @@ export interface ApiZenite {
   abrirExterno(url: string): Promise<void>
   onPing(callback: (payload: PingPayload) => void): () => void
 
+  /** Sessão em memória no main; nenhum segredo atravessa o IPC. */
+  auth: {
+    entrar(dados: AutenticarEntrada): Promise<Sessao>
+    sair(): Promise<void>
+    sessaoAtual(): Promise<EstadoSessao>
+    /** Primeira execução: senha escolhida pelo usuário, sem credencial fixa. */
+    bootstrap(dados: BootstrapEntrada): Promise<Sessao>
+  }
+
+  /** Operações exclusivas de administrador (autorização conferida no main). */
+  usuarios: {
+    listar(filtros?: UsuarioListarFiltros): Promise<UsuarioPublico[]>
+    criar(dados: UsuarioCriarEntrada): Promise<UsuarioPublico>
+    atualizar(dados: UsuarioAtualizarEntrada): Promise<UsuarioPublico>
+    alterarSenha(dados: UsuarioAlterarSenhaEntrada): Promise<void>
+  }
+
   categorias: {
-    listar(): Promise<Categoria[]>
+    listar(filtros?: CategoriaListarFiltros): Promise<Categoria[]>
+    buscarPorId(id: number): Promise<CategoriaDetalhe>
+    criar(dados: CategoriaCriarEntrada): Promise<CategoriaDetalhe>
+    atualizar(dados: CategoriaAtualizarEntrada): Promise<CategoriaDetalhe>
+    inativar(id: number): Promise<void>
   }
 
   fornecedores: {
@@ -99,9 +148,32 @@ export interface ApiZenite {
   devolucoes: {
     listar(filtros?: DevolucaoListarFiltros): Promise<Devolucao[]>
     buscarPorId(id: number): Promise<Devolucao>
+    listarPendentes(data?: string): Promise<DevolucaoPendente[]>
+    calcularMulta(dados: CalculoMultaEntrada): Promise<CalculoMulta>
     criar(dados: DevolucaoCriarEntrada): Promise<Devolucao>
     atualizar(dados: DevolucaoAtualizarEntrada): Promise<Devolucao>
     inativar(id: number): Promise<void>
+  }
+
+  /** Admin abre/conclui; atendente consulta status. */
+  manutencao: {
+    listar(filtros?: OrdemManutencaoListarFiltros): Promise<OrdemManutencao[]>
+    buscarPorId(id: number): Promise<OrdemManutencao>
+    criar(dados: OrdemManutencaoCriarEntrada): Promise<OrdemManutencao>
+    atualizar(dados: OrdemManutencaoAtualizarEntrada): Promise<OrdemManutencao>
+    concluir(dados: OrdemManutencaoConcluirEntrada): Promise<OrdemManutencao>
+    inativar(id: number): Promise<void>
+  }
+
+  /** Um canal por integração; indisponibilidade é valor de retorno. */
+  integracoes: {
+    previsaoTempo(entrada: PrevisaoTempoEntrada): Promise<RespostaPrevisaoTempo>
+    cnpj(cnpj: string): Promise<RespostaCnpj>
+    feriados(entrada: FeriadosEntrada): Promise<RespostaFeriados>
+  }
+
+  dashboard: {
+    resumo(entrada?: ResumoDashboardEntrada): Promise<ResumoDashboard>
   }
 }
 

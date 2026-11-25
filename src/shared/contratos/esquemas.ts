@@ -43,6 +43,16 @@ const formaPagamento = z.enum(['Pix', 'Cartão de Crédito', 'Dinheiro']).nullis
 const formaPagamentoFiltro = z.enum(['Pix', 'Cartão de Crédito', 'Dinheiro']).optional()
 const statusPagamento = z.enum(['Pendente', 'Pago', 'Estornado'])
 const estadoPosUso = z.enum(['Perfeito', 'Com avarias leves', 'Danificado'])
+const tipoPagamento = z.enum(['Reserva', 'Multa']).optional()
+const perfilUsuario = z.enum(['Administrador', 'Atendente'])
+const statusManutencao = z.enum(['Aberta', 'Em andamento', 'Concluída'])
+const login = z.string().trim().min(3).max(80)
+const senha = z
+  .string()
+  .min(8)
+  .max(128)
+  .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, 'SENHA_FRACA')
+const ano = z.number().int().min(2020).max(2100)
 
 export const esquemaId = z.object({ id })
 
@@ -169,6 +179,8 @@ export const esquemaEquipamentoCriar = z.object({
   // Chamadas antigas não enviam o campo: o main resolve o default antes do serviço.
   disponibilidade: disponibilidade.optional().default('Disponível'),
   fornecedorId: id.nullish(),
+  // Ausente em chamadas antigas: default explícito mantém compatibilidade (ADR 0007).
+  valorDiaria: decimal.optional().default(0),
 })
 
 export const esquemaEquipamentoAtualizar = esquemaAtualizacao({
@@ -177,6 +189,7 @@ export const esquemaEquipamentoAtualizar = esquemaAtualizacao({
   estadoConservacao: estadoConservacao.optional(),
   disponibilidade: disponibilidade.optional(),
   fornecedorId: id.nullish(),
+  valorDiaria: decimal.optional(),
 })
 
 export const esquemaPeriodo = z
@@ -247,6 +260,9 @@ export const esquemaPagamentoListar = z
     reservaId: id.optional(),
     statusPagamento: statusPagamento.optional(),
     formaPagamento: formaPagamentoFiltro,
+    dataInicio: data.optional(),
+    dataFim: data.optional(),
+    tipo: tipoPagamento,
     limite,
     deslocamento,
     incluirInativos,
@@ -297,3 +313,112 @@ export const esquemaDevolucaoAtualizar = esquemaAtualizacao({
   estadoPosUso: estadoPosUso.optional(),
   observacoes: textoOpcional(2000),
 })
+
+// ---------------------------------------------------------------------------
+// Autenticação e usuários (ADR 0007)
+// ---------------------------------------------------------------------------
+
+export const esquemaAuthEntrar = z.object({ login, senha })
+
+/** Sem senha padrão: a senha do primeiro administrador vem do payload. */
+export const esquemaAuthBootstrap = z.object({ nome: texto(150), login, senha })
+
+export const esquemaUsuarioListar = z
+  .object({
+    nome: textoFiltro(150),
+    login: textoFiltro(80),
+    perfil: perfilUsuario.optional(),
+    limite,
+    deslocamento,
+    incluirInativos,
+  })
+  .optional()
+
+export const esquemaUsuarioCriar = z.object({ nome: texto(150), login, senha, perfil: perfilUsuario })
+
+export const esquemaUsuarioAtualizar = esquemaAtualizacao({
+  nome: texto(150).optional(),
+  login: login.optional(),
+  perfil: perfilUsuario.optional(),
+  ativo: z.boolean().optional(),
+})
+
+export const esquemaUsuarioAlterarSenha = esquemaId.extend({
+  senhaNova: senha,
+  senhaAtual: senha.optional(),
+})
+
+// ---------------------------------------------------------------------------
+// Categorias — CRUD completo (ADR 0007)
+// ---------------------------------------------------------------------------
+
+export const esquemaCategoriaListar = z
+  .object({ nome: textoFiltro(150), limite, deslocamento, incluirInativos })
+  .optional()
+
+export const esquemaCategoriaCriar = z.object({ nome: texto(150), descricao: textoOpcional(500) })
+
+export const esquemaCategoriaAtualizar = esquemaAtualizacao({
+  nome: texto(150).optional(),
+  descricao: textoOpcional(500),
+})
+
+// ---------------------------------------------------------------------------
+// Manutenção (ADR 0007)
+// ---------------------------------------------------------------------------
+
+export const esquemaManutencaoListar = z
+  .object({
+    equipamentoId: id.optional(),
+    fornecedorId: id.optional(),
+    status: statusManutencao.optional(),
+    dataEnvio: data.optional(),
+    dataRetornoPrevista: data.optional(),
+    limite,
+    deslocamento,
+    incluirInativos,
+  })
+  .optional()
+
+export const esquemaManutencaoCriar = z.object({
+  equipamentoId: id,
+  fornecedorId: id.nullish(),
+  descricao: texto(2000),
+  dataEnvio: data,
+  dataRetornoPrevista: data.nullish(),
+  custo: decimal.nullish(),
+  status: statusManutencao.optional().default('Aberta'),
+})
+
+export const esquemaManutencaoAtualizar = esquemaAtualizacao({
+  equipamentoId: id.optional(),
+  fornecedorId: id.nullish(),
+  descricao: texto(2000).optional(),
+  dataEnvio: data.optional(),
+  dataRetornoPrevista: data.nullish(),
+  dataRetorno: data.nullish(),
+  custo: decimal.nullish(),
+  status: statusManutencao.optional(),
+})
+
+export const esquemaManutencaoConcluir = esquemaId.extend({
+  dataRetorno: data.optional(),
+  custo: decimal.nullish(),
+})
+
+// ---------------------------------------------------------------------------
+// Integrações — payloads curtos; falha de upstream vira `estado: indisponivel`
+// ---------------------------------------------------------------------------
+
+/** A data é o único parâmetro: cidade/latitude vivem na config do main. */
+export const esquemaIntegracaoPrevisaoTempo = z.object({ data })
+export const esquemaIntegracaoCnpj = z.object({ cnpj })
+export const esquemaIntegracaoFeriados = z.object({ ano })
+
+// ---------------------------------------------------------------------------
+// Agregações e cálculo de multa (ADR 0007)
+// ---------------------------------------------------------------------------
+
+export const esquemaDevolucoesListarPendentes = z.object({ data: data.optional() }).optional()
+export const esquemaCalcularMulta = z.object({ reservaId: id, dataDevolucao: data })
+export const esquemaResumoDashboard = z.object({ data: data.optional() }).optional()

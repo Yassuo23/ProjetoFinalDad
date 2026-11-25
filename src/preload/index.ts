@@ -16,8 +16,26 @@ const api: ApiZenite = {
     return () => ipcRenderer.removeListener(CANAIS.ping, listener)
   },
 
+  auth: {
+    entrar: (dados) => ipcRenderer.invoke(CANAIS.authEntrar, dados),
+    sair: () => ipcRenderer.invoke(CANAIS.authSair),
+    sessaoAtual: () => ipcRenderer.invoke(CANAIS.authSessaoAtual),
+    bootstrap: (dados) => ipcRenderer.invoke(CANAIS.authBootstrap, dados),
+  },
+
+  usuarios: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.usuariosListar, filtros),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.usuariosCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.usuariosAtualizar, dados),
+    alterarSenha: (dados) => ipcRenderer.invoke(CANAIS.usuariosAlterarSenha, dados),
+  },
+
   categorias: {
-    listar: () => ipcRenderer.invoke(CANAIS.categoriasListar),
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.categoriasListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.categoriasBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.categoriasCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.categoriasAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.categoriasInativar, { id }),
   },
 
   fornecedores: {
@@ -74,9 +92,34 @@ const api: ApiZenite = {
   devolucoes: {
     listar: (filtros) => ipcRenderer.invoke(CANAIS.devolucoesListar, filtros),
     buscarPorId: (id) => ipcRenderer.invoke(CANAIS.devolucoesBuscarPorId, { id }),
+    listarPendentes: (data) =>
+      ipcRenderer.invoke(
+        CANAIS.devolucoesListarPendentes,
+        data === undefined ? undefined : { data },
+      ),
+    calcularMulta: (dados) => ipcRenderer.invoke(CANAIS.devolucoesCalcularMulta, dados),
     criar: (dados) => ipcRenderer.invoke(CANAIS.devolucoesCriar, dados),
     atualizar: (dados) => ipcRenderer.invoke(CANAIS.devolucoesAtualizar, dados),
     inativar: (id) => ipcRenderer.invoke(CANAIS.devolucoesInativar, { id }),
+  },
+
+  manutencao: {
+    listar: (filtros) => ipcRenderer.invoke(CANAIS.manutencaoListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.manutencaoBuscarPorId, { id }),
+    criar: (dados) => ipcRenderer.invoke(CANAIS.manutencaoCriar, dados),
+    atualizar: (dados) => ipcRenderer.invoke(CANAIS.manutencaoAtualizar, dados),
+    concluir: (dados) => ipcRenderer.invoke(CANAIS.manutencaoConcluir, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.manutencaoInativar, { id }),
+  },
+
+  integracoes: {
+    previsaoTempo: (entrada) => ipcRenderer.invoke(CANAIS.integracoesPrevisaoTempo, entrada),
+    cnpj: (cnpj) => ipcRenderer.invoke(CANAIS.integracoesCnpj, { cnpj }),
+    feriados: (entrada) => ipcRenderer.invoke(CANAIS.integracoesFeriados, entrada),
+  },
+
+  dashboard: {
+    resumo: (entrada) => ipcRenderer.invoke(CANAIS.dashboardResumo, entrada),
   },
 }
 

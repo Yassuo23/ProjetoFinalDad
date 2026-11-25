@@ -62,6 +62,42 @@ export const CANAIS = {
   devolucoesCriar: 'devolucoes:criar',
   devolucoesAtualizar: 'devolucoes:atualizar',
   devolucoesInativar: 'devolucoes:inativar',
+
+  // Autenticação e sessão (ADR 0007).
+  authEntrar: 'auth:entrar',
+  authSair: 'auth:sair',
+  authSessaoAtual: 'auth:sessao-atual',
+  authBootstrap: 'auth:bootstrap',
+
+  // Usuários — somente administrador (ADR 0007).
+  usuariosListar: 'usuarios:listar',
+  usuariosCriar: 'usuarios:criar',
+  usuariosAtualizar: 'usuarios:atualizar',
+  usuariosAlterarSenha: 'usuarios:alterar-senha',
+
+  // Catálogo auxiliar — CRUD completo; `categoriasListar` já existia.
+  categoriasBuscarPorId: 'categorias:buscar-por-id',
+  categoriasCriar: 'categorias:criar',
+  categoriasAtualizar: 'categorias:atualizar',
+  categoriasInativar: 'categorias:inativar',
+
+  // Manutenção como entidade própria (ADR 0007).
+  manutencaoListar: 'manutencao:listar',
+  manutencaoBuscarPorId: 'manutencao:buscar-por-id',
+  manutencaoCriar: 'manutencao:criar',
+  manutencaoAtualizar: 'manutencao:atualizar',
+  manutencaoInativar: 'manutencao:inativar',
+  manutencaoConcluir: 'manutencao:concluir',
+
+  // Integrações — um canal por serviço externo; CEP já existe em `clientesBuscarCep`.
+  integracoesPrevisaoTempo: 'integracoes:previsao-tempo',
+  integracoesCnpj: 'integracoes:cnpj',
+  integracoesFeriados: 'integracoes:feriados',
+
+  // Agregações e cálculos de apoio ao renderer (ADR 0007).
+  dashboardResumo: 'dashboard:resumo',
+  devolucoesListarPendentes: 'devolucoes:listar-pendentes',
+  devolucoesCalcularMulta: 'devolucoes:calcular-multa',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]
