@@ -26,7 +26,7 @@ const PADRAO_DISPONIBILIDADE: DisponibilidadeEquipamento = 'Disponível'
 
 const CONSULTAR = `
   SELECT id_equipamento AS id, nome, categoria, estado_conservacao AS estadoConservacao,
-         disponibilidade, id_fornecedor AS fornecedorId, ativo,
+         disponibilidade, id_fornecedor AS fornecedorId, valor_diaria AS valorDiaria, ativo,
          atualizado_em AS atualizadoEm
   FROM equipamento
 `
@@ -37,13 +37,10 @@ function mapearEquipamento(linha: RegistroBanco): Equipamento {
     nome: texto(linha, 'nome', 'EQUIPAMENTO'),
     categoria: textoEnumerado(linha, 'categoria', 'EQUIPAMENTO', CATEGORIAS),
     estadoConservacao: textoEnumerado(linha, 'estadoConservacao', 'EQUIPAMENTO', ESTADOS),
-    disponibilidade: textoEnumerado(
-      linha,
-      'disponibilidade',
-      'EQUIPAMENTO',
-      DISPONIBILIDADES,
-    ),
+    disponibilidade: textoEnumerado(linha, 'disponibilidade', 'EQUIPAMENTO', DISPONIBILIDADES),
     fornecedorId: numeroOpcional(linha, 'fornecedorId', 'EQUIPAMENTO'),
+    // DECIMAL volta como string; nulo/missing (legado) vira 0 sem perder a conversão segura.
+    valorDiaria: numeroOpcional(linha, 'valorDiaria', 'EQUIPAMENTO') ?? 0,
     ativo: booleano(linha, 'ativo', 'EQUIPAMENTO'),
     atualizadoEm: dataHora(linha, 'atualizadoEm', 'EQUIPAMENTO'),
   }
@@ -100,7 +97,7 @@ export class EquipamentoRepositorio extends RepositorioBase implements Repositor
     const sql = `
       SELECT e.id_equipamento AS id, e.nome, e.categoria,
              e.estado_conservacao AS estadoConservacao, e.disponibilidade,
-             e.id_fornecedor AS fornecedorId, e.ativo,
+             e.id_fornecedor AS fornecedorId, e.valor_diaria AS valorDiaria, e.ativo,
              e.atualizado_em AS atualizadoEm
       FROM equipamento e
       WHERE e.ativo = 1 AND e.estado_conservacao <> 'Em Manutenção'
@@ -138,14 +135,15 @@ export class EquipamentoRepositorio extends RepositorioBase implements Repositor
       try {
         const resultado = await cliente.execute(
           `INSERT INTO equipamento
-             (nome, categoria, estado_conservacao, disponibilidade, id_fornecedor)
-           VALUES (?, ?, ?, ?, ?)`,
+             (nome, categoria, estado_conservacao, disponibilidade, id_fornecedor, valor_diaria)
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             dados.nome,
             dados.categoria,
             dados.estadoConservacao,
             dados.disponibilidade ?? PADRAO_DISPONIBILIDADE,
             dados.fornecedorId ?? null,
+            dados.valorDiaria ?? 0,
           ],
         )
         id = resultado.insertId
@@ -184,6 +182,10 @@ export class EquipamentoRepositorio extends RepositorioBase implements Repositor
     if (dados.fornecedorId !== undefined) {
       campos.push('id_fornecedor = ?')
       valores.push(dados.fornecedorId)
+    }
+    if (dados.valorDiaria !== undefined) {
+      campos.push('valor_diaria = ?')
+      valores.push(dados.valorDiaria)
     }
     if (campos.length === 0) return null
 

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { DisponibilidadeEquipamento, PeriodoEntrada } from '../../shared/contratos/modelos'
-import type { ClienteBanco, ParametroSql, RegistroBanco, ResultadoEscrita } from '../banco/ClienteBanco'
+import type {
+  ClienteBanco,
+  ParametroSql,
+  RegistroBanco,
+  ResultadoEscrita,
+} from '../banco/ClienteBanco'
 import type { ConexaoBanco } from '../banco/ConexaoBanco'
 import { EquipamentoRepositorio } from './EquipamentoRepositorio'
 
@@ -20,6 +25,7 @@ function linha(id: number, disponibilidade: string): RegistroBanco {
     estadoConservacao: 'Bom',
     disponibilidade,
     fornecedorId: null,
+    valorDiaria: '39.90',
     ativo: 1,
     atualizadoEm: '2026-01-01T00:00:00.000Z',
   }
@@ -105,9 +111,7 @@ describe('EquipamentoRepositorio — disponibilidade', () => {
     const itens = await repositorio(cliente).listarDisponiveis(periodo)
 
     expect(itens.map((item) => item.id)).toEqual([1])
-    expect(cliente.ultima('FROM equipamento e')?.sql).toContain(
-      "e.disponibilidade = 'Disponível'",
-    )
+    expect(cliente.ultima('FROM equipamento e')?.sql).toContain("e.disponibilidade = 'Disponível'")
   })
 
   it('grava o default na inserção quando o chamador omite o campo', async () => {
@@ -140,5 +144,76 @@ describe('EquipamentoRepositorio — disponibilidade', () => {
     const update = cliente.ultima('UPDATE equipamento SET')
     expect(update?.sql).toContain('disponibilidade = ?')
     expect(update?.valores).toContain('Em manutenção')
+  })
+})
+
+describe('EquipamentoRepositorio — valorDiaria', () => {
+  it('converte o DECIMAL em número na busca por id, listagem e disponíveis', async () => {
+    const cliente = new ClienteBancoFalso([linha(1, 'Disponível')])
+    const repo = repositorio(cliente)
+
+    await expect(repo.buscarPorId(1)).resolves.toMatchObject({ valorDiaria: 39.9 })
+    await expect(repo.listar()).resolves.toMatchObject([{ valorDiaria: 39.9 }])
+    await expect(repo.listarDisponiveis(periodo)).resolves.toMatchObject([{ valorDiaria: 39.9 }])
+
+    const consulta = cliente.chamadas.find(({ sql }) => sql.includes('FROM equipamento\n'))
+    expect(consulta?.sql).toContain('valor_diaria AS valorDiaria')
+    expect(cliente.ultima('FROM equipamento e')?.sql).toContain('e.valor_diaria AS valorDiaria')
+  })
+
+  it('usa 0 para legado sem valor e rejeita valor não numérico', async () => {
+    const semValor: RegistroBanco = Object.fromEntries(
+      Object.entries(linha(1, 'Disponível')).filter(([chave]) => chave !== 'valorDiaria'),
+    )
+    await expect(
+      repositorio(new ClienteBancoFalso([semValor])).buscarPorId(1),
+    ).resolves.toMatchObject({ valorDiaria: 0 })
+
+    const invalido = { ...linha(1, 'Disponível'), valorDiaria: 'abc' }
+    await expect(repositorio(new ClienteBancoFalso([invalido])).buscarPorId(1)).rejects.toThrow(
+      'EQUIPAMENTO_LINHA_INVALIDA',
+    )
+  })
+
+  it('grava 0 na inserção quando o chamador omite a diária', async () => {
+    const cliente = new ClienteBancoFalso([linha(7, 'Disponível')])
+
+    await repositorio(cliente).criar({
+      nome: 'Barraca',
+      categoria: 'Camping',
+      estadoConservacao: 'Bom',
+    })
+
+    const insert = cliente.ultima('INSERT INTO equipamento')
+    expect(insert?.sql).toContain('valor_diaria')
+    expect(insert?.valores[5]).toBe(0)
+  })
+
+  it('grava a diária informada na criação e na atualização, sempre parametrizada', async () => {
+    const cliente = new ClienteBancoFalso([linha(7, 'Disponível')])
+    const repo = repositorio(cliente)
+
+    await repo.criar({
+      nome: 'Barraca',
+      categoria: 'Camping',
+      estadoConservacao: 'Bom',
+      valorDiaria: 49.9,
+    })
+    await repo.atualizar({ id: 7, valorDiaria: 55.5 })
+
+    expect(cliente.ultima('INSERT INTO equipamento')?.valores[5]).toBe(49.9)
+    const update = cliente.ultima('UPDATE equipamento SET')
+    expect(update?.sql).toContain('valor_diaria = ?')
+    expect(update?.valores).toContain(55.5)
+  })
+
+  it('não altera a diária quando o campo é omitido na atualização', async () => {
+    const cliente = new ClienteBancoFalso([linha(7, 'Disponível')])
+
+    await repositorio(cliente).atualizar({ id: 7, nome: 'Barraca nova' })
+
+    const update = cliente.ultima('UPDATE equipamento SET')
+    expect(update?.sql).not.toContain('valor_diaria')
+    expect(update?.valores).not.toContain(0)
   })
 })

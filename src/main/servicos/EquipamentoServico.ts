@@ -5,10 +5,7 @@ import type {
   EquipamentoListarFiltros,
   PeriodoEntrada,
 } from '../../shared/contratos/modelos'
-import type {
-  RepositorioEquipamentos,
-  RepositorioFornecedores,
-} from '../repositorios/portas'
+import type { RepositorioEquipamentos, RepositorioFornecedores } from '../repositorios/portas'
 import { ErroDeDominio, paraErroDominio } from './ErroDeDominio'
 import type { ServicoDisponibilidade, ServicoEquipamentos } from './portas'
 
@@ -16,6 +13,17 @@ type Colaborador = RepositorioFornecedores | ServicoDisponibilidade
 
 const NAO_ENCONTRADO = (): ErroDeDominio =>
   new ErroDeDominio('NAO_ENCONTRADO', 'Equipamento não encontrado.')
+
+/** A diária é valor de tabela: nunca negativa nem não finita (ADR 0007). */
+function validarValorDiaria(valor: number | undefined): void {
+  if (valor === undefined) return
+  if (!Number.isFinite(valor) || valor < 0) {
+    throw new ErroDeDominio(
+      'DADOS_INVALIDOS',
+      'A diária do equipamento deve ser um número não negativo.',
+    )
+  }
+}
 
 function ehDisponibilidade(colaborador: Colaborador): colaborador is ServicoDisponibilidade {
   return typeof colaborador === 'object' && colaborador !== null && 'validarItens' in colaborador
@@ -65,6 +73,7 @@ export class EquipamentoServico implements ServicoEquipamentos {
   }
 
   async criar(dados: EquipamentoCriarEntrada): Promise<Equipamento> {
+    validarValorDiaria(dados.valorDiaria)
     if (await this.nomeEmUso(dados.nome)) {
       throw new ErroDeDominio('REGISTRO_DUPLICADO', 'Já existe um equipamento com este nome.')
     }
@@ -78,6 +87,7 @@ export class EquipamentoServico implements ServicoEquipamentos {
       estadoConservacao: dados.estadoConservacao,
       disponibilidade: dados.disponibilidade ?? 'Disponível',
       ...(dados.fornecedorId !== undefined ? { fornecedorId: dados.fornecedorId } : {}),
+      valorDiaria: dados.valorDiaria ?? 0,
     }
 
     try {
@@ -88,6 +98,7 @@ export class EquipamentoServico implements ServicoEquipamentos {
   }
 
   async atualizar(dados: EquipamentoAtualizarEntrada): Promise<Equipamento> {
+    validarValorDiaria(dados.valorDiaria)
     await this.buscarPorId(dados.id)
 
     if (dados.nome !== undefined && (await this.nomeEmUso(dados.nome, dados.id))) {
@@ -104,10 +115,9 @@ export class EquipamentoServico implements ServicoEquipamentos {
       ...(dados.estadoConservacao !== undefined
         ? { estadoConservacao: dados.estadoConservacao }
         : {}),
-      ...(dados.disponibilidade !== undefined
-        ? { disponibilidade: dados.disponibilidade }
-        : {}),
+      ...(dados.disponibilidade !== undefined ? { disponibilidade: dados.disponibilidade } : {}),
       ...(dados.fornecedorId !== undefined ? { fornecedorId: dados.fornecedorId } : {}),
+      ...(dados.valorDiaria !== undefined ? { valorDiaria: dados.valorDiaria } : {}),
     }
 
     try {
