@@ -10,9 +10,8 @@ import type {
   RepositorioReservas,
 } from '../repositorios/portas'
 import { ErroDeDominio, paraErroDominio } from './ErroDeDominio'
-import type { ServicoDevolucoes } from './portas'
+import type { ServicoDevolucoes, ServicoFeriados } from './portas'
 
-const MS_POR_DIA = 86_400_000
 const NAO_ENCONTRADO = (): ErroDeDominio =>
   new ErroDeDominio('NAO_ENCONTRADO', 'Devolução não encontrada.')
 
@@ -20,13 +19,6 @@ const NAO_ENCONTRADO = (): ErroDeDominio =>
 function dia(valor: string | undefined): string {
   if (valor !== undefined && /^\d{4}-\d{2}-\d{2}/.test(valor)) return valor.slice(0, 10)
   return new Date().toISOString().slice(0, 10)
-}
-
-function diasDeAtraso(dataEfetiva: string | undefined, dataFim: string): number {
-  const inicio = Date.parse(`${dia(dataEfetiva)}T00:00:00Z`)
-  const fim = Date.parse(`${dataFim}T00:00:00Z`)
-  if (!Number.isFinite(inicio) || !Number.isFinite(fim)) return 0
-  return Math.max(0, Math.trunc((inicio - fim) / MS_POR_DIA))
 }
 
 function valorDaDiaria(): number {
@@ -38,6 +30,8 @@ export class DevolucaoServico implements ServicoDevolucoes {
   constructor(
     private readonly repositorio: RepositorioDevolucoes,
     private readonly repositorioReservas: RepositorioReservas,
+    /** ADR 0008: opcional para preservar as chamadas atuais com dois argumentos. */
+    private readonly servicoFeriados?: ServicoFeriados,
   ) {}
 
   listar(filtros?: DevolucaoListarFiltros): Promise<readonly Devolucao[]> {
@@ -72,8 +66,9 @@ export class DevolucaoServico implements ServicoDevolucoes {
       ...(dados.observacoes !== undefined ? { observacoes: dados.observacoes } : {}),
     }
 
+    const dias = await this.diasCobraveis(dados.dataDevolucaoEfetiva, reserva.dataFim)
     const efeitos = {
-      valorMulta: diasDeAtraso(dados.dataDevolucaoEfetiva, reserva.dataFim) * valorDaDiaria(),
+      valorMulta: dias * valorDaDiaria(),
       manutencao: dados.estadoPosUso !== 'Perfeito',
     }
 
@@ -117,6 +112,47 @@ export class DevolucaoServico implements ServicoDevolucoes {
       throw paraErroDominio(erro, 'devolução')
     }
     if (!inativado) throw NAO_ENCONTRADO()
+  }
+
+  /**
+   * ADR 0008: conta somente dias cobráveis — começa no dia seguinte ao fim da
+   * reserva e ignora domingos e feriados nacionais. Sábado continua cobrando.
+   */
+  private async diasCobraveis(dataEfetiva: string | undefined, dataFim: string): Promise<number> {
+    const fim = dataFim.slice(0, 10)
+    const efetiva = dia(dataEfetiva)
+    const limite = Date.parse(`${efetiva}T00:00:00Z`)
+    const inicio = Date.parse(`${fim}T00:00:00Z`)
+    if (!Number.isFinite(inicio) || !Number.isFinite(limite) || limite <= inicio) return 0
+
+    const feriados = await this.carregarFeriados(fim, efetiva)
+    const atual = new Date(inicio)
+    let dias = 0
+    while (atual.getTime() < limite) {
+      atual.setUTCDate(atual.getUTCDate() + 1)
+      const iso = atual.toISOString().slice(0, 10)
+      if (atual.getUTCDay() === 0 || feriados.has(iso)) continue
+      dias += 1
+    }
+    return dias
+  }
+
+  /** Indisponibilidade não bloqueia a devolução: descontam-se apenas domingos. */
+  private async carregarFeriados(fim: string, efetiva: string): Promise<Set<string>> {
+    if (this.servicoFeriados === undefined) return new Set()
+    const anos = new Set([fim.slice(0, 4), efetiva.slice(0, 4)])
+    const feriados = new Set<string>()
+    for (const anoTexto of anos) {
+      try {
+        const resposta = await this.servicoFeriados.feriados(Number(anoTexto))
+        if (resposta.estado === 'disponivel') {
+          for (const feriado of resposta.feriados) feriados.add(feriado.data)
+        }
+      } catch {
+        // Serviço externo torna indisponível: segue com a regra parcial (domingos).
+      }
+    }
+    return feriados
   }
 
   private async validarReserva(id: number): Promise<Reserva> {

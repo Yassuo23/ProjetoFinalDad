@@ -10,9 +10,18 @@ import type {
   RepositorioReservas,
 } from '../repositorios/portas'
 import { ErroDeDominio, paraErroDominio } from './ErroDeDominio'
-import type { ServicoClima, ServicoDisponibilidade, ServicoReservas } from './portas'
+import type {
+  ServicoClima,
+  ServicoDisponibilidade,
+  ServicoFeriados,
+  ServicoReservas,
+} from './portas'
 
-type Colaborador = RepositorioClientes | ServicoDisponibilidade | ServicoClima
+type Colaborador =
+  | RepositorioClientes
+  | ServicoDisponibilidade
+  | ServicoClima
+  | ServicoFeriados
 
 const NAO_ENCONTRADO = (): ErroDeDominio =>
   new ErroDeDominio('NAO_ENCONTRADO', 'Reserva não encontrada.')
@@ -25,6 +34,10 @@ function ehClima(colaborador: Colaborador): colaborador is ServicoClima {
   return typeof colaborador === 'object' && colaborador !== null && 'resumo' in colaborador
 }
 
+function ehFeriados(colaborador: Colaborador): colaborador is ServicoFeriados {
+  return typeof colaborador === 'object' && colaborador !== null && 'feriados' in colaborador
+}
+
 function obrigatorio<T>(valor: T | undefined, nome: string): T {
   if (valor === undefined) throw new Error(`Dependência obrigatória não informada: ${nome}`)
   return valor
@@ -34,6 +47,7 @@ export class ReservaServico implements ServicoReservas {
   private readonly repositorioClientes: RepositorioClientes
   private readonly servicoDisponibilidade: ServicoDisponibilidade
   private readonly servicoClima: ServicoClima
+  private readonly servicoFeriados: ServicoFeriados | undefined
 
   constructor(
     private readonly repositorio: RepositorioReservas,
@@ -42,7 +56,7 @@ export class ReservaServico implements ServicoReservas {
     this.repositorioClientes = obrigatorio(
       colaboradores.find(
         (colaborador): colaborador is RepositorioClientes =>
-          !ehDisponibilidade(colaborador) && !ehClima(colaborador),
+          !ehDisponibilidade(colaborador) && !ehClima(colaborador) && !ehFeriados(colaborador),
       ),
       'repositório de clientes',
     )
@@ -51,6 +65,7 @@ export class ReservaServico implements ServicoReservas {
       'serviço de disponibilidade',
     )
     this.servicoClima = obrigatorio(colaboradores.find(ehClima), 'serviço de clima')
+    this.servicoFeriados = colaboradores.find(ehFeriados)
   }
 
   listar(filtros?: ReservaListarFiltros): Promise<readonly Reserva[]> {
@@ -100,10 +115,25 @@ export class ReservaServico implements ServicoReservas {
     this.validarPeriodo(dataInicio, dataFim)
 
     let previsaoTempo = dados.previsaoTempo
+    let altaDemandaPrevista: boolean | null | undefined
     if (dados.statusReserva === 'Confirmada' && atual.statusReserva !== 'Confirmada') {
       // Clima é informativo: falha na consulta não impede a confirmação.
       const resumo = await this.resumoClima(dataInicio)
       if (resumo.trim() !== '') previsaoTempo = resumo
+
+      const demandaClima = this.servicoClima.altaDemanda
+        ? await this.servicoClima.altaDemanda(dataInicio).catch(() => null)
+        : undefined
+      const feriado = await this.ehFeriado(dataInicio)
+
+      if (demandaClima === true || feriado === true) {
+        altaDemandaPrevista = true
+        previsaoTempo = `${previsaoTempo ?? ''} Alta demanda prevista para esta data.`.trim()
+      } else if (demandaClima === false || feriado === false) {
+        altaDemandaPrevista = false
+      } else if (demandaClima === null) {
+        altaDemandaPrevista = null
+      }
     }
 
     if (dados.itens !== undefined) {
@@ -128,7 +158,9 @@ export class ReservaServico implements ServicoReservas {
     try {
       const atualizada = await this.repositorio.atualizar(envio)
       if (!atualizada) throw NAO_ENCONTRADO()
-      return atualizada
+      return altaDemandaPrevista === undefined
+        ? atualizada
+        : { ...atualizada, altaDemandaPrevista }
     } catch (erro) {
       throw paraErroDominio(erro, 'reserva')
     }
@@ -179,6 +211,20 @@ export class ReservaServico implements ServicoReservas {
       await this.servicoDisponibilidade.validarItens(itens, periodo)
     } catch (erro) {
       throw paraErroDominio(erro, 'disponibilidade')
+    }
+  }
+
+  /** `null` = consulta indisponível; nunca bloqueia a confirmação (ADR 0008). */
+  private async ehFeriado(data: string): Promise<boolean | null> {
+    if (this.servicoFeriados === undefined) return null
+    const ano = Number(data.slice(0, 4))
+    if (!Number.isInteger(ano)) return null
+    try {
+      const resposta = await this.servicoFeriados.feriados(ano)
+      if (resposta.estado === 'indisponivel') return null
+      return resposta.feriados.some((feriado) => feriado.data === data)
+    } catch {
+      return null
     }
   }
 
