@@ -107,6 +107,11 @@ export interface Reserva extends Auditado, Inativavel {
   dataFim: string
   statusReserva: StatusReserva
   previsaoTempo: string | null
+  /**
+   * ADR 0008: calculado no main ao confirmar. Opcional para não quebrar
+   * registros, fixtures e chamadas atuais; `null` = integração indisponível.
+   */
+  readonly altaDemandaPrevista?: boolean | null
 }
 
 export interface ItemReserva {
@@ -509,6 +514,14 @@ export interface DadosCnpj {
   readonly nomeFantasia: string | null
   readonly situacao: string | null
   readonly atividadePrincipal: string | null
+  /** ADR 0008: opcionais/aditivos para preenchimento de endereço do fornecedor. */
+  readonly logradouro?: string | null
+  readonly numero?: string | null
+  readonly complemento?: string | null
+  readonly bairro?: string | null
+  readonly cidade?: string | null
+  readonly uf?: string | null
+  readonly cep?: string | null
 }
 
 export type RespostaCnpj =

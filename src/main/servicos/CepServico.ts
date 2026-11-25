@@ -1,48 +1,33 @@
 import type { EnderecoCep } from '../../shared/contratos/modelos'
 import { ErroDeDominio } from './ErroDeDominio'
+import { ClienteHttp, HOSTS } from './integracoes/ClienteHttp'
+import { mensagemIntegracao } from './integracoes/ErroIntegracao'
+import { esquemaRespostaViaCep } from './integracoes/esquemasExternos'
 import type { ServicoCep } from './portas'
 
-const CEP_INVALIDO = (): ErroDeDominio =>
-  new ErroDeDominio('CEP_INVALIDO', 'CEP inválido.')
+/** Endereço é estável: 24 h de cache (ADR 0008). */
+const TTL_CEP_MS = 24 * 60 * 60 * 1000
 
-function sinalTimeout(): AbortSignal | undefined {
-  const construtor = AbortSignal as typeof AbortSignal & {
-    readonly timeout?: (milissegundos: number) => AbortSignal
-  }
-  return typeof construtor.timeout === 'function' ? construtor.timeout(5000) : undefined
-}
-
-function textoOuNulo(valor: unknown): string | null {
-  if (typeof valor !== 'string') return null
+function textoOuNulo(valor: string | undefined): string | null {
+  if (valor === undefined) return null
   const limpo = valor.trim()
   return limpo === '' ? null : limpo
 }
 
 export class CepServico implements ServicoCep {
+  constructor(private readonly http: ClienteHttp = new ClienteHttp()) {}
+
   async buscar(cep: string): Promise<EnderecoCep> {
     const digitos = cep.replace(/\D/g, '')
-    if (digitos.length !== 8) throw CEP_INVALIDO()
+    if (digitos.length !== 8) {
+      throw new ErroDeDominio('CEP_INVALIDO', 'CEP inválido. Informe os 8 dígitos.')
+    }
 
-    // URL fixa: o renderer informa apenas o CEP, nunca um endereço.
-    const url = `https://viacep.com.br/ws/${digitos}/json/`
+    // Host fixo; o renderer informa somente os dígitos, nunca uma URL.
+    const url = new URL(`/ws/${encodeURIComponent(digitos)}/json/`, HOSTS.viacep)
 
     try {
-      const sinal = sinalTimeout()
-      const resposta = await (sinal === undefined ? fetch(url) : fetch(url, { signal: sinal }))
-      if (!resposta.ok) throw CEP_INVALIDO()
-
-      const corpo: unknown = await resposta.json()
-      if (typeof corpo !== 'object' || corpo === null) throw CEP_INVALIDO()
-
-      const dados = corpo as {
-        erro?: unknown
-        logradouro?: unknown
-        bairro?: unknown
-        localidade?: unknown
-        uf?: unknown
-      }
-      if (dados.erro === true) throw CEP_INVALIDO()
-
+      const dados = await this.http.obter(url, esquemaRespostaViaCep, TTL_CEP_MS)
       return {
         cep: digitos,
         logradouro: textoOuNulo(dados.logradouro),
@@ -51,9 +36,8 @@ export class CepServico implements ServicoCep {
         uf: textoOuNulo(dados.uf),
       }
     } catch (erro) {
-      if (erro instanceof ErroDeDominio) throw erro
-      // Nunca expõe detalhes do fetch (URL, status, stack) ao renderer.
-      throw new ErroDeDominio('CEP_INVALIDO', 'Não foi possível consultar o CEP informado.')
+      // Nunca expõe status HTTP, URL, stack nem detalhe do fetch ao renderer.
+      throw new ErroDeDominio('CEP_INVALIDO', mensagemIntegracao(erro))
     }
   }
 }

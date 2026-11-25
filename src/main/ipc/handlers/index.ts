@@ -16,10 +16,12 @@ import { CepServico } from '../../servicos/CepServico'
 import { CategoriaServico } from '../../servicos/CategoriaServico'
 import { ClienteServico } from '../../servicos/ClienteServico'
 import { ClimaServico } from '../../servicos/ClimaServico'
+import { CnpjServico } from '../../servicos/CnpjServico'
 import { DevolucaoServico } from '../../servicos/DevolucaoServico'
 import { DisponibilidadeServico } from '../../servicos/DisponibilidadeServico'
 import { EquipamentoServico } from '../../servicos/EquipamentoServico'
 import { ErroDeDominio } from '../../servicos/ErroDeDominio'
+import { FeriadosServico } from '../../servicos/FeriadosServico'
 import { FornecedorServico } from '../../servicos/FornecedorServico'
 import { ItemReservaServico } from '../../servicos/ItemReservaServico'
 import { PagamentoServico } from '../../servicos/PagamentoServico'
@@ -30,6 +32,7 @@ import { registrarClientes } from './clientes'
 import { registrarDevolucoes } from './devolucoes'
 import { registrarEquipamentos } from './equipamentos'
 import { registrarFornecedores } from './fornecedores'
+import { registrarIntegracoes } from './integracoes'
 import { registrarItensReserva } from './itensReserva'
 import { registrarPagamentos } from './pagamentos'
 import { registrarReservas } from './reservas'
@@ -66,12 +69,14 @@ export function registrarHandlers(registro: RegistroIpc, conexao: ConexaoBanco):
 
   const cep = new CepServico()
   const clima = new ClimaServico()
+  const cnpj = new CnpjServico()
+  const feriados = new FeriadosServico()
   const disponibilidade = new DisponibilidadeServico(equipamentosRepo)
 
   const fornecedores = new FornecedorServico(fornecedoresRepo)
   const clientes = new ClienteServico(clientesRepo, cep)
   const equipamentos = new EquipamentoServico(equipamentosRepo, fornecedoresRepo, disponibilidade)
-  const reservas = new ReservaServico(reservasRepo, clientesRepo, disponibilidade, clima)
+  const reservas = new ReservaServico(reservasRepo, clientesRepo, disponibilidade, clima, feriados)
   const itens = new ItemReservaServico(
     itensRepo,
     reservasRepo,
@@ -79,7 +84,7 @@ export function registrarHandlers(registro: RegistroIpc, conexao: ConexaoBanco):
     disponibilidade,
   )
   const pagamentos = new PagamentoServico(pagamentosRepo, reservasRepo)
-  const devolucoes = new DevolucaoServico(devolucoesRepo, reservasRepo)
+  const devolucoes = new DevolucaoServico(devolucoesRepo, reservasRepo, feriados)
 
   registrarCategorias(registro, new CategoriaServico(categoriasRepo))
   registrarFornecedores(registro, fornecedores)
@@ -89,4 +94,5 @@ export function registrarHandlers(registro: RegistroIpc, conexao: ConexaoBanco):
   registrarItensReserva(registro, itens)
   registrarPagamentos(registro, pagamentos)
   registrarDevolucoes(registro, devolucoes)
+  registrarIntegracoes(registro, { previsaoTempo: clima, cnpj, feriados })
 }

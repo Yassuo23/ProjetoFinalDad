@@ -27,6 +27,9 @@ import type {
   PagamentoListarFiltros,
   PeriodoEntrada,
   Reserva,
+  RespostaCnpj,
+  RespostaFeriados,
+  RespostaPrevisaoTempo,
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
@@ -110,4 +113,22 @@ export interface ServicoCep {
 
 export interface ServicoClima {
   resumo(dataInicio: string): Promise<string>
+  /** ADR 0008: consulta rica por data; opcional para colaboradores legados. */
+  consultar?(data: string): Promise<RespostaPrevisaoTempo>
+  /** `null` quando a integração está indisponível; opcional por compatibilidade. */
+  altaDemanda?(data: string): Promise<boolean | null>
+}
+
+/** Integração de previsão por data — o mesmo objeto `ClimaServico` a implementa. */
+export interface ServicoPrevisaoTempo {
+  consultar(data: string): Promise<RespostaPrevisaoTempo>
+}
+
+export interface ServicoCnpj {
+  consultar(cnpj: string): Promise<RespostaCnpj>
+}
+
+/** Método com nome próprio para não colidir com o `listar` dos repositórios. */
+export interface ServicoFeriados {
+  feriados(ano: number): Promise<RespostaFeriados>
 }
