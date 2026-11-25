@@ -37,6 +37,7 @@ import {
   ServicoItensReserva,
   ServicoReservas,
 } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -64,14 +65,13 @@ const CLASSES = {
     'inline-flex items-center gap-2 rounded-pill bg-alerta-suave px-2.5 py-1 text-xs font-semibold text-alerta',
   acoes: 'flex flex-wrap items-center gap-1',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
 const CATEGORIAS: readonly CategoriaEquipamento[] = ['Bicicleta', 'Caiaque', 'Prancha', 'Camping']
-const FORMATADOR_MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const MS_POR_DIA = 86_400_000
 
 interface FormularioReserva {
@@ -112,18 +112,6 @@ interface Confirmacao {
 
 function formularioVazio(): FormularioReserva {
   return { buscaCliente: '', clienteId: '', dataInicio: '', dataFim: '', categoria: '' }
-}
-
-function moeda(valor: number): string {
-  return FORMATADOR_MOEDA.format(valor)
-}
-
-function dataLegivel(valor: string): string {
-  const data = new Date(`${valor}T12:00:00`)
-  if (Number.isNaN(data.getTime())) {
-    return '—'
-  }
-  return data.toLocaleDateString('pt-BR')
 }
 
 function diasEntre(inicio: string, fim: string): number {
@@ -503,9 +491,13 @@ export class PaginaReservas extends Componente {
           cliente.id === Number(selecionado) ||
           termo === '' ||
           cliente.nome.toLocaleLowerCase('pt-BR').includes(termo) ||
-          cliente.cpf.includes(termo),
+          cliente.cpf.includes(termo) ||
+          formatadorPtBr.cpf(cliente.cpf).includes(termo),
       )
-      .map((cliente) => ({ valor: String(cliente.id), rotulo: `${cliente.nome} · ${cliente.cpf}` }))
+      .map((cliente) => ({
+        valor: String(cliente.id),
+        rotulo: `${cliente.nome} · ${formatadorPtBr.cpf(cliente.cpf)}`,
+      }))
   }
 
   private atualizarOpcoesCliente(): void {
@@ -551,7 +543,7 @@ export class PaginaReservas extends Componente {
               className: CLASSES.leituraTitulo,
               texto: `Reserva selecionada #${selecionada.id}: `,
             }),
-            `${this.nomeCliente(selecionada.clienteId)} · ${dataLegivel(selecionada.dataInicio)} a ${dataLegivel(selecionada.dataFim)} · ${selecionada.statusReserva}`,
+            `${this.nomeCliente(selecionada.clienteId)} · ${formatadorPtBr.data(selecionada.dataInicio)} a ${formatadorPtBr.data(selecionada.dataFim)} · ${selecionada.statusReserva}`,
           ],
         }),
       )
@@ -612,7 +604,7 @@ export class PaginaReservas extends Componente {
       )
     }
 
-    this.totalSlot = criarElemento('span', { texto: moeda(this.calcularTotal()) })
+    this.totalSlot = criarElemento('span', { texto: formatadorPtBr.moeda(this.calcularTotal()) })
     filhos.push(
       criarElemento('div', {
         className: CLASSES.total,
@@ -626,7 +618,7 @@ export class PaginaReservas extends Componente {
     if (this.totalSlot === null) {
       return
     }
-    this.totalSlot.textContent = moeda(this.calcularTotal())
+    this.totalSlot.textContent = formatadorPtBr.moeda(this.calcularTotal())
   }
 
   private calcularTotal(): number {
@@ -725,6 +717,7 @@ export class PaginaReservas extends Componente {
     if (this.reservas.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'reservas',
         titulo: 'Nenhuma reserva lançada',
         mensagem: 'Monte uma nova reserva no painel ao lado.',
         acao: { texto: 'Nova reserva', aoClicar: () => this.novo() },
@@ -769,8 +762,8 @@ export class PaginaReservas extends Componente {
     return {
       id: reserva.id,
       cliente: this.nomeCliente(reserva.clienteId),
-      inicio: dataLegivel(reserva.dataInicio),
-      fim: dataLegivel(reserva.dataFim),
+      inicio: formatadorPtBr.data(reserva.dataInicio),
+      fim: formatadorPtBr.data(reserva.dataFim),
       status: reserva.statusReserva,
       previsao: reserva.previsaoTempo?.trim() || '—',
       ativo: reserva.ativo,
@@ -1046,11 +1039,11 @@ export class PaginaReservas extends Componente {
       filhos: [
         criarElemento('p', {
           className: CLASSES.leituraLinha,
-          texto: `${this.nomeCliente(dados.clienteId)} · ${dataLegivel(dados.dataInicio)} a ${dataLegivel(dados.dataFim)} · ${itens.length} item(ns).`,
+          texto: `${this.nomeCliente(dados.clienteId)} · ${formatadorPtBr.data(dados.dataInicio)} a ${formatadorPtBr.data(dados.dataFim)} · ${itens.length} item(ns).`,
         }),
         criarElemento('p', {
           className: CLASSES.leituraLinha,
-          texto: `Total estimado: ${moeda(this.calcularTotal())}.`,
+          texto: `Total estimado: ${formatadorPtBr.moeda(this.calcularTotal())}.`,
         }),
         criarElemento('p', {
           className: CLASSES.aviso,
@@ -1100,11 +1093,11 @@ export class PaginaReservas extends Componente {
       filhos: [
         criarElemento('p', {
           className: CLASSES.leituraLinha,
-          texto: `${this.nomeCliente(dados.clienteId ?? 0)} · ${dataLegivel(dados.dataInicio ?? '')} a ${dataLegivel(dados.dataFim ?? '')} · ${itens.length} item(ns).`,
+          texto: `${this.nomeCliente(dados.clienteId ?? 0)} · ${formatadorPtBr.data(dados.dataInicio ?? '')} a ${formatadorPtBr.data(dados.dataFim ?? '')} · ${itens.length} item(ns).`,
         }),
         criarElemento('p', {
           className: CLASSES.leituraLinha,
-          texto: `Total estimado: ${moeda(this.calcularTotal())}.`,
+          texto: `Total estimado: ${formatadorPtBr.moeda(this.calcularTotal())}.`,
         }),
         criarElemento('p', {
           className: CLASSES.aviso,

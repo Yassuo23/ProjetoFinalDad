@@ -29,6 +29,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoClientes, ServicoPagamentos, ServicoReservas } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -50,9 +51,9 @@ const CLASSES = {
   avisoDesatualizado:
     'inline-flex items-center gap-2 rounded-pill bg-alerta-suave px-2.5 py-1 text-xs font-semibold text-alerta',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
   acoes: 'flex flex-wrap items-center gap-1',
   leituraLinha: 'mb-2 text-sm text-grafite',
   leituraTitulo: 'font-semibold text-floresta',
@@ -61,7 +62,6 @@ const CLASSES = {
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
 const FORMAS: readonly FormaPagamento[] = ['Pix', 'Cartão de Crédito', 'Dinheiro']
 const STATUS: readonly StatusPagamento[] = ['Pendente', 'Pago', 'Estornado']
-const FORMATADOR_MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
 interface FormularioPagamento {
   reservaId: string
@@ -133,21 +133,6 @@ function formularioDe(pagamento: Pagamento): FormularioPagamento {
   }
 }
 
-function moeda(valor: number): string {
-  return FORMATADOR_MOEDA.format(valor)
-}
-
-function dataLegivel(valor: string | null): string {
-  if (valor === null) {
-    return '—'
-  }
-  const data = new Date(valor)
-  if (Number.isNaN(data.getTime())) {
-    return '—'
-  }
-  return data.toLocaleDateString('pt-BR')
-}
-
 function ehFormaPagamento(valor: string): valor is FormaPagamento {
   return FORMAS.some((forma) => forma === valor)
 }
@@ -174,7 +159,7 @@ const COLUNAS: readonly ColunaTabela<LinhaPagamento>[] = [
     rotulo: 'Valor',
     alinhamento: 'direita',
     ordenavel: true,
-    celula: (linha) => moeda(linha.valor),
+    celula: (linha) => formatadorPtBr.moeda(linha.valor),
   },
   { chave: 'forma', rotulo: 'Forma' },
   {
@@ -405,9 +390,9 @@ export class PaginaPagamentos extends Componente {
     const multas = filtrados.reduce((total, item) => total + item.valorMulta, 0)
 
     this.kpiSlot.replaceChildren(
-      this.criarCard('Recebido', moeda(recebido)),
-      this.criarCard('Pendente', moeda(pendente)),
-      this.criarCard('Multas', moeda(multas)),
+      this.criarCard('Recebido', formatadorPtBr.moeda(recebido)),
+      this.criarCard('Pendente', formatadorPtBr.moeda(pendente)),
+      this.criarCard('Multas', formatadorPtBr.moeda(multas)),
     )
   }
 
@@ -575,10 +560,10 @@ export class PaginaPagamentos extends Componente {
                   ? 'Multa'
                   : 'Reserva',
             ),
-            this.linhaLeitura('Valor', moeda(pagamento.valorTotal)),
+            this.linhaLeitura('Valor', formatadorPtBr.moeda(pagamento.valorTotal)),
             this.linhaLeitura('Forma', pagamento.formaPagamento ?? '—'),
             this.linhaLeitura('Status', pagamento.statusPagamento),
-            this.linhaLeitura('Data', dataLegivel(pagamento.dataPagamento)),
+            this.linhaLeitura('Data', formatadorPtBr.data(pagamento.dataPagamento)),
           ]
 
     return criarElemento('div', { filhos: linhas })
@@ -626,6 +611,7 @@ export class PaginaPagamentos extends Componente {
     if (filtrados.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'reservas',
         titulo: 'Nenhum pagamento no período',
         mensagem: 'Ajuste o filtro ou registre um novo pagamento.',
         acao: {
@@ -684,7 +670,7 @@ export class PaginaPagamentos extends Componente {
       valor: pagamento.valorTotal,
       forma: pagamento.formaPagamento ?? '—',
       status: pagamento.statusPagamento,
-      data: dataLegivel(pagamento.dataPagamento),
+      data: formatadorPtBr.data(pagamento.dataPagamento),
       ativo: pagamento.ativo,
       acoes: '',
     }
@@ -776,7 +762,7 @@ export class PaginaPagamentos extends Componente {
         termo === '' ||
         cliente.includes(termo) ||
         String(pagamento.reservaId).includes(termo) ||
-        moeda(pagamento.valorTotal).includes(termo)
+        formatadorPtBr.moeda(pagamento.valorTotal).includes(termo)
       const combinaStatus = this.statusFiltro === '' || pagamento.statusPagamento === this.statusFiltro
       const dia = (pagamento.dataPagamento ?? pagamento.atualizadoEm).slice(0, 10)
       const combinaInicio = this.inicio === '' || dia >= this.inicio
@@ -1057,7 +1043,7 @@ export class PaginaPagamentos extends Componente {
     }
     this.confirmar({
       titulo: 'Baixar pagamento',
-      mensagem: `Confirmar o recebimento de ${moeda(pagamento.valorTotal)} da reserva #${pagamento.reservaId}?`,
+      mensagem: `Confirmar o recebimento de ${formatadorPtBr.moeda(pagamento.valorTotal)} da reserva #${pagamento.reservaId}?`,
       rotulo: 'Baixar',
       acao: () => {
         void (async () => {
@@ -1092,7 +1078,7 @@ export class PaginaPagamentos extends Componente {
     }
     this.confirmar({
       titulo: 'Estornar pagamento',
-      mensagem: `Estornar ${moeda(pagamento.valorTotal)} da reserva #${pagamento.reservaId}?`,
+      mensagem: `Estornar ${formatadorPtBr.moeda(pagamento.valorTotal)} da reserva #${pagamento.reservaId}?`,
       rotulo: 'Estornar',
       acao: () => {
         void (async () => {

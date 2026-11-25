@@ -3,6 +3,7 @@ import { Badge, Botao, Carregando, EstadoErro, EstadoVazio, Tabela } from '../co
 import type { ColunaTabela, TomBadge } from '../componentes'
 import { Componente, criarElemento, criarIcone, substituirConteudo } from '../nucleo'
 import { DashboardServico, hojeISO } from '../servicos'
+import { formatadorPtBr } from '../util'
 import type { CondicaoClima, DadosDashboard, PrevisaoTempo, StatusPagamento } from '../servicos'
 
 const CLASSES = {
@@ -172,10 +173,6 @@ function tomPagamento(status: StatusPagamento): TomBadge {
   return status === 'estornado' ? 'neutro' : 'alerta'
 }
 
-function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 function pluralizar(quantidade: number, singular: string, plural: string): string {
   return `${quantidade} ${quantidade === 1 ? singular : plural}`
 }
@@ -308,7 +305,7 @@ export class PaginaDashboard extends Componente {
           destaque:
             atrasadas > 0
               ? new Badge({
-                  texto: `${pluralizar(atrasadas, 'atrasada', 'atrasadas')} · ${formatarMoeda(multas)} em multas`,
+                  texto: `${pluralizar(atrasadas, 'atrasada', 'atrasadas')} · ${formatadorPtBr.moeda(multas)} em multas`,
                   tom: 'erro',
                 }).raiz
               : undefined,
@@ -323,7 +320,7 @@ export class PaginaDashboard extends Componente {
         }),
         this.criarKpi({
           rotulo: 'Faturamento do dia',
-          valor: formatarMoeda(dados.faturamento.valor),
+          valor: formatadorPtBr.moeda(dados.faturamento.valor),
           icone: ICONES.faturamento,
           classeIcone: CLASSES.icone,
           destaque: new Badge({
@@ -393,6 +390,7 @@ export class PaginaDashboard extends Componente {
     if (linhas.length === 0) {
       const vazio = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'reservas',
         titulo: 'Nenhuma reserva para hoje',
         mensagem: 'Cadastre uma nova reserva para começar o dia.',
         acao: {

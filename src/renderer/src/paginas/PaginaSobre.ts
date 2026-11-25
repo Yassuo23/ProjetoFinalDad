@@ -18,7 +18,7 @@ const CLASSES = {
   erro: 'flex flex-col items-start gap-3 rounded-card border border-erro/40 bg-erro-suave p-5',
   erroTexto: 'max-w-md text-sm text-grafite',
   botao:
-    'cursor-pointer rounded-control bg-lima px-4 py-2.5 text-sm font-semibold text-grafite transition-colors hover:bg-geleira focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'cursor-pointer rounded-control bg-lima px-4 py-2.5 text-sm font-semibold text-grafite transition-colors motion-reduce:transition-none hover:bg-geleira focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
 } as const
 
 const ROTULOS: ReadonlyArray<readonly [string, keyof AppInfo]> = [

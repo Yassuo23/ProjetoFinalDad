@@ -27,6 +27,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoFornecedores, ServicoIntegracoes } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -47,9 +48,9 @@ const CLASSES = {
   avisoDesatualizado:
     'inline-flex items-center gap-2 rounded-pill bg-alerta-suave px-2.5 py-1 text-xs font-semibold text-alerta',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
   acoes: 'flex flex-wrap items-center gap-1',
   textoLeitura: 'text-sm text-grafite',
 } as const
@@ -73,8 +74,8 @@ function formularioVazio(): FormularioFornecedor {
 function formularioDe(fornecedor: Fornecedor): FormularioFornecedor {
   return {
     nome: fornecedor.nome,
-    cnpj: fornecedor.cnpj,
-    telefone: fornecedor.telefone ?? '',
+    cnpj: formatadorPtBr.cnpj(fornecedor.cnpj),
+    telefone: formatadorPtBr.telefone(fornecedor.telefone ?? ''),
     email: fornecedor.email ?? '',
     tipo: fornecedor.tipo ?? '',
   }
@@ -83,10 +84,6 @@ function formularioDe(fornecedor: Fornecedor): FormularioFornecedor {
 function opcional(valor: string): string | null {
   const limpo = valor.trim()
   return limpo === '' ? null : limpo
-}
-
-function somenteDigitos(valor: string): string {
-  return valor.replace(/\D/g, '')
 }
 
 function ehTipoFornecedor(valor: string): valor is TipoFornecedor {
@@ -112,7 +109,7 @@ const COLUNAS: readonly ColunaTabela<Fornecedor>[] = [
       }).raiz,
   },
   { chave: 'email', rotulo: 'Contato' },
-  { chave: 'telefone', rotulo: 'Telefone' },
+  { chave: 'telefone', rotulo: 'Telefone', celula: (linha) => formatadorPtBr.telefone(linha.telefone ?? '') },
   {
     chave: 'ativo',
     rotulo: 'Situação',
@@ -230,6 +227,7 @@ export class PaginaFornecedores extends Componente {
     if (!ehAdministrador()) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'pessoas',
         titulo: 'Área administrativa',
         mensagem: 'Somente o administrador pode consultar e cadastrar fornecedores.',
         acao: {
@@ -378,6 +376,7 @@ export class PaginaFornecedores extends Componente {
         placeholder: '00.000.000/0000-00',
         aoAlterar: (valor) => {
           estado.cnpj = valor
+          campos.cnpj.definirValor(formatadorPtBr.cnpj(valor))
           campos.cnpj.definirErro(null)
         },
       }),
@@ -410,6 +409,7 @@ export class PaginaFornecedores extends Componente {
         placeholder: '(11) 3333-4444',
         aoAlterar: (valor) => {
           estado.telefone = valor
+          campos.telefone.definirValor(formatadorPtBr.telefone(valor))
         },
       }),
     }
@@ -482,6 +482,7 @@ export class PaginaFornecedores extends Componente {
     if (filtrados.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'pessoas',
         titulo: 'Nenhum fornecedor cadastrado',
         mensagem:
           this.busca.trim() === '' && this.tipo === ''
@@ -666,7 +667,7 @@ export class PaginaFornecedores extends Componente {
   }
 
   private async consultarCnpj(): Promise<void> {
-    const digitos = somenteDigitos(this.formulario.cnpj)
+    const digitos = formatadorPtBr.digitos(this.formulario.cnpj)
     if (digitos.length !== 14) {
       this.campos?.cnpj.definirErro('Informe um CNPJ com 14 dígitos antes de consultar.')
       return
@@ -732,7 +733,7 @@ export class PaginaFornecedores extends Componente {
     marcar(campos.nome, this.formulario.nome.trim() === '' ? 'Informe a razão social.' : null)
     marcar(
       campos.cnpj,
-      somenteDigitos(this.formulario.cnpj).length !== 14 ? 'Informe um CNPJ com 14 dígitos.' : null,
+      formatadorPtBr.digitos(this.formulario.cnpj).length !== 14 ? 'Informe um CNPJ com 14 dígitos.' : null,
     )
     const email = this.formulario.email.trim()
     marcar(
@@ -762,8 +763,8 @@ export class PaginaFornecedores extends Componente {
     const tipo = ehTipoFornecedor(this.formulario.tipo) ? this.formulario.tipo : null
     const dadosComuns = {
       nome: this.formulario.nome.trim(),
-      cnpj: somenteDigitos(this.formulario.cnpj),
-      telefone: opcional(this.formulario.telefone),
+      cnpj: formatadorPtBr.digitos(this.formulario.cnpj),
+      telefone: opcional(formatadorPtBr.digitos(this.formulario.telefone)),
       email: opcional(this.formulario.email),
       tipo,
     }

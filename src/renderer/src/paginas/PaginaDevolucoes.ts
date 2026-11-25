@@ -34,6 +34,7 @@ import {
   ServicoPagamentos,
   ServicoReservas,
 } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -58,14 +59,13 @@ const CLASSES = {
   cabecalhoFixo: 'sticky top-0 z-10 bg-floresta text-pedra',
   acoes: 'flex flex-wrap items-center gap-1',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
 const ESTADOS: readonly EstadoPosUso[] = ['Perfeito', 'Com avarias leves', 'Danificado']
-const FORMATADOR_MOEDA = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 const MS_POR_DIA = 86_400_000
 
 interface FormularioDevolucao {
@@ -129,21 +129,6 @@ type PatchDevolucao = {
   dataDevolucaoEfetiva?: string
   estadoPosUso?: EstadoPosUso
   observacoes?: string | null
-}
-
-function moeda(valor: number): string {
-  return FORMATADOR_MOEDA.format(valor)
-}
-
-function dataLegivel(valor: string | null | undefined): string {
-  if (valor === null || valor === undefined || valor === '') {
-    return '—'
-  }
-  const data = new Date(valor.includes('T') ? valor : `${valor}T12:00:00`)
-  if (Number.isNaN(data.getTime())) {
-    return '—'
-  }
-  return data.toLocaleDateString('pt-BR')
 }
 
 function dia(valor: string): string {
@@ -539,8 +524,8 @@ export class PaginaDevolucoes extends Componente {
     const linhas: Array<Node | string> = [
       this.linhaLeitura('Reserva', `#${devolucao.reservaId}`),
       this.linhaLeitura('Cliente', this.nomeCliente(reserva?.clienteId ?? 0)),
-      this.linhaLeitura('Prevista', dataLegivel(reserva?.dataFim)),
-      this.linhaLeitura('Devolvida', dataLegivel(devolucao.dataDevolucaoEfetiva)),
+      this.linhaLeitura('Prevista', formatadorPtBr.data(reserva?.dataFim)),
+      this.linhaLeitura('Devolvida', formatadorPtBr.data(devolucao.dataDevolucaoEfetiva)),
       this.linhaLeitura('Conservação', devolucao.estadoPosUso),
       this.linhaLeitura('Observações', devolucao.observacoes?.trim() || '—'),
     ]
@@ -584,11 +569,11 @@ export class PaginaDevolucoes extends Componente {
     const filhos: Array<Node | string> = [
       criarElemento('div', {
         className: CLASSES.valorLinha,
-        filhos: ['Multa', moeda(pagamento.valorMulta)],
+        filhos: ['Multa', formatadorPtBr.moeda(pagamento.valorMulta)],
       }),
       criarElemento('div', {
         className: CLASSES.valorLinha,
-        filhos: ['Total', moeda(pagamento.valorTotal)],
+        filhos: ['Total', formatadorPtBr.moeda(pagamento.valorTotal)],
       }),
       criarElemento('p', {
         className: CLASSES.aviso,
@@ -624,7 +609,7 @@ export class PaginaDevolucoes extends Componente {
   private opcoesPendentes(): readonly { readonly valor: string; readonly rotulo: string }[] {
     return this.pendentes().map((item) => ({
       valor: String(item.id),
-      rotulo: `#${item.id} · ${this.nomeCliente(item.clienteId)} · prevista ${dataLegivel(item.dataFim)}`,
+      rotulo: `#${item.id} · ${this.nomeCliente(item.clienteId)} · prevista ${formatadorPtBr.data(item.dataFim)}`,
     }))
   }
 
@@ -679,6 +664,7 @@ export class PaginaDevolucoes extends Componente {
     if (filtradas.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'reservas',
         titulo: 'Nenhuma devolução pendente',
         mensagem: this.busca === '' ? 'Todas as reservas já têm devolução registrada.' : 'Ajuste a busca.',
         acao:
@@ -744,8 +730,10 @@ export class PaginaDevolucoes extends Componente {
     if (filtradas.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'manutencao',
         titulo: 'Nenhuma devolução registrada',
         mensagem: 'Registre uma devolução na tabela de pendentes.',
+        acao: { texto: 'Registrar devolução', aoClicar: () => this.novo() },
       }).montar(area)
       this.areaRegistradas.replaceChildren(area)
       return
@@ -778,7 +766,7 @@ export class PaginaDevolucoes extends Componente {
     return {
       id: reserva.id,
       cliente: this.nomeCliente(reserva.clienteId),
-      prevista: dataLegivel(reserva.dataFim),
+      prevista: formatadorPtBr.data(reserva.dataFim),
       status: reserva.statusReserva,
       acoes: '',
     }
@@ -790,7 +778,7 @@ export class PaginaDevolucoes extends Componente {
       id: devolucao.id,
       reserva: devolucao.reservaId,
       cliente: this.nomeCliente(reserva?.clienteId ?? 0),
-      devolvida: dataLegivel(devolucao.dataDevolucaoEfetiva),
+      devolvida: formatadorPtBr.data(devolucao.dataDevolucaoEfetiva),
       conservacao: devolucao.estadoPosUso,
       prazo: '',
       atraso: diasAtraso(devolucao.dataDevolucaoEfetiva, reserva?.dataFim ?? ''),
@@ -1242,7 +1230,7 @@ export class PaginaDevolucoes extends Componente {
       filhos: [
         criarElemento('p', {
           className: CLASSES.leituraLinha,
-          texto: `Multa atual: ${moeda(pagamento.valorMulta)}. Nova multa: ${moeda(valor)}.`,
+          texto: `Multa atual: ${formatadorPtBr.moeda(pagamento.valorMulta)}. Nova multa: ${formatadorPtBr.moeda(valor)}.`,
         }),
         criarElemento('p', {
           className: CLASSES.aviso,

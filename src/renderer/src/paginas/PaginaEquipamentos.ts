@@ -34,6 +34,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { EquipamentoServico, ServicoFornecedores } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -53,9 +54,9 @@ const CLASSES = {
   avisoDesatualizado:
     'inline-flex items-center gap-2 rounded-pill bg-alerta-suave px-2.5 py-1 text-xs font-semibold text-alerta',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
   acoes: 'flex flex-wrap items-center gap-1',
   textoLeitura: 'text-sm text-grafite',
   contador: 'text-xs text-floresta/70',
@@ -173,10 +174,6 @@ function valorDiariaDoFormulario(valor: string): number {
   return Number.isFinite(numero) && numero >= 0 ? numero : 0
 }
 
-function moeda(valor: number): string {
-  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
 function formularioVazio(): FormularioEquipamento {
   return {
     nome: '',
@@ -263,7 +260,7 @@ const COLUNAS: readonly ColunaTabela<LinhaEquipamento>[] = [
     chave: 'valorDiaria',
     rotulo: 'Diária',
     ordenavel: true,
-    celula: (linha) => moeda(linha.valorDiaria),
+    celula: (linha) => formatadorPtBr.moeda(linha.valorDiaria),
   },
   {
     chave: 'ativo',
@@ -766,6 +763,7 @@ export class PaginaEquipamentos extends Componente {
         this.filtroDisponibilidade === ''
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'equipamentos',
         titulo: semFiltros
           ? 'Nenhum equipamento cadastrado'
           : 'Nenhum equipamento com esses filtros',

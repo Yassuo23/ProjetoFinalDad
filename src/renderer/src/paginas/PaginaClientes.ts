@@ -25,6 +25,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoClientes } from '../servicos'
+import { formatadorPtBr } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -44,12 +45,12 @@ const CLASSES = {
   avisoDesatualizado:
     'inline-flex items-center gap-2 rounded-pill bg-alerta-suave px-2.5 py-1 text-xs font-semibold text-alerta',
   acao:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   acaoPerigo:
-    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center rounded-control px-2 py-1 text-xs font-semibold text-erro transition-colors motion-reduce:transition-none hover:bg-erro-suave focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
   acoes: 'flex flex-wrap items-center gap-1',
   botaoManual:
-    'self-start rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'self-start rounded-control px-2 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   oculto: 'hidden',
   textoLeitura: 'text-sm text-grafite',
 } as const
@@ -100,10 +101,10 @@ function formularioVazio(): FormularioCliente {
 function formularioDe(cliente: Cliente): FormularioCliente {
   return {
     nome: cliente.nome,
-    cpf: cliente.cpf,
-    telefone: cliente.telefone ?? '',
+    cpf: formatadorPtBr.cpf(cliente.cpf),
+    telefone: formatadorPtBr.telefone(cliente.telefone ?? ''),
     email: cliente.email ?? '',
-    cep: cliente.cep ?? '',
+    cep: formatadorPtBr.cep(cliente.cep ?? ''),
     logradouro: cliente.logradouro ?? '',
     numero: cliente.numero ?? '',
     complemento: cliente.complemento ?? '',
@@ -126,17 +127,13 @@ function codigoDoErro(erro: unknown): string | null {
   return typeof codigo === 'string' ? codigo : null
 }
 
-function somenteDigitos(valor: string): string {
-  return valor.replace(/\D/g, '')
-}
-
 function normalizarUf(valor: string): string {
   return valor.trim().toUpperCase()
 }
 
 const COLUNAS: readonly ColunaTabela<Cliente>[] = [
   { chave: 'nome', rotulo: 'Nome', ordenavel: true },
-  { chave: 'telefone', rotulo: 'Telefone' },
+  { chave: 'telefone', rotulo: 'Telefone', celula: (linha) => formatadorPtBr.telefone(linha.telefone ?? '') },
   { chave: 'cidade', rotulo: 'Cidade', ordenavel: true },
   {
     chave: 'ativo',
@@ -365,6 +362,7 @@ export class PaginaClientes extends Componente {
         placeholder: '000.000.000-00',
         aoAlterar: (valor) => {
           estado.cpf = valor
+          campos.cpf.definirValor(formatadorPtBr.cpf(valor))
           campos.cpf.definirErro(null)
         },
       }),
@@ -376,6 +374,7 @@ export class PaginaClientes extends Componente {
         placeholder: '(11) 99999-9999',
         aoAlterar: (valor) => {
           estado.telefone = valor
+          campos.telefone.definirValor(formatadorPtBr.telefone(valor))
         },
       }),
       email: new Campo({
@@ -396,6 +395,7 @@ export class PaginaClientes extends Componente {
         placeholder: '00000-000',
         aoAlterar: (valor) => {
           estado.cep = valor
+          campos.cep.definirValor(formatadorPtBr.cep(valor))
           campos.cep.definirErro(null)
           void this.buscarCepQuandoCompleto(valor)
         },
@@ -509,7 +509,7 @@ export class PaginaClientes extends Componente {
   }
 
   private async buscarCepQuandoCompleto(valor: string, forcar = false): Promise<void> {
-    const digitos = somenteDigitos(valor)
+    const digitos = formatadorPtBr.digitos(valor)
     if (digitos.length !== 8) {
       this.cepConsultado = ''
       return
@@ -589,6 +589,7 @@ export class PaginaClientes extends Componente {
     if (filtrados.length === 0) {
       const area = criarElemento('div')
       new EstadoVazio({
+        ilustracao: 'pessoas',
         titulo: 'Nenhum cliente cadastrado',
         mensagem:
           this.busca.trim() === ''
@@ -756,12 +757,12 @@ export class PaginaClientes extends Componente {
     }
 
     marcar(campos.nome, this.formulario.nome.trim() === '' ? 'Informe o nome.' : null)
-    const cpfDigitos = somenteDigitos(this.formulario.cpf)
+    const cpfDigitos = formatadorPtBr.digitos(this.formulario.cpf)
     marcar(
       campos.cpf,
       cpfDigitos.length !== 11 ? 'Informe um CPF com 11 dígitos.' : null,
     )
-    const cepDigitos = somenteDigitos(this.formulario.cep)
+    const cepDigitos = formatadorPtBr.digitos(this.formulario.cep)
     marcar(
       campos.cep,
       cepDigitos !== '' && cepDigitos.length !== 8 ? 'Informe um CEP com 8 dígitos.' : null,
@@ -801,10 +802,10 @@ export class PaginaClientes extends Componente {
 
     const dadosComuns = {
       nome: this.formulario.nome.trim(),
-      cpf: somenteDigitos(this.formulario.cpf),
-      telefone: opcional(this.formulario.telefone),
+      cpf: formatadorPtBr.digitos(this.formulario.cpf),
+      telefone: opcional(formatadorPtBr.digitos(this.formulario.telefone)),
       email: opcional(this.formulario.email),
-      cep: opcional(somenteDigitos(this.formulario.cep)),
+      cep: opcional(formatadorPtBr.digitos(this.formulario.cep)),
       logradouro: opcional(this.formulario.logradouro),
       numero: opcional(this.formulario.numero),
       complemento: opcional(this.formulario.complemento),
