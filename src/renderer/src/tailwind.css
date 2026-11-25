@@ -1,3 +1,7 @@
+@import '@fontsource/fraunces/latin-400.css';
+@import '@fontsource/fraunces/latin-600.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-600.css';
 @import 'tailwindcss';
 
 @theme {
@@ -22,8 +26,8 @@
   --color-sucesso-suave: #e3f2d0;
   --color-sucesso-claro: #c6f135;
 
-  /* Tipografia: pacotes @fontsource aguardam aprovação do Arquiteto;
-     os fallbacks locais (Segoe UI/Arial/Georgia) já atendem à CSP. */
+  /* Tipografia: @fontsource estático (Fraunces/Inter, pesos 400 e 600) importado
+     acima. CSP de produção permite font-src 'self' data: — sem CDN nem URL remota. */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter', 'Segoe UI', Arial, system-ui, sans-serif;
 

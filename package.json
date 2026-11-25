@@ -44,6 +44,8 @@
     "wait-on": "^9.5.1"
   },
   "dependencies": {
+    "@fontsource/fraunces": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
     "mysql2": "^3.24.6",
     "zod": "^4.6.7"
   }

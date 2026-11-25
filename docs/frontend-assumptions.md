@@ -82,3 +82,51 @@ Estes canais existem no contrato e no preload, mas **não têm handler registrad
 
 `auth:*` e `usuarios:*` permanecem fora de escopo por determinação do usuário; o fluxo atual de
 perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
+
+## Fundação visual
+
+### Decisões aplicadas
+
+- **Tipografia:** o pedido explícito prevaleceu sobre `docs/design-system.md` §5.4. Foram
+  instalados `@fontsource/fraunces` e `@fontsource/inter` **estáticos** (não as variáveis
+  recomendadas no DS), apenas nos pesos efetivamente usados pelo renderer — 400 e 600 — e no
+  subset `latin`, que cobre os acentos pt-BR (`Ê`, `ç`, `ã`, `é`). A instalação foi autorizada
+  pelo usuário/Arquiteto. Os imports ficam no topo de `src/renderer/src/tailwind.css`, antes de
+  `@import 'tailwindcss'`, sem CDN, URL remota ou arquivo `.css` escrito à mão. A CSP de produção
+  em `src/main/seguranca/Csp.ts` já contém `font-src 'self' data:`; nenhum ajuste de CSP foi
+  necessário e o main não foi alterado.
+- **Logo:** são usados os **PNGs oficiais** em `src/renderer/src/assets/brand/`, importados pelo
+  Vite em `src/renderer/src/layout/LogoZenite.ts`. Mapeamento: `fundo='escuro'` →
+  `logo-escuro.png` (746×315, fundo `rgb(13,21,18)`) e `fundo='claro'` → `logo-claro.png`
+  (920×387, fundo `rgb(236,233,225)`). A variante completa renderiza o PNG inteiro em `<img>` com
+  `alt` em pt-BR; a variante compacta mostra **apenas o símbolo oficial recortado do PNG**, sem
+  redesenho vetorial: wrapper `relative size-8 shrink-0 overflow-hidden` com `bg-grafite` ou
+  `bg-pedra` conforme o fundo do arquivo, e `<img>` absoluto com `w-[...] h-[...]` e `left/top`
+  negativos arbitrários. Os limites medidos do símbolo são x 32–219 / y 61–249 no PNG escuro e
+  x 55–286 / y 78–308 no PNG claro; o recorte usa esses valores escalados para 32 px. A sidebar
+  em `w-16` usa a compacta e em `lg:w-sidebar` usa a completa. Não há SVG autoral para a marca,
+  nem imagem remota, `style=`, `innerHTML` dinâmico ou `any`.
+- **Formatação pt-BR:** uma única classe pura, `FormatadorPtBr` (`src/renderer/src/util/`), substituiu
+  os formatadores locais duplicados de Dashboard, Equipamentos, Devoluções, Pagamentos e Reservas e
+  a formatação de `Date` em `Tabela.ts`. CPF, CNPJ, telefone e CEP passaram a ter máscara progressiva
+  nos formulários de Clientes/Fornecedores, e o CPF também aparece mascarado no seletor de clientes
+  de Reservas. A data aceita ISO `aaaa-mm-dd` (com ou sem hora) e é convertida por componentes
+  locais — sem `toLocaleDateString` em cada tela, sem deslocamento de fuso. Entrada inválida devolve
+  `—`. Testes Vitest cobrem válidos, inválidos e máscaras parciais.
+- **Estados e movimento:** `EstadoVazio` ganhou ilustrações SVG originais em traço 1,5 px, uma por
+  contexto (reservas, equipamentos, categorias, manutenção, pessoas), desenhadas em `criarIlustracao`
+  com `createElementNS` e `path` tipados. `Tabela` usa skeleton (`Carregando` com `variante:
+  'skeleton'`) no lugar do spinner. Animações e transições receberam `motion-reduce:animate-none` /
+  `motion-reduce:transition-none` em todos os componentes e páginas, conforme DS §9.6. O traço de
+  `criarIcone` passou de 1,75 para 1,5 px, conforme DS §9.4.
+
+### Handoff / risco residual
+
+- Nenhuma mudança de contrato IPC foi necessária: formatação pt-BR e assets são puramente de
+  apresentação. Os valores enviados ao main (CPF/CNPJ/CEP/telefone) continuam sem máscara, como
+  exige o contrato; `telefone` agora é normalizado para dígitos antes de sair do renderer.
+- As máscaras progressivas são aplicadas com `Campo.definirValor` dentro de `aoAlterar`; isso não
+  dispara novo evento `input`, mas reposiciona o cursor no fim do campo. É uma limitação conhecida
+  de UX, sem impacto em validação ou contrato.
+- As ilustrações são autorais e não substituem nenhum asset oficial; foram adotadas porque o DS as
+  descreve em texto e não há SVG original no repositório.
