@@ -32,13 +32,13 @@ const CLASSES = {
   container:
     'w-full divide-y divide-granito/30 overflow-hidden rounded-card border border-granito/45 bg-superficie text-sm',
   opcao:
-    'flex min-h-row w-full items-center gap-3 px-4 py-2 text-left text-sm text-grafite transition-colors hover:bg-pedra/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'flex min-h-row w-full items-center gap-3 px-4 py-2 text-left text-sm text-grafite transition-colors motion-reduce:transition-none hover:bg-pedra/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   opcaoSelecionada:
-    'flex min-h-row w-full items-center gap-3 bg-lima/20 px-4 py-2 text-left text-sm text-floresta ring-1 ring-inset ring-floresta transition-colors hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'flex min-h-row w-full items-center gap-3 bg-lima/20 px-4 py-2 text-left text-sm text-floresta ring-1 ring-inset ring-floresta transition-colors motion-reduce:transition-none hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   opcaoDesabilitada:
-    'flex min-h-row w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm text-grafite opacity-60 transition-colors',
+    'flex min-h-row w-full cursor-not-allowed items-center gap-3 px-4 py-2 text-left text-sm text-grafite opacity-60 transition-colors motion-reduce:transition-none',
   opcaoSelecionadaDesabilitada:
-    'flex min-h-row w-full cursor-not-allowed items-center gap-3 bg-lima/20 px-4 py-2 text-left text-sm text-floresta opacity-60 ring-1 ring-inset ring-floresta transition-colors',
+    'flex min-h-row w-full cursor-not-allowed items-center gap-3 bg-lima/20 px-4 py-2 text-left text-sm text-floresta opacity-60 ring-1 ring-inset ring-floresta transition-colors motion-reduce:transition-none',
   texto: 'flex min-w-0 flex-1 flex-col',
   rotulo: 'truncate text-sm text-grafite',
   rotuloSelecionado: 'truncate text-sm text-floresta',

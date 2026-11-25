@@ -38,25 +38,46 @@ export function substituirConteudo(destino: Element, ...filhos: Array<Node | str
 }
 
 const NS_SVG = 'http://www.w3.org/2000/svg'
+const TRACO_ICONE = '1.5'
+
+/** Base comum: grade 24×24, traço 1,5 px e decorativa por padrão. */
+function criarSvgBase(className: string): SVGSVGElement {
+  const svg = document.createElementNS(NS_SVG, 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', TRACO_ICONE)
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.setAttribute('class', className)
+  return svg
+}
+
+function adicionarTraco(svg: SVGSVGElement, caminho: string): void {
+  const traco = document.createElementNS(NS_SVG, 'path')
+  traco.setAttribute('d', caminho)
+  svg.append(traco)
+}
 
 /** Ícone inline com stroke-current; decorativo por padrão (aria-hidden). */
 export function criarIcone(
   caminho: string,
   className = 'size-4 stroke-current shrink-0',
 ): SVGSVGElement {
-  const svg = document.createElementNS(NS_SVG, 'svg')
-  svg.setAttribute('viewBox', '0 0 24 24')
-  svg.setAttribute('fill', 'none')
-  svg.setAttribute('stroke', 'currentColor')
-  svg.setAttribute('stroke-width', '1.75')
-  svg.setAttribute('stroke-linecap', 'round')
-  svg.setAttribute('stroke-linejoin', 'round')
-  svg.setAttribute('aria-hidden', 'true')
-  svg.setAttribute('class', className)
+  const svg = criarSvgBase(className)
+  adicionarTraco(svg, caminho)
+  return svg
+}
 
-  const traco = document.createElementNS(NS_SVG, 'path')
-  traco.setAttribute('d', caminho)
-  svg.append(traco)
-
+/** Ilustração original de estado vazio: vários traços no mesmo SVG tipado. */
+export function criarIlustracao(
+  caminhos: readonly string[],
+  className = 'size-10 stroke-current shrink-0',
+): SVGSVGElement {
+  const svg = criarSvgBase(className)
+  for (const caminho of caminhos) {
+    adicionarTraco(svg, caminho)
+  }
   return svg
 }

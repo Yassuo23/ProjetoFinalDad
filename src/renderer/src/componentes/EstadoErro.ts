@@ -16,7 +16,7 @@ const CLASSES = {
   mensagem: 'max-w-md text-sm text-grafite',
   detalhes: 'mt-2 text-xs text-erro',
   botao:
-    'inline-flex items-center justify-center gap-2 rounded-control border border-granito/45 bg-superficie px-4 py-2.5 text-sm font-semibold text-floresta transition-colors hover:bg-pedra focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
+    'inline-flex items-center justify-center gap-2 rounded-control border border-granito/45 bg-superficie px-4 py-2.5 text-sm font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-pedra focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-erro',
 } as const
 
 const ICONE = 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 7v6M12 16h.01'

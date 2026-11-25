@@ -1,4 +1,5 @@
 import { Componente, criarElemento } from '../nucleo'
+import { formatadorPtBr } from '../util'
 import { Carregando } from './Carregando'
 
 export interface ColunaTabela<T> {
@@ -36,11 +37,11 @@ const CLASSES = {
   botaoOrdenacaoDireita:
     'flex w-full items-center justify-end gap-1 text-right uppercase tracking-wider focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima',
   indicador: 'text-xs text-lima',
-  linha: 'h-row border-t border-granito/30 transition-colors hover:bg-pedra/60',
+  linha: 'h-row border-t border-granito/30 transition-colors motion-reduce:transition-none hover:bg-pedra/60',
   linhaSelecionavel:
-    'h-row cursor-pointer border-t border-granito/30 transition-colors hover:bg-pedra/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'h-row cursor-pointer border-t border-granito/30 transition-colors motion-reduce:transition-none hover:bg-pedra/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   linhaSelecionada:
-    'h-row cursor-pointer border-t border-granito/30 bg-lima/20 text-floresta transition-colors hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'h-row cursor-pointer border-t border-granito/30 bg-lima/20 text-floresta transition-colors motion-reduce:transition-none hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   celulaEsquerda: 'px-4 py-2 text-grafite',
   celulaDireita: 'px-4 py-2 text-right text-grafite',
   celulaSelecionadaEsquerda: 'px-4 py-2 text-floresta',
@@ -54,7 +55,7 @@ function formatarValor(valor: unknown): string {
     return '—'
   }
   if (valor instanceof Date) {
-    return valor.toLocaleDateString('pt-BR')
+    return formatadorPtBr.data(valor)
   }
   return String(valor)
 }
@@ -178,7 +179,11 @@ export class Tabela<T extends object> extends Componente {
   private renderizarCorpo(mensagemVazia = 'Nenhum registro encontrado.'): void {
     if (this.carregando) {
       const slot = criarElemento('div', { className: CLASSES.carregando })
-      const carregando = new Carregando({ mensagem: 'Carregando registros…' })
+      const carregando = new Carregando({
+        mensagem: 'Carregando registros…',
+        variante: 'skeleton',
+        linhas: Math.max(3, Math.min(5, this.colunas.length)),
+      })
       this.corpo.replaceChildren(
         criarElemento('tr', {
           filhos: [

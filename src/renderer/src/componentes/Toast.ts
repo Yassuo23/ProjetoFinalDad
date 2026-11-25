@@ -24,7 +24,7 @@ const CLASSES = {
   conteudo: 'flex min-w-0 flex-1 flex-col gap-0.5',
   titulo: 'font-semibold',
   fechar:
-    'ml-auto inline-flex size-6 items-center justify-center rounded-control text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'ml-auto inline-flex size-6 items-center justify-center rounded-control text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
 } as const
 
 const ICONES: Readonly<Record<TomToast, string>> = {

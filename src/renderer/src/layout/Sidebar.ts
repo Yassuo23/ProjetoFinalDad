@@ -5,12 +5,14 @@ const CLASSES = {
   aside:
     'flex h-screen w-16 shrink-0 flex-col border-r border-granito/30 bg-floresta text-pedra lg:w-sidebar',
   marca: 'flex items-center justify-center px-3 py-5 lg:justify-start lg:px-6',
+  marcaCompacta: 'flex items-center justify-center lg:hidden',
+  marcaCompleta: 'hidden items-center justify-center lg:flex',
   nav: 'flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-4 lg:px-3',
   rotulo: 'hidden lg:inline',
   itemInativo:
-    'flex items-center justify-center gap-3 rounded-control px-2 py-2 text-sm text-pedra transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
+    'flex items-center justify-center gap-3 rounded-control px-2 py-2 text-sm text-pedra transition-colors motion-reduce:transition-none hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
   itemAtivo:
-    'flex items-center justify-center gap-3 rounded-control bg-lima/20 px-2 py-2 text-sm text-lima transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
+    'flex items-center justify-center gap-3 rounded-control bg-lima/20 px-2 py-2 text-sm text-lima transition-colors motion-reduce:transition-none hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
   oculto: 'hidden',
   rodape: 'hidden border-t border-granito/30 px-6 py-4 text-xs text-granito lg:block',
 } as const
@@ -94,7 +96,16 @@ export class Sidebar extends Componente {
   private montarEstrutura(): void {
     const marca = criarElemento('div', {
       className: CLASSES.marca,
-      filhos: [new LogoZenite().raiz],
+      filhos: [
+        criarElemento('div', {
+          className: CLASSES.marcaCompacta,
+          filhos: [new LogoZenite({ variante: 'compacta', fundo: 'escuro' }).raiz],
+        }),
+        criarElemento('div', {
+          className: CLASSES.marcaCompleta,
+          filhos: [new LogoZenite({ variante: 'completa', fundo: 'escuro' }).raiz],
+        }),
+      ],
     })
 
     const nav = criarElemento('nav', {

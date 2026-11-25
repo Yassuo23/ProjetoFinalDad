@@ -20,9 +20,9 @@ const CLASSES = {
   perfilLegenda: 'hidden text-xs text-floresta/70 xl:inline',
   alternador: 'flex items-center gap-1 rounded-control border border-granito/45 bg-superficie p-1',
   botaoPerfil:
-    'rounded-control px-2.5 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'rounded-control px-2.5 py-1 text-xs font-semibold text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   botaoPerfilAtivo:
-    'rounded-control bg-lima/20 px-2.5 py-1 text-xs font-semibold text-floresta ring-1 ring-inset ring-floresta transition-colors hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'rounded-control bg-lima/20 px-2.5 py-1 text-xs font-semibold text-floresta ring-1 ring-inset ring-floresta transition-colors motion-reduce:transition-none hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
 } as const
 
 const CONTEXTOS: Readonly<Record<string, string>> = {

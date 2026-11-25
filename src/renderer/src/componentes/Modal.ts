@@ -19,7 +19,7 @@ const CLASSES = {
   titulo: 'font-display text-xl text-floresta',
   tituloErro: 'font-display text-xl text-erro',
   fechar:
-    'inline-flex size-8 items-center justify-center rounded-control text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+    'inline-flex size-8 items-center justify-center rounded-control text-floresta transition-colors motion-reduce:transition-none hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   corpo: 'max-h-[60vh] overflow-y-auto px-6 py-5 text-sm text-grafite',
   rodape: 'flex justify-end gap-3 border-t border-granito/30 px-6 py-4',
 } as const

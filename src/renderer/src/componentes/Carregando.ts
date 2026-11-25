@@ -13,14 +13,14 @@ export interface OpcoesCarregando {
 const CLASSES = {
   container: 'flex min-h-40 items-center justify-center gap-3 text-floresta',
   containerDesabilitado: 'flex min-h-40 items-center justify-center gap-3 text-floresta opacity-60',
-  spinner: 'size-5 animate-spin rounded-full border-2 border-granito/40 border-t-floresta',
+  spinner: 'size-5 animate-spin motion-reduce:animate-none rounded-full border-2 border-granito/40 border-t-floresta',
   texto: 'text-sm text-floresta/70',
   srOnly: 'sr-only',
   skeletonContainer: 'flex min-h-40 flex-col justify-center gap-3',
   skeletonContainerDesabilitado: 'flex min-h-40 flex-col justify-center gap-3 opacity-60',
   skeletonGrupo: 'flex flex-col gap-3',
-  skeletonTitulo: 'h-5 w-2/5 animate-pulse rounded-control bg-granito/30',
-  skeletonLinha: 'h-4 w-full animate-pulse rounded-control bg-granito/30',
+  skeletonTitulo: 'h-5 w-2/5 animate-pulse motion-reduce:animate-none rounded-control bg-granito/30',
+  skeletonLinha: 'h-4 w-full animate-pulse motion-reduce:animate-none rounded-control bg-granito/30',
 } as const
 
 export class Carregando extends Componente {

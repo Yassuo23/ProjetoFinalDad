@@ -1,66 +1,70 @@
+import logoClaro from '../assets/brand/logo-claro.png'
+import logoEscuro from '../assets/brand/logo-escuro.png'
 import { Componente, criarElemento } from '../nucleo'
 
-const NS_SVG = 'http://www.w3.org/2000/svg'
+export type VarianteLogo = 'completa' | 'compacta'
+export type FundoLogo = 'escuro' | 'claro'
+
+export interface OpcoesLogoZenite {
+  readonly variante?: VarianteLogo
+  readonly fundo?: FundoLogo
+}
 
 /** Classes literais — o scanner do Tailwind v4 precisa vê-las por extenso. */
 const CLASSES = {
-  agrupamento: 'flex items-center gap-3',
-  simbolo: 'size-8 shrink-0 text-lima',
-  nomeColapsado: 'hidden font-display text-xl text-lima lg:inline',
+  completaEscuro: 'flex w-48 items-center bg-grafite',
+  completaClara: 'flex w-48 items-center bg-pedra',
+  imagemCompleta: 'block h-auto w-full',
+  compactaEscuro: 'relative size-8 shrink-0 overflow-hidden bg-grafite',
+  compactaClara: 'relative size-8 shrink-0 overflow-hidden bg-pedra',
+  imagemCompactaEscuro: 'absolute left-[-5.4px] top-[-10.4px] h-[53.6px] w-[127px] max-w-none',
+  imagemCompactaClara: 'absolute left-[-7.6px] top-[-10.8px] h-[53.4px] w-[126.9px] max-w-none',
 } as const
 
-function criarTraco(nome: string, atributos: Readonly<Record<string, string>>): SVGElement {
-  const elemento = document.createElementNS(NS_SVG, nome)
-  for (const [chave, valor] of Object.entries(atributos)) {
-    elemento.setAttribute(chave, valor)
-  }
-  return elemento
+/** Mapeamento oficial: o sufixo do arquivo corresponde ao fundo do PNG. */
+const IMAGENS: Readonly<Record<FundoLogo, string>> = {
+  escuro: logoEscuro,
+  claro: logoClaro,
+}
+
+const ESTILOS: Readonly<
+  Record<FundoLogo, { readonly completa: string; readonly compacta: string; readonly recorte: string }>
+> = {
+  escuro: {
+    completa: CLASSES.completaEscuro,
+    compacta: CLASSES.compactaEscuro,
+    recorte: CLASSES.imagemCompactaEscuro,
+  },
+  claro: {
+    completa: CLASSES.completaClara,
+    compacta: CLASSES.compactaClara,
+    recorte: CLASSES.imagemCompactaClara,
+  },
 }
 
 /**
- * Marca vetorial do Zênite: sol no zênite sobre a linha de montanhas e o
- * horizonte. Sem fundo, sem imagem e sem `innerHTML` — apenas SVG tipado.
+ * Logotipo oficial da marca, importado pelo Vite. A variante compacta recorta
+ * apenas o símbolo do PNG com overflow + posicionamento Tailwind — sem SVG
+ * desenhado à mão, sem imagem remota e sem `innerHTML`.
  */
 export class LogoZenite extends Componente {
-  constructor() {
-    const simbolo = criarTraco('svg', {
-      viewBox: '0 0 48 48',
-      fill: 'none',
-      stroke: 'currentColor',
-      'stroke-width': '2.5',
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      'aria-hidden': 'true',
-      class: CLASSES.simbolo,
-    })
+  constructor(opcoes: OpcoesLogoZenite = {}) {
+    const variante = opcoes.variante ?? 'completa'
+    const fundo = opcoes.fundo ?? 'escuro'
+    const estilo = ESTILOS[fundo]
 
-    simbolo.append(
-      criarTraco('circle', {
-        cx: '24',
-        cy: '11',
-        r: '5',
-        fill: 'currentColor',
-        stroke: 'none',
-      }),
-      criarTraco('path', {
-        d: 'M3 38 L16 19 L24 29 L31 20 L45 38',
-      }),
-      criarTraco('path', {
-        d: 'M16 19 L19 24 L17 27',
-      }),
-      criarTraco('path', {
-        d: 'M5 42 H43',
-      }),
-    )
+    const imagem = criarElemento('img', {
+      className: variante === 'compacta' ? estilo.recorte : CLASSES.imagemCompleta,
+      atributos: {
+        src: IMAGENS[fundo],
+        alt: variante === 'compacta' ? 'Símbolo do Zênite' : 'Zênite — Aluguel Outdoor',
+      },
+    })
 
     super(
       criarElemento('div', {
-        className: CLASSES.agrupamento,
-        atributos: { 'aria-label': 'Zênite — Aluguel Outdoor' },
-        filhos: [
-          simbolo,
-          criarElemento('span', { className: CLASSES.nomeColapsado, texto: 'Zênite' }),
-        ],
+        className: variante === 'compacta' ? estilo.compacta : estilo.completa,
+        filhos: [imagem],
       }),
     )
   }

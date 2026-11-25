@@ -23,9 +23,9 @@ export interface OpcoesSelect {
 /** Mesma base de Campo, com appearance-none e espaço para a seta (DS 8.3). */
 const CLASSES = {
   select:
-    'w-full appearance-none rounded-control border border-granito/45 bg-superficie px-3 py-2 pr-9 text-sm text-grafite transition-colors hover:border-floresta/60 focus-visible:border-floresta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta disabled:cursor-not-allowed disabled:bg-pedra disabled:text-floresta/60',
+    'w-full appearance-none rounded-control border border-granito/45 bg-superficie px-3 py-2 pr-9 text-sm text-grafite transition-colors motion-reduce:transition-none hover:border-floresta/60 focus-visible:border-floresta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta disabled:cursor-not-allowed disabled:bg-pedra disabled:text-floresta/60',
   selectErro:
-    'w-full appearance-none rounded-control border border-granito/45 bg-superficie px-3 py-2 pr-9 text-sm text-grafite transition-colors hover:border-floresta/60 focus-visible:border-floresta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta disabled:cursor-not-allowed disabled:bg-pedra disabled:text-floresta/60 aria-invalid:border-erro aria-invalid:focus-visible:outline-erro',
+    'w-full appearance-none rounded-control border border-granito/45 bg-superficie px-3 py-2 pr-9 text-sm text-grafite transition-colors motion-reduce:transition-none hover:border-floresta/60 focus-visible:border-floresta focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta disabled:cursor-not-allowed disabled:bg-pedra disabled:text-floresta/60 aria-invalid:border-erro aria-invalid:focus-visible:outline-erro',
   relativo: 'relative',
   seta: 'pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-floresta',
   container: 'flex flex-col',
