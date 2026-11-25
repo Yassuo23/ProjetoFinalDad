@@ -8,10 +8,60 @@ export const CANAIS = {
   appInfo: 'app:info',
   abrirExterno: 'app:abrir-externo',
   ping: 'app:ping',
+
+  // Catálogo auxiliar (mantido pelas migrações da fundação).
   categoriasListar: 'categorias:listar',
+
+  // Fornecedores.
+  fornecedoresListar: 'fornecedores:listar',
+  fornecedoresBuscarPorId: 'fornecedores:buscar-por-id',
+  fornecedoresCriar: 'fornecedores:criar',
+  fornecedoresAtualizar: 'fornecedores:atualizar',
+  fornecedoresInativar: 'fornecedores:inativar',
+
+  // Clientes.
   clientesListar: 'clientes:listar',
+  clientesBuscarPorId: 'clientes:buscar-por-id',
+  clientesCriar: 'clientes:criar',
+  clientesAtualizar: 'clientes:atualizar',
+  clientesInativar: 'clientes:inativar',
+  clientesBuscarCep: 'clientes:buscar-cep',
+
+  // Equipamentos.
   equipamentosListar: 'equipamentos:listar',
+  equipamentosBuscarPorId: 'equipamentos:buscar-por-id',
+  equipamentosCriar: 'equipamentos:criar',
+  equipamentosAtualizar: 'equipamentos:atualizar',
+  equipamentosInativar: 'equipamentos:inativar',
+  equipamentosListarDisponiveis: 'equipamentos:listar-disponiveis',
+
+  // Reservas.
   reservasListar: 'reservas:listar',
+  reservasBuscarPorId: 'reservas:buscar-por-id',
+  reservasCriar: 'reservas:criar',
+  reservasAtualizar: 'reservas:atualizar',
+  reservasInativar: 'reservas:inativar',
+
+  // Itens de reserva (chave composta; exclusão física é segura).
+  itensReservaListar: 'itens-reserva:listar',
+  itensReservaBuscarPorId: 'itens-reserva:buscar-por-id',
+  itensReservaCriar: 'itens-reserva:criar',
+  itensReservaAtualizar: 'itens-reserva:atualizar',
+  itensReservaRemover: 'itens-reserva:remover',
+
+  // Pagamentos.
+  pagamentosListar: 'pagamentos:listar',
+  pagamentosBuscarPorId: 'pagamentos:buscar-por-id',
+  pagamentosCriar: 'pagamentos:criar',
+  pagamentosAtualizar: 'pagamentos:atualizar',
+  pagamentosInativar: 'pagamentos:inativar',
+
+  // Devoluções.
+  devolucoesListar: 'devolucoes:listar',
+  devolucoesBuscarPorId: 'devolucoes:buscar-por-id',
+  devolucoesCriar: 'devolucoes:criar',
+  devolucoesAtualizar: 'devolucoes:atualizar',
+  devolucoesInativar: 'devolucoes:inativar',
 } as const
 
 export type Canal = (typeof CANAIS)[keyof typeof CANAIS]

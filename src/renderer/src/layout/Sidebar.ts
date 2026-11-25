@@ -1,4 +1,4 @@
-import { criarElemento, criarIcone, Componente } from '../nucleo'
+import { criarElemento, criarIcone, Componente, ehAdministrador, observarPerfil } from '../nucleo'
 import { LogoZenite } from './LogoZenite'
 
 const CLASSES = {
@@ -11,6 +11,7 @@ const CLASSES = {
     'flex items-center justify-center gap-3 rounded-control px-2 py-2 text-sm text-pedra transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
   itemAtivo:
     'flex items-center justify-center gap-3 rounded-control bg-lima/20 px-2 py-2 text-sm text-lima transition-colors hover:bg-pedra/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lima lg:justify-start lg:px-3',
+  oculto: 'hidden',
   rodape: 'hidden border-t border-granito/30 px-6 py-4 text-xs text-granito lg:block',
 } as const
 
@@ -69,12 +70,25 @@ const ITENS: readonly ItemNav[] = [
   },
 ]
 
+const SOMENTE_ADMIN: ReadonlySet<string> = new Set([
+  '/equipamentos',
+  '/fornecedores',
+  '/manutencao',
+  '/pagamentos',
+])
+
 export class Sidebar extends Componente {
   private readonly links = new Map<string, HTMLAnchorElement>()
+  private readonly cancelarAssinatura: () => void
+  private caminhoAtivo = '/dashboard'
 
   constructor() {
     super(criarElemento('aside', { className: CLASSES.aside }))
     this.montarEstrutura()
+    this.cancelarAssinatura = observarPerfil(() => {
+      this.aplicarPerfil()
+    })
+    this.aplicarPerfil()
   }
 
   private montarEstrutura(): void {
@@ -111,8 +125,26 @@ export class Sidebar extends Componente {
   }
 
   definirAtivo(caminho: string): void {
-    for (const [itemCaminho, link] of this.links) {
-      const ativo = itemCaminho === caminho
+    this.caminhoAtivo = caminho
+    this.aplicarPerfil()
+  }
+
+  protected aoDesmontar(): void {
+    this.cancelarAssinatura()
+  }
+
+  private aplicarPerfil(): void {
+    const administrador = ehAdministrador()
+    for (const [caminho, link] of this.links) {
+      if (SOMENTE_ADMIN.has(caminho) && !administrador) {
+        link.className = CLASSES.oculto
+        link.removeAttribute('aria-current')
+        link.tabIndex = -1
+        continue
+      }
+
+      link.tabIndex = 0
+      const ativo = caminho === this.caminhoAtivo
       link.className = ativo ? CLASSES.itemAtivo : CLASSES.itemInativo
       if (ativo) {
         link.setAttribute('aria-current', 'page')

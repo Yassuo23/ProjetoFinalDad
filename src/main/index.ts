@@ -1,14 +1,15 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
-import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esquemas'
-import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
+import type { PingPayload } from '../shared/contratos/modelos'
 import { RegistroIpc } from './ipc/RegistroIpc'
+import { registrarHandlers } from './ipc/handlers'
 import { ConexaoBanco } from './banco/ConexaoBanco'
 import { lerConfiguracaoBanco } from './banco/ConfiguracaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
+import { politicaCsp } from './seguranca/Csp'
 
 const arquivoEnv = path.join(process.cwd(), '.env')
 if (existsSync(arquivoEnv)) process.loadEnvFile(arquivoEnv)
@@ -19,14 +20,54 @@ let mainWindow: BrowserWindow | null = null
 let conexaoBanco: ConexaoBanco | null = null
 let encerrandoBanco = false
 
-async function iniciarBanco(): Promise<void> {
-  conexaoBanco = new ConexaoBanco(lerConfiguracaoBanco())
-  const conexao = await conexaoBanco.obterCliente()
+async function iniciarBanco(): Promise<ConexaoBanco> {
+  const conexao = new ConexaoBanco(lerConfiguracaoBanco())
+  const cliente = await conexao.obterCliente()
   try {
-    await new Migrador(conexao.cliente, MIGRACOES).aplicarPendentes()
+    await new Migrador(cliente.cliente, MIGRACOES).aplicarPendentes()
   } finally {
-    conexao.liberar()
+    cliente.liberar()
   }
+  return conexao
+}
+
+function aplicarCsp(): void {
+  const csp = politicaCsp(isDev ? 'desenvolvimento' : 'producao')
+  session.defaultSession.webRequest.onHeadersReceived((detalhes, callback) => {
+    callback({
+      responseHeaders: {
+        ...detalhes.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    })
+  })
+}
+
+function mesmaPagina(atual: string, destino: string): boolean {
+  try {
+    const origem = new URL(atual)
+    const alvo = new URL(destino)
+    return (
+      origem.protocol === alvo.protocol &&
+      origem.host === alvo.host &&
+      origem.pathname === alvo.pathname &&
+      origem.search === alvo.search
+    )
+  } catch {
+    return false
+  }
+}
+
+function protegerJanela(janela: BrowserWindow): void {
+  janela.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  janela.webContents.on('will-navigate', (evento, destino) => {
+    const atual = janela.webContents.getURL()
+    const navegacaoInicial = atual === '' || atual === 'about:blank'
+    if (!navegacaoInicial && !mesmaPagina(atual, destino)) {
+      evento.preventDefault()
+      console.warn('Navegação bloqueada pelo hardening do Electron.')
+    }
+  })
 }
 
 function createWindow(): void {
@@ -45,6 +86,8 @@ function createWindow(): void {
     },
   })
 
+  protegerJanela(mainWindow)
+
   if (isDev && process.env.VITE_DEV_SERVER_URL) {
     void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
     mainWindow.webContents.openDevTools({ mode: 'detach' })
@@ -58,25 +101,8 @@ function createWindow(): void {
   })
 }
 
-function obterAppInfo(): AppInfo {
-  return {
-    name: app.getName(),
-    version: app.getVersion(),
-    electron: process.versions.electron,
-    node: process.versions.node,
-    platform: process.platform,
-    arch: process.arch,
-  }
-}
-
-function registerIpcHandlers(): void {
-  const registro = new RegistroIpc(ipcMain)
-
-  registro.registrar(CANAIS.appInfo, esquemaSemEntrada, async () => obterAppInfo())
-
-  registro.registrar(CANAIS.abrirExterno, esquemaAbrirExterno, async (url) => {
-    await shell.openExternal(url)
-  })
+function registerIpcHandlers(conexao: ConexaoBanco): void {
+  registrarHandlers(new RegistroIpc(ipcMain), conexao)
 }
 
 function sendPing(): void {
@@ -112,8 +138,9 @@ function buildApplicationMenu(): void {
 }
 
 app.whenReady().then(async () => {
-  await iniciarBanco()
-  registerIpcHandlers()
+  aplicarCsp()
+  conexaoBanco = await iniciarBanco()
+  registerIpcHandlers(conexaoBanco)
   buildApplicationMenu()
   createWindow()
 

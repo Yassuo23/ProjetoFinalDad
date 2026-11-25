@@ -3,11 +3,16 @@ import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import { criarElemento, Roteador, substituirConteudo } from './nucleo'
 import type { FabricaPagina } from './nucleo'
 import {
+  PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
+  PaginaDevolucoes,
   PaginaEmConstrucao,
   PaginaEquipamentos,
+  PaginaFornecedores,
   PaginaNaoEncontrada,
+  PaginaPagamentos,
+  PaginaReservas,
   PaginaSobre,
 } from './paginas'
 
@@ -20,24 +25,15 @@ if (!root) {
 const ROTAS = new Map<string, FabricaPagina>([
   ['/dashboard', () => new PaginaDashboard()],
   ['/equipamentos', () => new PaginaEquipamentos()],
-  ['/clientes', () => new PaginaEmConstrucao('Clientes', 'clientes.buscarCep · clientes.salvar')],
-  [
-    '/fornecedores',
-    () => new PaginaEmConstrucao('Fornecedores', 'fornecedores.listar · fornecedores.salvar'),
-  ],
+  ['/clientes', () => new PaginaClientes()],
+  ['/fornecedores', () => new PaginaFornecedores()],
   [
     '/manutencao',
     () => new PaginaEmConstrucao('Manutenção', 'manutencao.listar · manutencao.abrir'),
   ],
-  ['/reservas', () => new PaginaEmConstrucao('Reservas', 'reservas.criar · clima.previsao')],
-  [
-    '/devolucoes',
-    () => new PaginaEmConstrucao('Devoluções', 'devolucoes.registrar · multas.calcular'),
-  ],
-  [
-    '/pagamentos',
-    () => new PaginaEmConstrucao('Pagamentos', 'pagamentos.listar · pagamentos.registrar'),
-  ],
+  ['/reservas', () => new PaginaReservas()],
+  ['/devolucoes', () => new PaginaDevolucoes()],
+  ['/pagamentos', () => new PaginaPagamentos()],
   ['/sobre', () => new PaginaSobre()],
   ['/404', () => new PaginaNaoEncontrada()],
 ])

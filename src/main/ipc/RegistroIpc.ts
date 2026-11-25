@@ -24,7 +24,8 @@ export class RegistroIpc {
     this.ipc.handle(canal, async (_evento, bruto: unknown) => {
       const resultado = esquema.safeParse(bruto)
       if (!resultado.success) {
-        // Nunca devolver o detalhe do Zod ao renderer.
+        // Nunca devolver o detalhe do Zod ao renderer; o log fica só no main.
+        console.error(`[IPC] Payload inválido em ${canal}`, resultado.error)
         throw new Error(`IPC_INVALIDO:${canal}`)
       }
       return tratar(resultado.data)

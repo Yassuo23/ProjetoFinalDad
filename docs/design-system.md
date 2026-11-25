@@ -1,8 +1,9 @@
 # Design System — Zênite · Aluguel Outdoor
 
 - **Status:** aceito
-- **Versão:** 1.0
-- **Data:** 2026-11-23
+- **Versão:** 1.1
+- **Data:** 2026-11-25
+- **Atualização:** componentes `lista selecionável` e `painel de formulário` para os CRUDs.
 - **Dono:** UI/UX Designer (UX)
 - **Implementação:** `frontend-developer` — somente utilitários Tailwind v4 (ADR 0004)
 
@@ -85,6 +86,7 @@ desabilitados estão isentos, mas ainda recebem `opacity-50`/`opacity-60`.
 | `text-grafite` sobre `bg-pedra` | **15,28:1** | texto padrão no fundo da janela |
 | `text-floresta` sobre `bg-pedra` | **11,60:1** | títulos e texto secundário no fundo |
 | `text-floresta` sobre `bg-superficie` | **14,07:1** | títulos em cards e tabelas |
+| `text-floresta` sobre `bg-lima/20` em superfície | **13,24:1** | linha selecionada em tabela/lista |
 | `text-grafite` sobre `bg-superficie` | **18,53:1** | texto em cards, campos e modais |
 | `text-pedra` sobre `bg-floresta` | **11,60:1** | sidebar e barra superior |
 | `text-lima` sobre `bg-floresta` | **10,74:1** | item ativo, destaque na barra escura |
@@ -453,6 +455,63 @@ inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-semibold
 > Mensagem de erro nunca expõe stack, SQL ou segredo. Ela diz **o que aconteceu** e **o que
 > fazer** (ex.: "Não foi possível consultar a disponibilidade. Tente novamente.").
 
+### 8.13 Lista selecionável — Reservas / itens de reserva
+
+**Container**
+
+```
+w-full divide-y divide-granito/30 overflow-hidden rounded-card border border-granito/45 bg-superficie text-sm
+```
+
+**Opção**
+
+```
+flex min-h-row w-full items-center gap-3 px-4 py-2 text-left text-sm text-grafite transition-colors
+```
+
+| Estado | Classes adicionais |
+| --- | --- |
+| normal | base da opção |
+| hover | `hover:bg-pedra/60` |
+| foco | `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta` |
+| selecionado | `bg-lima/20 text-floresta ring-1 ring-inset ring-floresta` |
+| desabilitado | `cursor-not-allowed opacity-60` |
+| erro | `bg-erro-suave text-erro` |
+| carregando | linha `animate-pulse rounded-control bg-granito/30` dentro do container |
+| vazio | usar `estado vazio` (8.10) dentro do container |
+
+> A opção reservada ou em manutenção é **desabilitada**, não removida: o atendente entende por
+> que não pode selecioná-la. `text-floresta` sobre `bg-lima/20` foi verificado em **13,24:1**.
+
+### 8.14 Painel de formulário — CRUDs
+
+**Estrutura**
+
+```
+flex h-full min-h-0 flex-col overflow-hidden rounded-card border border-granito/45 bg-superficie shadow-card
+```
+
+| Parte | Classes |
+| --- | --- |
+| cabeçalho | `flex items-center justify-between gap-3 border-b border-granito/30 px-5 py-4` |
+| título | `font-display text-base text-floresta` |
+| corpo | `min-h-0 flex-1 overflow-y-auto px-5 py-4` |
+| rodapé | `flex items-center justify-end gap-3 border-t border-granito/30 px-5 py-4` |
+| grade de campos | `grid grid-cols-1 gap-4 md:grid-cols-2` |
+
+| Estado | Classes adicionais |
+| --- | --- |
+| normal | base da estrutura |
+| foco ao abrir | `focus-within:ring-1 focus-within:ring-inset focus-within:ring-floresta` |
+| erro | `ring-1 ring-erro` no painel + `text-erro` no título |
+| carregando | `opacity-60` no corpo + `carregando` (8.11) |
+| desabilitado | `pointer-events-none opacity-60` no rodapé |
+| selecionado | título `text-floresta` + `badge` de sucesso (8.6) |
+| vazio | painel oculto e `estado vazio` (8.10) na área de conteúdo |
+
+> Em 800×600 o painel ocupa toda a largura (`grid-cols-1`) e a tabela rola apenas no corpo. Em
+> 1920×1080 usa `md:grid-cols-2` sem esticar campos além de `max-w-2xl`.
+
 ---
 
 ## 9. Checklist de aceite para o frontend
@@ -465,6 +524,7 @@ inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-xs font-semibold
 6. Tela com carregando, erro e lista vazia implementados.
 7. Validado em 800x600 (sidebar colapsada) e 1920x1080.
 8. Textos e ações coerentes com os dois perfis e com o fluxo de balcão.
+9. CRUDs usam `painel de formulário` (8.14); Reservas usa `lista selecionável` (8.13).
 
 ---
 

@@ -1,19 +1,29 @@
 import { createPool } from 'mysql2/promise'
-import type { Pool, PoolConnection, PoolOptions, RowDataPacket } from 'mysql2/promise'
-import type { ClienteMigracao } from './Migrador'
+import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
+import type {
+  ClienteBanco,
+  ParametroSql,
+  RegistroBanco,
+  ResultadoEscrita,
+} from './ClienteBanco'
 
-type ParametroSql = string | number | null
-
-class ClienteMysql implements ClienteMigracao {
+class ClienteMysql implements ClienteBanco {
   constructor(private readonly conexao: PoolConnection) {}
 
-  async query(sql: string): Promise<Array<{ id: number }>> {
-    const [linhas] = await this.conexao.query<RowDataPacket[]>(sql)
-    return linhas.map((linha) => ({ id: Number(linha.id) }))
+  async query(
+    sql: string,
+    valores: readonly ParametroSql[] = [],
+  ): Promise<readonly RegistroBanco[]> {
+    const [linhas] = await this.conexao.query<RowDataPacket[]>(sql, [...valores])
+    return linhas.map((linha) => ({ ...linha }) as RegistroBanco)
   }
 
-  async execute(sql: string, valores?: ParametroSql[]): Promise<void> {
-    await this.conexao.execute(sql, valores)
+  async execute(
+    sql: string,
+    valores: readonly ParametroSql[] = [],
+  ): Promise<ResultadoEscrita> {
+    const [resultado] = await this.conexao.execute<ResultSetHeader>(sql, [...valores])
+    return { insertId: Number(resultado.insertId), afetadas: resultado.affectedRows }
   }
 
   beginTransaction(): Promise<void> {
@@ -32,11 +42,11 @@ class ClienteMysql implements ClienteMigracao {
 export class ConexaoBanco {
   private readonly pool: Pool
 
-  constructor(configuracao: PoolOptions) {
+  constructor(configuracao: Parameters<typeof createPool>[0]) {
     this.pool = createPool(configuracao)
   }
 
-  async obterCliente(): Promise<{ cliente: ClienteMigracao; liberar: () => void }> {
+  async obterCliente(): Promise<{ cliente: ClienteBanco; liberar: () => void }> {
     const conexao = await this.pool.getConnection()
     return {
       cliente: new ClienteMysql(conexao),

@@ -1,10 +1,10 @@
 import type { ClienteMigracao, Migracao } from '../Migrador'
 
 const CATEGORIAS_INICIAIS: ReadonlyArray<readonly [string, string]> = [
-  ['Camping', 'Barracas, sacos de dormir e acessórios'],
-  ['Escalada', 'Cordas, cadeirinhas e equipamentos de proteção'],
-  ['Ciclismo', 'Bicicletas, capacetes e peças'],
-  ['Trilha', 'Mochilas, bastões e calçados'],
+  ['Bicicleta', 'Bicicletas, capacetes e acessórios de ciclismo'],
+  ['Caiaque', 'Caiaques, remos e acessórios náuticos'],
+  ['Prancha', 'Pranchas, stand up paddle e acessórios'],
+  ['Camping', 'Barracas, sacos de dormir e itens de acampamento'],
 ]
 
 export const migracaoCategorias: Migracao = {

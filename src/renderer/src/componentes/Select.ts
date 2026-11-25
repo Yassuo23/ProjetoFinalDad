@@ -37,6 +37,8 @@ export class Select extends Componente {
   private readonly select: HTMLSelectElement
   private readonly ajuda: HTMLParagraphElement
   private readonly mensagemErro: HTMLParagraphElement
+  private readonly placeholder: string | undefined
+  private opcoes: readonly OpcaoSelect[]
 
   constructor(opcoes: OpcoesSelect) {
     const atributos: Record<string, string> = {}
@@ -57,22 +59,7 @@ export class Select extends Componente {
     })
     select.id = opcoes.id
 
-    if (opcoes.placeholder !== undefined) {
-      const vazio = criarElemento('option', {
-        texto: opcoes.placeholder,
-        atributos: { value: '', disabled: '' },
-      })
-      select.append(vazio)
-    }
-    for (const opcao of opcoes.opcoes) {
-      select.append(
-        criarElemento('option', {
-          texto: opcao.rotulo,
-          atributos: { value: opcao.valor },
-        }),
-      )
-    }
-    select.value = opcoes.valorInicial ?? ''
+    const valorInicial = opcoes.valorInicial ?? ''
 
     const ajuda = criarAjuda(`${opcoes.id}-ajuda`, opcoes.ajuda)
     const mensagemErro = criarMensagemErro(`${opcoes.id}-erro`)
@@ -99,6 +86,9 @@ export class Select extends Componente {
     this.select = select
     this.ajuda = ajuda
     this.mensagemErro = mensagemErro
+    this.placeholder = opcoes.placeholder
+    this.opcoes = opcoes.opcoes
+    this.preencher(valorInicial)
     if (opcoes.aoAlterar !== undefined) {
       select.addEventListener('change', () => {
         opcoes.aoAlterar?.(select.value)
@@ -108,6 +98,37 @@ export class Select extends Componente {
 
   valor(): string {
     return this.select.value
+  }
+
+  definirValor(valor: string): void {
+    this.select.value = valor
+  }
+
+  definirOpcoes(opcoes: readonly OpcaoSelect[]): void {
+    const atual = this.select.value
+    this.opcoes = opcoes
+    this.preencher(atual)
+  }
+
+  private preencher(valor: string): void {
+    this.select.replaceChildren()
+    if (this.placeholder !== undefined) {
+      this.select.append(
+        criarElemento('option', {
+          texto: this.placeholder,
+          atributos: { value: '', disabled: '' },
+        }),
+      )
+    }
+    for (const opcao of this.opcoes) {
+      this.select.append(
+        criarElemento('option', {
+          texto: opcao.rotulo,
+          atributos: { value: opcao.valor },
+        }),
+      )
+    }
+    this.select.value = this.opcoes.some((opcao) => opcao.valor === valor) ? valor : ''
   }
 
   definirErro(mensagem: string | null): void {

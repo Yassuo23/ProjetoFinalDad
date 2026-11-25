@@ -1,5 +1,12 @@
-import { Badge } from '../componentes'
-import { Componente, criarElemento } from '../nucleo'
+import {
+  Componente,
+  criarElemento,
+  definirPerfil,
+  observarPerfil,
+  perfilAtivo,
+  ROTULOS_PERFIL,
+} from '../nucleo'
+import type { Perfil } from '../nucleo'
 
 const CLASSES = {
   cabecalho:
@@ -9,6 +16,13 @@ const CLASSES = {
   contexto: 'mt-0.5 text-xs text-floresta/70',
   direita: 'flex shrink-0 items-center gap-3',
   dica: 'hidden text-xs text-floresta/70 lg:inline',
+  perfilArea: 'flex shrink-0 items-center gap-2',
+  perfilLegenda: 'hidden text-xs text-floresta/70 xl:inline',
+  alternador: 'flex items-center gap-1 rounded-control border border-granito/45 bg-superficie p-1',
+  botaoPerfil:
+    'rounded-control px-2.5 py-1 text-xs font-semibold text-floresta transition-colors hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  botaoPerfilAtivo:
+    'rounded-control bg-lima/20 px-2.5 py-1 text-xs font-semibold text-floresta ring-1 ring-inset ring-floresta transition-colors hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
 } as const
 
 const CONTEXTOS: Readonly<Record<string, string>> = {
@@ -31,6 +45,8 @@ function contextoPara(titulo: string): string {
 export class Cabecalho extends Componente {
   private readonly titulo: HTMLHeadingElement
   private readonly contexto: HTMLParagraphElement
+  private readonly botoesPerfil: ReadonlyMap<Perfil, HTMLButtonElement>
+  private readonly cancelarAssinatura: () => void
 
   constructor(tituloInicial = 'Dashboard') {
     const titulo = criarElemento('h1', {
@@ -42,6 +58,38 @@ export class Cabecalho extends Componente {
       texto: contextoPara(tituloInicial),
     })
 
+    const criarBotaoPerfil = (perfil: Perfil): HTMLButtonElement => {
+      const botao = criarElemento('button', {
+        className: CLASSES.botaoPerfil,
+        atributos: {
+          type: 'button',
+          title: ROTULOS_PERFIL[perfil],
+          'aria-label': `Usar perfil de demonstração: ${ROTULOS_PERFIL[perfil]}`,
+          'aria-pressed': 'false',
+        },
+        texto: perfil === 'atendente' ? 'Atendente' : 'Administrador',
+      })
+      botao.addEventListener('click', () => {
+        definirPerfil(perfil)
+      })
+      return botao
+    }
+
+    const botaoAtendente = criarBotaoPerfil('atendente')
+    const botaoAdministrador = criarBotaoPerfil('administrador')
+    const alternador = criarElemento('div', {
+      className: CLASSES.alternador,
+      atributos: { role: 'group', 'aria-label': 'Perfil de demonstração' },
+      filhos: [botaoAtendente, botaoAdministrador],
+    })
+    const areaPerfil = criarElemento('div', {
+      className: CLASSES.perfilArea,
+      filhos: [
+        criarElemento('span', { className: CLASSES.perfilLegenda, texto: 'Perfil (demo)' }),
+        alternador,
+      ],
+    })
+
     const direita = criarElemento('div', {
       className: CLASSES.direita,
       filhos: [
@@ -49,7 +97,7 @@ export class Cabecalho extends Componente {
           className: CLASSES.dica,
           texto: 'Ctrl+K busca · Ctrl+N novo · F5 atualizar',
         }),
-        new Badge({ texto: 'Atendente de balcão', tom: 'neutro' }).raiz,
+        areaPerfil,
       ],
     })
 
@@ -66,12 +114,34 @@ export class Cabecalho extends Componente {
         ],
       }),
     )
+
     this.titulo = titulo
     this.contexto = contexto
+    this.botoesPerfil = new Map<Perfil, HTMLButtonElement>([
+      ['atendente', botaoAtendente],
+      ['administrador', botaoAdministrador],
+    ])
+    this.cancelarAssinatura = observarPerfil(() => {
+      this.sincronizarPerfil()
+    })
+    this.sincronizarPerfil()
   }
 
   definirTitulo(texto: string): void {
     this.titulo.textContent = texto
     this.contexto.textContent = contextoPara(texto)
+  }
+
+  protected aoDesmontar(): void {
+    this.cancelarAssinatura()
+  }
+
+  private sincronizarPerfil(): void {
+    const ativo = perfilAtivo()
+    for (const [perfil, botao] of this.botoesPerfil) {
+      const selecionado = perfil === ativo
+      botao.className = selecionado ? CLASSES.botaoPerfilAtivo : CLASSES.botaoPerfil
+      botao.setAttribute('aria-pressed', selecionado ? 'true' : 'false')
+    }
   }
 }

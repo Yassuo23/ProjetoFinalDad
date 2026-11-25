@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import type { ParametroSql, ResultadoEscrita } from './ClienteBanco'
 import type { ClienteMigracao } from './Migrador'
 import { Migrador } from './Migrador'
 import { MIGRACOES } from './migracoes'
 
-type ParametroSql = string | number | null
+const SUCESSO: ResultadoEscrita = { insertId: 0, afetadas: 0 }
 
 class ClienteMemoria implements ClienteMigracao {
   private migracoes: Array<{ id: number; nome: string }> = []
@@ -16,11 +17,15 @@ class ClienteMemoria implements ClienteMigracao {
     return this.migracoes.map(({ id }) => ({ id }))
   }
 
-  async execute(sql: string, valores: ParametroSql[] = []): Promise<void> {
+  async execute(
+    sql: string,
+    valores: readonly ParametroSql[] = [],
+  ): Promise<ResultadoEscrita> {
     if (sql.includes('INSERT INTO migracoes')) {
       this.migracoes.push({ id: Number(valores[0]), nome: String(valores[1]) })
     }
-    if (sql.includes('INSERT IGNORE INTO categorias')) this.categorias.push(valores)
+    if (sql.includes('INSERT IGNORE INTO categorias')) this.categorias.push([...valores])
+    return SUCESSO
   }
 
   async beginTransaction(): Promise<void> {
@@ -55,7 +60,7 @@ describe('Migrador', () => {
     const cliente = new ClienteMemoria()
     const migrador = new Migrador(cliente, MIGRACOES)
 
-    expect(await migrador.aplicarPendentes()).toBe(1)
+    expect(await migrador.aplicarPendentes()).toBe(MIGRACOES.length)
     expect(await migrador.aplicarPendentes()).toBe(0)
     expect(cliente.totalCategorias).toBe(4)
   })

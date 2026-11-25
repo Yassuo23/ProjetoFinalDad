@@ -1,7 +1,12 @@
-import type { Cliente, Equipamento, Reserva } from '../../../shared/contratos/modelos'
+import type {
+  Cliente,
+  Equipamento,
+  ItemReserva,
+  Reserva,
+} from '../../../shared/contratos/modelos'
 import { EquipamentoServico } from './EquipamentoServico'
 
-/** Tipos locais do renderer: o contrato compartilhado ainda não cobre pagamento/clima/frota. */
+/** Tipos locais do renderer: clima e KPIs ainda são apresentação, não contrato. */
 
 export type StatusPagamento = 'pago' | 'pendente' | 'multa'
 
@@ -24,7 +29,6 @@ export interface PrevisaoTempo {
 export interface StatusFrota {
   readonly disponivel: number
   readonly reservado: number
-  /** `null` quando o contrato não informa manutenção (dados reais). */
   readonly manutencao: number | null
 }
 
@@ -48,6 +52,7 @@ export interface DadosDashboard {
   readonly reservas: readonly Reserva[]
   readonly clientes: readonly Cliente[]
   readonly equipamentos: readonly Equipamento[]
+  readonly itensReserva: readonly ItemReserva[]
   readonly pagamentos: readonly PagamentoItem[]
   readonly previsao: PrevisaoTempo
   readonly previsaoExemplo: boolean
@@ -71,92 +76,105 @@ export function hojeISO(): string {
   return diaISO(0)
 }
 
+const ATUALIZADO_EXEMPLO = '2026-01-01T00:00:00.000Z'
+
 const CLIENTES_EXEMPLO: readonly Cliente[] = [
-  { id: 201, nome: 'Ana Souza', email: 'ana@exemplo.test', telefone: '(11) 98888-0001' },
-  { id: 202, nome: 'Carlos Lima', email: 'carlos@exemplo.test', telefone: '(21) 97777-0002' },
-  { id: 203, nome: 'Joana Ribeiro', email: 'joana@exemplo.test', telefone: '(31) 96666-0003' },
-  { id: 204, nome: 'Marcos Alves', email: 'marcos@exemplo.test', telefone: '(41) 95555-0004' },
-  { id: 205, nome: 'Paula Mendes', email: 'paula@exemplo.test', telefone: '(51) 94444-0005' },
+  {
+    id: 201,
+    nome: 'Ana Souza',
+    cpf: '111.444.777-35',
+    email: 'ana@exemplo.test',
+    telefone: '(11) 98888-0001',
+    cep: '01310-100',
+    logradouro: 'Av. Paulista',
+    numero: '1000',
+    complemento: null,
+    bairro: 'Bela Vista',
+    cidade: 'São Paulo',
+    uf: 'SP',
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
+  },
+  {
+    id: 202,
+    nome: 'Carlos Lima',
+    cpf: '222.333.444-05',
+    email: 'carlos@exemplo.test',
+    telefone: '(21) 97777-0002',
+    cep: null,
+    logradouro: null,
+    numero: null,
+    complemento: null,
+    bairro: null,
+    cidade: null,
+    uf: null,
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
+  },
 ]
 
 const RESERVAS_EXEMPLO: readonly Reserva[] = [
   {
     id: 1001,
     clienteId: 201,
-    equipamentoId: 101,
-    inicio: diaISO(0),
-    fim: diaISO(2),
-    status: 'confirmada',
+    dataReserva: `${diaISO(-1)}T12:00:00.000Z`,
+    dataInicio: diaISO(0),
+    dataFim: diaISO(2),
+    statusReserva: 'Confirmada',
+    previsaoTempo: 'Nublado, 24 °C',
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
   },
   {
     id: 1002,
     clienteId: 202,
-    equipamentoId: 103,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'pendente',
+    dataReserva: `${diaISO(0)}T09:00:00.000Z`,
+    dataInicio: diaISO(0),
+    dataFim: diaISO(1),
+    statusReserva: 'Pendente',
+    previsaoTempo: null,
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
   },
   {
     id: 1003,
-    clienteId: 203,
-    equipamentoId: 105,
-    inicio: diaISO(-1),
-    fim: diaISO(0),
-    status: 'confirmada',
+    clienteId: 201,
+    dataReserva: `${diaISO(-3)}T15:00:00.000Z`,
+    dataInicio: diaISO(-1),
+    dataFim: diaISO(0),
+    statusReserva: 'Confirmada',
+    previsaoTempo: null,
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
   },
   {
     id: 1004,
-    clienteId: 204,
-    equipamentoId: 104,
-    inicio: diaISO(0),
-    fim: diaISO(3),
-    status: 'confirmada',
-  },
-  {
-    id: 1005,
-    clienteId: 205,
-    equipamentoId: 107,
-    inicio: diaISO(-2),
-    fim: diaISO(-1),
-    status: 'confirmada',
-  },
-  {
-    id: 1006,
-    clienteId: 201,
-    equipamentoId: 102,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'cancelada',
-  },
-  {
-    id: 1007,
     clienteId: 202,
-    equipamentoId: 106,
-    inicio: diaISO(-1),
-    fim: diaISO(1),
-    status: 'confirmada',
-  },
-  {
-    id: 1008,
-    clienteId: 203,
-    equipamentoId: 101,
-    inicio: diaISO(0),
-    fim: diaISO(1),
-    status: 'pendente',
+    dataReserva: `${diaISO(-2)}T10:00:00.000Z`,
+    dataInicio: diaISO(-2),
+    dataFim: diaISO(-1),
+    statusReserva: 'Cancelada',
+    previsaoTempo: null,
+    ativo: true,
+    atualizadoEm: ATUALIZADO_EXEMPLO,
   },
 ]
 
-/** Pagamentos/multas são ilustrativos: ainda não existe canal nem modelo no contrato. */
+const ITENS_RESERVA_EXEMPLO: readonly ItemReserva[] = [
+  { reservaId: 1001, equipamentoId: 101, valorDiaria: 90 },
+  { reservaId: 1002, equipamentoId: 103, valorDiaria: 140 },
+  { reservaId: 1003, equipamentoId: 105, valorDiaria: 75 },
+  { reservaId: 1004, equipamentoId: 101, valorDiaria: 90 },
+]
+
+/** Pagamentos/multas são ilustrativos quando o banco não responde. */
 const PAGAMENTOS_EXEMPLO: readonly PagamentoItem[] = [
-  { reservaId: 1001, status: 'pago', valor: 270 },
-  { reservaId: 1002, status: 'pendente', valor: 280 },
-  { reservaId: 1003, status: 'pago', valor: 75 },
-  { reservaId: 1004, status: 'pago', valor: 480 },
-  { reservaId: 1005, status: 'multa', valor: 55 },
-  { reservaId: 1008, status: 'pendente', valor: 180 },
+  { reservaId: 1001, status: 'pago', valor: 180 },
+  { reservaId: 1002, status: 'pendente', valor: 140 },
+  { reservaId: 1003, status: 'multa', valor: 95 },
 ]
 
-/** Sem endpoint de clima: este valor é sempre de exemplo e identificado na tela. */
+/** Sem endpoint de clima no renderer: este valor é sempre identificado na tela. */
 const PREVISAO_EXEMPLO: PrevisaoTempo = {
   condicao: 'nublado',
   descricao: 'Parcialmente nublado',
@@ -165,12 +183,27 @@ const PREVISAO_EXEMPLO: PrevisaoTempo = {
   recomendacao: 'Bom para trilha e ciclismo',
 }
 
-function calcularFrota(equipamentos: readonly Equipamento[], dadosDeExemplo: boolean): StatusFrota {
-  const disponivel = equipamentos.filter((equipamento) => equipamento.disponivel).length
+function statusPagamentoLocal(
+  status: 'Pendente' | 'Pago' | 'Estornado',
+  valorMulta: number,
+): StatusPagamento {
+  if (valorMulta > 0) return 'multa'
+  if (status === 'Pago') return 'pago'
+  return 'pendente'
+}
+
+function calcularFrota(
+  equipamentos: readonly Equipamento[],
+  dadosDeExemplo: boolean,
+): StatusFrota {
+  const manutencao = equipamentos.filter(
+    (equipamento) => equipamento.estadoConservacao === 'Em Manutenção',
+  ).length
+  const disponivel = equipamentos.length - manutencao
   return {
     disponivel,
-    reservado: equipamentos.length - disponivel,
-    manutencao: dadosDeExemplo ? 1 : null,
+    reservado: 0,
+    manutencao: dadosDeExemplo || manutencao > 0 ? manutencao : null,
   }
 }
 
@@ -178,11 +211,16 @@ function montarDevolucoes(
   reservas: readonly Reserva[],
   clientes: readonly Cliente[],
   equipamentos: readonly Equipamento[],
+  itens: readonly ItemReserva[],
   pagamentos: readonly PagamentoItem[],
   hoje: string,
 ): readonly DevolucaoPendente[] {
   const nomesClientes = new Map(clientes.map((cliente) => [cliente.id, cliente.nome]))
   const nomesEquipamentos = new Map(equipamentos.map((item) => [item.id, item.nome]))
+  const primeirosItens = new Map<number, number>()
+  for (const item of itens) {
+    if (!primeirosItens.has(item.reservaId)) primeirosItens.set(item.reservaId, item.equipamentoId)
+  }
   const multas = new Map(
     pagamentos
       .filter((item) => item.status === 'multa')
@@ -192,16 +230,19 @@ function montarDevolucoes(
   return reservas
     .filter(
       (reserva) =>
-        (reserva.status === 'confirmada' || reserva.status === 'pendente') && reserva.fim <= hoje,
+        (reserva.statusReserva === 'Confirmada' ||
+          reserva.statusReserva === 'Pendente') &&
+        reserva.dataFim <= hoje,
     )
     .map((reserva) => ({
       reservaId: reserva.id,
       clienteId: reserva.clienteId,
-      equipamentoId: reserva.equipamentoId,
+      equipamentoId: primeirosItens.get(reserva.id) ?? 0,
       cliente: nomesClientes.get(reserva.clienteId) ?? `Cliente #${reserva.clienteId}`,
-      equipamento: nomesEquipamentos.get(reserva.equipamentoId) ?? `Item #${reserva.equipamentoId}`,
-      prevista: reserva.fim,
-      atrasada: reserva.fim < hoje,
+      equipamento:
+        nomesEquipamentos.get(primeirosItens.get(reserva.id) ?? -1) ?? 'Item não informado',
+      prevista: reserva.dataFim,
+      atrasada: reserva.dataFim < hoje,
       multa: multas.get(reserva.id) ?? 0,
     }))
     .sort((a, b) => a.prevista.localeCompare(b.prevista))
@@ -209,13 +250,13 @@ function montarDevolucoes(
 
 function calcularFaturamento(
   reservas: readonly Reserva[],
-  equipamentos: readonly Equipamento[],
+  itens: readonly ItemReserva[],
   pagamentos: readonly PagamentoItem[],
   hoje: string,
   usarPagamentos: boolean,
 ): Faturamento {
   const reservasDoDia = reservas.filter(
-    (reserva) => reserva.inicio === hoje && reserva.status !== 'cancelada',
+    (reserva) => reserva.dataInicio === hoje && reserva.statusReserva !== 'Cancelada',
   )
   const idsDoDia = new Set(reservasDoDia.map((reserva) => reserva.id))
 
@@ -228,40 +269,52 @@ function calcularFaturamento(
     }
   }
 
-  // Sem canal de pagamentos: estimativa por diária dos itens das reservas de hoje.
-  const precos = new Map(equipamentos.map((item) => [item.id, item.precoDiaria]))
+  // Sem pagamentos confirmados: estimativa pelas diárias dos itens reservados.
+  const diarias = new Map<number, number>()
+  for (const item of itens) {
+    diarias.set(item.reservaId, (diarias.get(item.reservaId) ?? 0) + item.valorDiaria)
+  }
   return {
-    valor: reservasDoDia.reduce(
-      (total, reserva) => total + (precos.get(reserva.equipamentoId) ?? 0),
-      0,
-    ),
+    valor: reservasDoDia.reduce((total, reserva) => total + (diarias.get(reserva.id) ?? 0), 0),
     estimado: true,
   }
 }
 
-/** Agrega as três fontes disponíveis e aplica fallback tipado quando uma falha. */
+/** Agrega as fontes do banco e aplica fallback tipado quando uma falha. */
 export class DashboardServico {
   private readonly equipamentoServico = new EquipamentoServico()
 
   async carregar(): Promise<DadosDashboard> {
-    const [reservas, clientes, resultadoEquipamentos] = await Promise.all([
+    const [reservas, clientes, resultadoEquipamentos, itens, pagamentos] = await Promise.all([
       this.listarReservas(),
       this.listarClientes(),
       this.equipamentoServico.listar(),
+      this.listarItens(),
+      this.listarPagamentos(),
     ])
 
     const dadosDeExemplo =
-      reservas === null || clientes === null || resultadoEquipamentos.dadosDeExemplo
+      reservas === null ||
+      clientes === null ||
+      itens === null ||
+      pagamentos === null ||
+      resultadoEquipamentos.dadosDeExemplo
     const reservasAtivas: readonly Reserva[] = dadosDeExemplo ? RESERVAS_EXEMPLO : (reservas ?? [])
     const clientesAtivos: readonly Cliente[] = dadosDeExemplo ? CLIENTES_EXEMPLO : (clientes ?? [])
     const equipamentosAtivos = resultadoEquipamentos.itens
-    const pagamentosAtivos: readonly PagamentoItem[] = dadosDeExemplo ? PAGAMENTOS_EXEMPLO : []
+    const itensAtivos: readonly ItemReserva[] = dadosDeExemplo
+      ? ITENS_RESERVA_EXEMPLO
+      : (itens ?? [])
+    const pagamentosAtivos: readonly PagamentoItem[] = dadosDeExemplo
+      ? PAGAMENTOS_EXEMPLO
+      : (pagamentos ?? [])
     const hoje = diaISO(0)
 
     return {
       reservas: reservasAtivas,
       clientes: clientesAtivos,
       equipamentos: equipamentosAtivos,
+      itensReserva: itensAtivos,
       pagamentos: pagamentosAtivos,
       previsao: PREVISAO_EXEMPLO,
       previsaoExemplo: true,
@@ -270,15 +323,16 @@ export class DashboardServico {
         reservasAtivas,
         clientesAtivos,
         equipamentosAtivos,
+        itensAtivos,
         pagamentosAtivos,
         hoje,
       ),
       faturamento: calcularFaturamento(
         reservasAtivas,
-        equipamentosAtivos,
+        itensAtivos,
         pagamentosAtivos,
         hoje,
-        dadosDeExemplo,
+        !dadosDeExemplo,
       ),
       dadosDeExemplo,
     }
@@ -295,6 +349,27 @@ export class DashboardServico {
   private async listarClientes(): Promise<readonly Cliente[] | null> {
     try {
       return await window.electronAPI.clientes.listar()
+    } catch {
+      return null
+    }
+  }
+
+  private async listarItens(): Promise<readonly ItemReserva[] | null> {
+    try {
+      return await window.electronAPI.itensReserva.listar()
+    } catch {
+      return null
+    }
+  }
+
+  private async listarPagamentos(): Promise<readonly PagamentoItem[] | null> {
+    try {
+      const pagamentos = await window.electronAPI.pagamentos.listar()
+      return pagamentos.map((item) => ({
+        reservaId: item.reservaId,
+        status: statusPagamentoLocal(item.statusPagamento, item.valorMulta),
+        valor: item.valorTotal,
+      }))
     } catch {
       return null
     }

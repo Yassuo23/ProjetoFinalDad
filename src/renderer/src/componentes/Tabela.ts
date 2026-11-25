@@ -16,6 +16,7 @@ export interface OpcoesTabela<T> {
   readonly carregando?: boolean
   readonly mensagemVazia?: string
   readonly aoSelecionar?: (linha: T) => void
+  readonly linhaSelecionada?: (linha: T) => boolean
 }
 
 interface Ordem<T> {
@@ -38,8 +39,12 @@ const CLASSES = {
   linha: 'h-row border-t border-granito/30 transition-colors hover:bg-pedra/60',
   linhaSelecionavel:
     'h-row cursor-pointer border-t border-granito/30 transition-colors hover:bg-pedra/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  linhaSelecionada:
+    'h-row cursor-pointer border-t border-granito/30 bg-lima/20 text-floresta transition-colors hover:bg-lima/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   celulaEsquerda: 'px-4 py-2 text-grafite',
   celulaDireita: 'px-4 py-2 text-right text-grafite',
+  celulaSelecionadaEsquerda: 'px-4 py-2 text-floresta',
+  celulaSelecionadaDireita: 'px-4 py-2 text-right text-floresta',
   vazia: 'h-32 text-center text-floresta/70',
   carregando: 'h-40',
 } as const
@@ -109,6 +114,7 @@ export class Tabela<T extends object> extends Componente {
   private carregando: boolean
   private ordem: Ordem<T> | null = null
   private readonly aoSelecionar: ((linha: T) => void) | undefined
+  private readonly linhaSelecionada: ((linha: T) => boolean) | undefined
 
   constructor(opcoes: OpcoesTabela<T>) {
     const ths = new Map<string, HTMLTableCellElement>()
@@ -132,6 +138,7 @@ export class Tabela<T extends object> extends Componente {
     this.linhas = opcoes.linhas
     this.carregando = opcoes.carregando === true
     this.aoSelecionar = opcoes.aoSelecionar
+    this.linhaSelecionada = opcoes.linhaSelecionada
 
     for (const coluna of opcoes.colunas) {
       if (coluna.ordenavel !== true) {
@@ -204,16 +211,29 @@ export class Tabela<T extends object> extends Componente {
     const selecionavel = this.aoSelecionar !== undefined
     this.corpo.replaceChildren(
       ...this.linhas.map((linha) => {
+        const selecionada = this.linhaSelecionada?.(linha) === true
+        const classeLinha = selecionada
+          ? CLASSES.linhaSelecionada
+          : selecionavel
+            ? CLASSES.linhaSelecionavel
+            : CLASSES.linha
         const tr = criarElemento('tr', {
-          className: selecionavel ? CLASSES.linhaSelecionavel : CLASSES.linha,
+          className: classeLinha,
           filhos: this.colunas.map((coluna) => {
             const conteudo =
               coluna.celula === undefined
                 ? formatarValor(linha[coluna.chave])
                 : coluna.celula(linha)
+            const direita = coluna.alinhamento === 'direita'
+            const classeCelula = selecionada
+              ? direita
+                ? CLASSES.celulaSelecionadaDireita
+                : CLASSES.celulaSelecionadaEsquerda
+              : direita
+                ? CLASSES.celulaDireita
+                : CLASSES.celulaEsquerda
             return criarElemento('td', {
-              className:
-                coluna.alinhamento === 'direita' ? CLASSES.celulaDireita : CLASSES.celulaEsquerda,
+              className: classeCelula,
               filhos: [conteudo],
             })
           }),
@@ -221,6 +241,7 @@ export class Tabela<T extends object> extends Componente {
 
         if (selecionavel) {
           tr.tabIndex = 0
+          tr.setAttribute('aria-selected', selecionada ? 'true' : 'false')
           const selecionar = (): void => {
             this.aoSelecionar?.(linha)
           }

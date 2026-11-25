@@ -145,19 +145,19 @@ const COLUNAS: readonly ColunaTabela<LinhaAgenda>[] = [
 
 function rotuloStatus(status: StatusReserva): string {
   const rotulos: Readonly<Record<StatusReserva, string>> = {
-    pendente: 'Pendente',
-    confirmada: 'Confirmada',
-    cancelada: 'Cancelada',
-    concluida: 'Concluída',
+    Pendente: 'Pendente',
+    Confirmada: 'Confirmada',
+    Cancelada: 'Cancelada',
+    Concluída: 'Concluída',
   }
   return rotulos[status]
 }
 
 function tomStatus(status: StatusReserva): TomBadge {
-  if (status === 'confirmada' || status === 'concluida') {
+  if (status === 'Confirmada' || status === 'Concluída') {
     return 'sucesso'
   }
-  return status === 'pendente' ? 'alerta' : 'neutro'
+  return status === 'Pendente' ? 'alerta' : 'neutro'
 }
 
 function rotuloPagamento(status: StatusPagamento): string {
@@ -278,13 +278,15 @@ export class PaginaDashboard extends Componente {
     }
 
     const reservasHoje = dados.reservas.filter(
-      (reserva) => reserva.inicio === hojeISO() && reserva.status !== 'cancelada',
+      (reserva) => reserva.dataInicio === hojeISO() && reserva.statusReserva !== 'Cancelada',
     ).length
     const atrasadas = dados.devolucoes.filter((devolucao) => devolucao.atrasada).length
     const multas = dados.devolucoes
       .filter((devolucao) => devolucao.atrasada && devolucao.multa > 0)
       .reduce((total, devolucao) => total + devolucao.multa, 0)
-    const disponiveis = dados.equipamentos.filter((equipamento) => equipamento.disponivel).length
+    const disponiveis = dados.equipamentos.filter(
+      (equipamento) => equipamento.estadoConservacao !== 'Em Manutenção',
+    ).length
 
     const kpis = criarElemento('div', {
       className: CLASSES.gradeKpis,
@@ -418,22 +420,34 @@ export class PaginaDashboard extends Componente {
     const nomesEquipamentos = new Map(
       dados.equipamentos.map((equipamento) => [equipamento.id, equipamento.nome]),
     )
+    const equipamentosPorReserva = new Map<number, number>()
+    for (const item of dados.itensReserva) {
+      if (!equipamentosPorReserva.has(item.reservaId)) {
+        equipamentosPorReserva.set(item.reservaId, item.equipamentoId)
+      }
+    }
     const pagamentos = new Map(dados.pagamentos.map((item) => [item.reservaId, item]))
 
     return dados.reservas
       .filter(
         (reserva) =>
-          reserva.status !== 'cancelada' && (reserva.inicio === hoje || reserva.fim === hoje),
+          reserva.statusReserva !== 'Cancelada' &&
+          (reserva.dataInicio === hoje || reserva.dataFim === hoje),
       )
-      .map((reserva) => ({
-        horario: dados.dadosDeExemplo ? (HORARIOS_EXEMPLO[reserva.id] ?? '—') : '—',
-        cliente: nomesClientes.get(reserva.clienteId) ?? `Cliente #${reserva.clienteId}`,
-        equipamento:
-          nomesEquipamentos.get(reserva.equipamentoId) ?? `Item #${reserva.equipamentoId}`,
-        tipo: reserva.fim === hoje ? ('devolucao' as const) : ('retirada' as const),
-        status: reserva.status,
-        statusPagamento: pagamentos.get(reserva.id)?.status ?? ('pendente' as const),
-      }))
+      .map((reserva) => {
+        const equipamentoId = equipamentosPorReserva.get(reserva.id)
+        return {
+          horario: dados.dadosDeExemplo ? (HORARIOS_EXEMPLO[reserva.id] ?? '—') : '—',
+          cliente: nomesClientes.get(reserva.clienteId) ?? `Cliente #${reserva.clienteId}`,
+          equipamento:
+            equipamentoId === undefined
+              ? 'Item não informado'
+              : (nomesEquipamentos.get(equipamentoId) ?? `Item #${equipamentoId}`),
+          tipo: reserva.dataFim === hoje ? ('devolucao' as const) : ('retirada' as const),
+          status: reserva.statusReserva,
+          statusPagamento: pagamentos.get(reserva.id)?.status ?? ('pendente' as const),
+        }
+      })
   }
 
   private criarClima(dados: DadosDashboard): HTMLElement {

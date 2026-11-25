@@ -114,6 +114,10 @@ export class Campo extends Componente {
     return this.input.value
   }
 
+  definirValor(valor: string): void {
+    this.input.value = valor
+  }
+
   definirErro(mensagem: string | null): void {
     this.mensagemErro.textContent = mensagem ?? ''
     this.mensagemErro.hidden = mensagem === null

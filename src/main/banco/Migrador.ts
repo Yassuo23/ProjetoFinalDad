@@ -1,12 +1,7 @@
-type ParametroSql = string | number | null
+import type { ClienteBanco } from './ClienteBanco'
 
-export interface ClienteMigracao {
-  query(sql: string): Promise<Array<{ id: number }>>
-  execute(sql: string, valores?: ParametroSql[]): Promise<void>
-  beginTransaction(): Promise<void>
-  commit(): Promise<void>
-  rollback(): Promise<void>
-}
+/** Alias mantido por compatibilidade com os testes e migrações existentes. */
+export type ClienteMigracao = ClienteBanco
 
 export interface Migracao {
   readonly id: number
