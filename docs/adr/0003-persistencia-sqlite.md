@@ -1,12 +1,14 @@
 # ADR 0003 — Persistência SQLite com `node:sqlite`
 
-- **Status:** aceito
+- **Status:** supersedido por [ADR 0005](./0005-persistencia-mysql.md)
 - **Data:** 2026-11-23
 - **Decisores:** fundação (AS + ED)
 
+> Decisão histórica. O projeto passou a usar MySQL/MariaDB conforme ADR 0005.
+
 ## Contexto
 
-O Zênite precisa de um banco local em `app.getPath('userData')/zenite.db`, nunca dentro de
+O Zênite precisava de um banco local em `app.getPath('userData')/zenite.db`, nunca dentro de
 `dist/`. A primeira opção do roteiro era `better-sqlite3`, um módulo nativo que precisa ser
 recompilado para o ABI exato do Node embutido no Electron. Isso adiciona `electron-rebuild` ao
 fluxo de 4 devs em Windows e cria uma classe de falha que só aparece no app empacotado:
@@ -23,11 +25,12 @@ SQLITE_MODULO=disponivel
 Ou seja, o Electron 45.4.1 já traz Node 24.22.3 com o módulo `node:sqlite` embutido. Não há
 motivo para pagar o custo de um addon nativo.
 
-## Decisão
+## Decisão anterior
 
 Usar `DatabaseSync` de `node:sqlite`, sem dependências externas de banco:
 
-1. `ConexaoBanco` abre o arquivo em `userData/zenite.db` e aplica as PRAGMAs via `db.exec`:
+1. `ConexaoBanco` abre o arquivo definido por `ZENITE_DATABASE_PATH` ou, se não definido,
+   `userData/zenite.db`, e aplica as PRAGMAs via `db.exec`:
    `journal_mode = WAL`, `foreign_keys = ON` e `busy_timeout = 5000`.
 2. `Migrador` registra o que já rodou na tabela `migracoes` e aplica só o pendente. Cada migração
    roda dentro de transação manual (`BEGIN` / `COMMIT`, com `ROLLBACK` no erro).

@@ -1,27 +1,50 @@
-import { DatabaseSync } from 'node:sqlite'
+import { createPool } from 'mysql2/promise'
+import type { Pool, PoolConnection, PoolOptions, RowDataPacket } from 'mysql2/promise'
+import type { ClienteMigracao } from './Migrador'
 
-/**
- * Conexão SQLite do processo principal.
- *
- * Usa `node:sqlite` (embutido no Node 24 do Electron 45) para não depender de
- * módulo nativo nem de rebuild por ABI. O caminho do arquivo é decidido no main:
- * `app.getPath('userData')/zenite.db`.
- */
+type ParametroSql = string | number | null
+
+class ClienteMysql implements ClienteMigracao {
+  constructor(private readonly conexao: PoolConnection) {}
+
+  async query(sql: string): Promise<Array<{ id: number }>> {
+    const [linhas] = await this.conexao.query<RowDataPacket[]>(sql)
+    return linhas.map((linha) => ({ id: Number(linha.id) }))
+  }
+
+  async execute(sql: string, valores?: ParametroSql[]): Promise<void> {
+    await this.conexao.execute(sql, valores)
+  }
+
+  beginTransaction(): Promise<void> {
+    return this.conexao.beginTransaction()
+  }
+
+  commit(): Promise<void> {
+    return this.conexao.commit()
+  }
+
+  rollback(): Promise<void> {
+    return this.conexao.rollback()
+  }
+}
+
 export class ConexaoBanco {
-  private readonly banco: DatabaseSync
+  private readonly pool: Pool
 
-  constructor(caminho: string) {
-    this.banco = new DatabaseSync(caminho)
-    this.banco.exec('PRAGMA journal_mode = WAL')
-    this.banco.exec('PRAGMA foreign_keys = ON')
-    this.banco.exec('PRAGMA busy_timeout = 5000')
+  constructor(configuracao: PoolOptions) {
+    this.pool = createPool(configuracao)
   }
 
-  get db(): DatabaseSync {
-    return this.banco
+  async obterCliente(): Promise<{ cliente: ClienteMigracao; liberar: () => void }> {
+    const conexao = await this.pool.getConnection()
+    return {
+      cliente: new ClienteMysql(conexao),
+      liberar: () => conexao.release(),
+    }
   }
 
-  fechar(): void {
-    this.banco.close()
+  fechar(): Promise<void> {
+    return this.pool.end()
   }
 }

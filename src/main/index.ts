@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import { CANAIS } from '../shared/contratos/canais'
@@ -5,18 +6,27 @@ import { esquemaAbrirExterno, esquemaSemEntrada } from '../shared/contratos/esqu
 import type { AppInfo, PingPayload } from '../shared/contratos/modelos'
 import { RegistroIpc } from './ipc/RegistroIpc'
 import { ConexaoBanco } from './banco/ConexaoBanco'
+import { lerConfiguracaoBanco } from './banco/ConfiguracaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
+
+const arquivoEnv = path.join(process.cwd(), '.env')
+if (existsSync(arquivoEnv)) process.loadEnvFile(arquivoEnv)
 
 const isDev = process.env.NODE_ENV === 'development'
 
 let mainWindow: BrowserWindow | null = null
 let conexaoBanco: ConexaoBanco | null = null
+let encerrandoBanco = false
 
-function iniciarBanco(): void {
-  const caminho = path.join(app.getPath('userData'), 'zenite.db')
-  conexaoBanco = new ConexaoBanco(caminho)
-  new Migrador(conexaoBanco.db, MIGRACOES).aplicarPendentes()
+async function iniciarBanco(): Promise<void> {
+  conexaoBanco = new ConexaoBanco(lerConfiguracaoBanco())
+  const conexao = await conexaoBanco.obterCliente()
+  try {
+    await new Migrador(conexao.cliente, MIGRACOES).aplicarPendentes()
+  } finally {
+    conexao.liberar()
+  }
 }
 
 function createWindow(): void {
@@ -101,8 +111,8 @@ function buildApplicationMenu(): void {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))
 }
 
-app.whenReady().then(() => {
-  iniciarBanco()
+app.whenReady().then(async () => {
+  await iniciarBanco()
   registerIpcHandlers()
   buildApplicationMenu()
   createWindow()
@@ -110,11 +120,25 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+}).catch((erro: unknown) => {
+  console.error('Falha ao iniciar o app ou conectar ao MySQL/MariaDB. Verifique o .env.', erro)
+  app.exit(1)
 })
 
-app.on('before-quit', () => {
-  conexaoBanco?.fechar()
+app.on('before-quit', (evento) => {
+  if (!conexaoBanco || encerrandoBanco) return
+
+  evento.preventDefault()
+  encerrandoBanco = true
+  const banco = conexaoBanco
   conexaoBanco = null
+  void banco.fechar().then(
+    () => app.exit(0),
+    (erro: unknown) => {
+      console.error('Falha ao fechar a conexão com MySQL/MariaDB.', erro)
+      app.exit(1)
+    },
+  )
 })
 
 app.on('window-all-closed', () => {

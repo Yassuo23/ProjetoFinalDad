@@ -42,6 +42,13 @@ Base Electron + TypeScript com foco em isolamento, contratos tipados e camadas e
 | `npm run typecheck` | Type check the renderer without emitting files                 |
 | `npm run dist`      | Build and create installers in `release/`                      |
 
+## Database configuration
+
+The app connects to MySQL/MariaDB using `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
+`DB_PASSWORD` and `DB_SSL` from `.env`. Copy `.env.example` to `.env`, enter the connection
+details and start the app. Never commit `.env` or expose its password. Set `DB_SSL=true` when
+the server requires TLS; certificate verification remains enabled.
+
 ## Security defaults
 
 - `contextIsolation: true` and `sandbox: true`

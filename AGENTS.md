@@ -12,7 +12,8 @@ Este arquivo é a fonte de verdade para pessoas e agentes de IA. Leia antes de c
   `tsconfig.renderer.json` (`noEmit`), com `rootDir: src`.
 - Sem framework no renderer: TypeScript puro.
 - Estilização com Tailwind CSS v4 via plugin oficial do Vite (ADR 0004); sem CSS próprio.
-- Banco: SQLite local em `app.getPath('userData')/zenite.db`.
+- Banco: MySQL/MariaDB configurado por `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`,
+  `DB_PASSWORD` e `DB_SSL` no `.env` (carregado apenas pelo processo principal).
 
 ## Comandos
 

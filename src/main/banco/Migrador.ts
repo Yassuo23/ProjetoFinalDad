@@ -1,16 +1,24 @@
-import type { DatabaseSync } from 'node:sqlite'
+type ParametroSql = string | number | null
+
+export interface ClienteMigracao {
+  query(sql: string): Promise<Array<{ id: number }>>
+  execute(sql: string, valores?: ParametroSql[]): Promise<void>
+  beginTransaction(): Promise<void>
+  commit(): Promise<void>
+  rollback(): Promise<void>
+}
 
 export interface Migracao {
   readonly id: number
   readonly nome: string
-  aplicar(db: DatabaseSync): void
+  aplicar(db: ClienteMigracao): Promise<void>
 }
 
 export class Migrador {
   private readonly ordenadas: readonly Migracao[]
 
   constructor(
-    private readonly db: DatabaseSync,
+    private readonly db: ClienteMigracao,
     migracoes: readonly Migracao[],
   ) {
     const ids = new Set(migracoes.map((migracao) => migracao.id))
@@ -20,33 +28,39 @@ export class Migrador {
     this.ordenadas = [...migracoes].sort((a, b) => a.id - b.id)
   }
 
-  /** Aplica apenas o que ainda não está na tabela `migracoes`; retorna quantas rodaram. */
-  aplicarPendentes(): number {
-    this.db.exec(`
+  async aplicarPendentes(): Promise<number> {
+    await this.db.execute(`
       CREATE TABLE IF NOT EXISTS migracoes (
-        id INTEGER PRIMARY KEY,
-        nome TEXT NOT NULL,
-        aplicada_em TEXT NOT NULL DEFAULT (datetime('now'))
-      )
+        id INT NOT NULL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        aplicada_em TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARACTER SET=utf8mb4
     `)
 
-    const linhas = this.db.prepare('SELECT id FROM migracoes').all()
+    const linhas = await this.db.query('SELECT id FROM migracoes')
     const aplicadas = new Set(linhas.map((linha) => Number(linha.id)))
 
     let total = 0
     for (const migracao of this.ordenadas) {
       if (aplicadas.has(migracao.id)) continue
 
-      this.db.exec('BEGIN')
+      await this.db.beginTransaction()
       try {
-        migracao.aplicar(this.db)
-        this.db
-          .prepare('INSERT INTO migracoes (id, nome) VALUES (?, ?)')
-          .run(migracao.id, migracao.nome)
-        this.db.exec('COMMIT')
+        await migracao.aplicar(this.db)
+        await this.db.execute('INSERT INTO migracoes (id, nome) VALUES (?, ?)', [
+          migracao.id,
+          migracao.nome,
+        ])
+        await this.db.commit()
         total += 1
       } catch (erro) {
-        this.db.exec('ROLLBACK')
+        try {
+          await this.db.rollback()
+        } catch (erroRollback) {
+          throw new AggregateError([erro, erroRollback], 'Falha ao reverter a migração', {
+            cause: erroRollback,
+          })
+        }
         throw erro
       }
     }
