@@ -3,7 +3,8 @@ PREMISSAS ADOTADAS
 
 - Cobrança por dia, com diária definida por equipamento; sem desconto por período.
 - Multa por atraso: valor fixo por dia, configurável (MULTA_DIARIA_VALOR), sem
-  tolerância e sem teto.
+  tolerância em horas e sem teto. Domingos e feriados nacionais não contam como dia de
+  atraso.
 - Cada unidade física é um registro de equipamento, com estado de conservação próprio.
 - Fornecedores: cadastro e envio de itens para manutenção; compras não são registradas.
 - Perfis: administrador (acesso total) e atendente (clientes, reservas, devoluções e
@@ -12,4 +13,3 @@ PREMISSAS ADOTADAS
 - Equipamento em manutenção fica indisponível para reserva.
 - Cancelamento altera o status da reserva, sem reembolso automático.
 - Cliente: nome, CPF, telefone e endereço (preenchido por CEP).
-- Manutenção registra o fornecedor, a data de envio, a data de retorno e o custo.
