@@ -49,12 +49,16 @@ const cliente: Sessao = {
 
 const usuarios: ServicoUsuarios = {
   listar: async () => [],
+  buscarPorId: async () => {
+    throw new Error('Não usado neste teste')
+  },
   criar: async () => {
     throw new Error('Não usado neste teste')
   },
   atualizar: async () => {
     throw new Error('Não usado neste teste')
   },
+  inativar: async () => undefined,
   alterarSenha: async () => undefined,
 }
 

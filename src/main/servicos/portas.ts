@@ -15,7 +15,11 @@ import type {
   CategoriaCriarEntrada,
   CategoriaDetalhe,
   CategoriaListarFiltros,
+  CalculoMulta,
+  CalculoMultaEntrada,
   DevolucaoListarFiltros,
+  DevolucaoPendente,
+  DevolucoesPendentesEntrada,
   EnderecoCep,
   EstadoSessao,
   Equipamento,
@@ -30,6 +34,11 @@ import type {
   ItemReservaAtualizarEntrada,
   ItemReservaCriarEntrada,
   ItemReservaListarFiltros,
+  OrdemManutencao,
+  OrdemManutencaoAtualizarEntrada,
+  OrdemManutencaoConcluirEntrada,
+  OrdemManutencaoCriarEntrada,
+  OrdemManutencaoListarFiltros,
   Pagamento,
   PagamentoAtualizarEntrada,
   PagamentoCriarEntrada,
@@ -42,6 +51,8 @@ import type {
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
+  ResumoDashboard,
+  ResumoDashboardEntrada,
   Sessao,
   UsuarioAlterarSenhaEntrada,
   UsuarioAtualizarEntrada,
@@ -87,8 +98,10 @@ export interface ServicoAutenticacao extends ProvedorSessao {
 
 export interface ServicoUsuarios {
   listar(filtros?: UsuarioListarFiltros): Promise<readonly UsuarioPublico[]>
+  buscarPorId(id: number): Promise<UsuarioPublico>
   criar(dados: UsuarioCriarEntrada): Promise<UsuarioPublico>
   atualizar(dados: UsuarioAtualizarEntrada): Promise<UsuarioPublico>
+  inativar(id: number): Promise<void>
   alterarSenha(dados: UsuarioAlterarSenhaEntrada): Promise<void>
 }
 
@@ -150,9 +163,26 @@ export interface ServicoPagamentos {
 export interface ServicoDevolucoes {
   listar(filtros?: DevolucaoListarFiltros): Promise<readonly Devolucao[]>
   buscarPorId(id: number): Promise<Devolucao>
+  listarPendentes(entrada?: DevolucoesPendentesEntrada): Promise<readonly DevolucaoPendente[]>
+  calcularMulta(dados: CalculoMultaEntrada): Promise<CalculoMulta>
   criar(dados: DevolucaoCriarEntrada): Promise<Devolucao>
   atualizar(dados: DevolucaoAtualizarEntrada): Promise<Devolucao>
   inativar(id: number): Promise<void>
+}
+
+/** Administrador abre/conclui ordens; atendente apenas consulta. */
+export interface ServicoManutencao {
+  listar(filtros?: OrdemManutencaoListarFiltros): Promise<readonly OrdemManutencao[]>
+  buscarPorId(id: number): Promise<OrdemManutencao>
+  criar(dados: OrdemManutencaoCriarEntrada): Promise<OrdemManutencao>
+  atualizar(dados: OrdemManutencaoAtualizarEntrada): Promise<OrdemManutencao>
+  concluir(dados: OrdemManutencaoConcluirEntrada): Promise<OrdemManutencao>
+  inativar(id: number): Promise<void>
+}
+
+/** Finanças são excluídas do retorno quando a sessão é de atendente. */
+export interface ServicoDashboard {
+  resumo(entrada?: ResumoDashboardEntrada, perfil?: Sessao['perfil']): Promise<ResumoDashboard>
 }
 
 /** Regra de disponibilidade: fora de manutenção e sem reserva confirmada sobreposta. */

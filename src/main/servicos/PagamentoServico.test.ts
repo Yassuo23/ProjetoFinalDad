@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { Pagamento, Reserva } from '../../shared/contratos/modelos'
-import type { RepositorioPagamentos, RepositorioReservas } from '../repositorios/portas'
+import type {
+  RepositorioItensReserva,
+  RepositorioPagamentos,
+  RepositorioReservas,
+} from '../repositorios/portas'
 import { PagamentoServico } from './PagamentoServico'
 
 const ATUALIZADO = '2026-01-01T00:00:00.000Z'
@@ -50,6 +54,19 @@ function repositorioReservas(): RepositorioReservas {
   }
 }
 
+function repositorioItens(somaDiarias: number): RepositorioItensReserva {
+  return {
+    listar: async () => [],
+    buscarPorId: async () => null,
+    criar: async () => {
+      throw new Error('não usado no teste')
+    },
+    atualizar: async () => null,
+    remover: async () => false,
+    somarDiarias: async () => somaDiarias,
+  }
+}
+
 describe('PagamentoServico', () => {
   it('recalcula o total e data de pagamento ao criar um pagamento pago', async () => {
     const criar = vi.fn(async () => pagamento)
@@ -84,5 +101,47 @@ describe('PagamentoServico', () => {
       codigo: 'RELACAO_INVALIDA',
     })
     expect(criar).not.toHaveBeenCalled()
+  })
+
+  it('aceita valorBase igual ao teto das diárias pelo período', async () => {
+    const criar = vi.fn(async () => pagamento)
+    // 3 dias (05→07) × 2 itens de R$ 50 = R$ 300 de teto.
+    const servico = new PagamentoServico(
+      repositorioPagamentos(criar),
+      repositorioReservas(),
+      repositorioItens(100),
+    )
+
+    await expect(servico.criar({ reservaId: 4, valorBase: 300 })).resolves.toMatchObject({
+      valorTotal: 300,
+    })
+    expect(criar).toHaveBeenCalledWith(expect.objectContaining({ valorBase: 300 }))
+  })
+
+  it('rejeita valorBase acima do teto sem tocar no repositório', async () => {
+    const criar = vi.fn(async () => pagamento)
+    const servico = new PagamentoServico(
+      repositorioPagamentos(criar),
+      repositorioReservas(),
+      repositorioItens(100),
+    )
+
+    await expect(servico.criar({ reservaId: 4, valorBase: 300.01 })).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      mensagem: expect.stringContaining('excede o total previsto'),
+    })
+    expect(criar).not.toHaveBeenCalled()
+  })
+
+  it('aplica o mesmo teto na atualização parcial', async () => {
+    const servico = new PagamentoServico(
+      repositorioPagamentos(async () => pagamento),
+      repositorioReservas(),
+      repositorioItens(100),
+    )
+
+    await expect(servico.atualizar({ id: 1, valorBase: 301 })).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+    })
   })
 })

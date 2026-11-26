@@ -20,6 +20,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
+    "seed": "npm run build:types && cross-env NODE_ENV=development node scripts/seed.mjs",
     "start": "electron .",
     "dist": "npm run build && electron-builder"
   },

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Devolucao, Reserva } from '../../shared/contratos/modelos'
 import type {
+  DevolucaoPendenteBruta,
   EfeitosDevolucao,
   RepositorioDevolucoes,
   RepositorioReservas,
@@ -39,11 +40,13 @@ function devolucao(): Devolucao {
 function repositorioDevolucoes(
   criarComEfeitos: (dados: unknown, efeitos: EfeitosDevolucao) => Promise<Devolucao>,
   anterior: Devolucao | null = null,
+  pendentes: readonly DevolucaoPendenteBruta[] = [],
 ): RepositorioDevolucoes {
   return {
     listar: async () => [],
     buscarPorId: async () => devolucao(),
     buscarPorReserva: async () => anterior,
+    listarPendentes: async () => pendentes,
     criarComEfeitos,
     atualizar: async () => devolucao(),
     inativar: async () => true,
@@ -189,5 +192,73 @@ describe('DevolucaoServico', () => {
       servico.criar({ reservaId: 7, estadoPosUso: 'Perfeito' }),
     ).rejects.toMatchObject({ codigo: 'REGISTRO_DUPLICADO' })
     expect(criarComEfeitos).not.toHaveBeenCalled()
+  })
+
+  it('lista pendentes com dias corridos, status e multa estimada', async () => {
+    process.env.MULTA_DIARIA_VALOR = '20'
+    const pendente: DevolucaoPendenteBruta = {
+      reservaId: 7,
+      clienteId: 3,
+      clienteNome: 'Carla',
+      equipamentoId: 11,
+      equipamentoNome: 'Caiaque Duplo',
+      dataPrevista: '2026-01-10',
+    }
+    const servico = new DevolucaoServico(
+      repositorioDevolucoes(async () => devolucao(), null, [pendente]),
+      repositorioReservas(reserva('2026-01-10')),
+      feriados(),
+    )
+
+    await expect(servico.listarPendentes({ data: '2026-01-13' })).resolves.toEqual([
+      {
+        ...pendente,
+        status: 'Atrasada',
+        atrasada: true,
+        diasAtraso: 3,
+        valorMultaEstimado: 40,
+      },
+    ])
+  })
+
+  it('marca como no prazo a pendente cujo prazo é hoje', async () => {
+    const servico = new DevolucaoServico(
+      repositorioDevolucoes(async () => devolucao(), null, [
+        {
+          reservaId: 8,
+          clienteId: 4,
+          clienteNome: 'Diego',
+          equipamentoId: null,
+          equipamentoNome: null,
+          dataPrevista: '2026-02-20',
+        },
+      ]),
+      repositorioReservas(reserva('2026-02-20')),
+      feriados(),
+    )
+
+    await expect(servico.listarPendentes({ data: '2026-02-20' })).resolves.toMatchObject([
+      { status: 'No prazo', atrasada: false, diasAtraso: 0, valorMultaEstimado: 0 },
+    ])
+  })
+
+  it('calcula a multa definitiva com o valor configurável e feriados', async () => {
+    process.env.MULTA_DIARIA_VALOR = '25'
+    const servico = new DevolucaoServico(
+      repositorioDevolucoes(async () => devolucao()),
+      repositorioReservas(reserva('2026-01-10')),
+      feriados(),
+    )
+
+    await expect(
+      servico.calcularMulta({ reservaId: 7, dataDevolucao: '2026-01-13' }),
+    ).resolves.toEqual({
+      reservaId: 7,
+      dataPrevista: '2026-01-10',
+      dataDevolucao: '2026-01-13',
+      diasAtraso: 2,
+      valorDiarioMulta: 25,
+      valorMulta: 50,
+    })
   })
 })

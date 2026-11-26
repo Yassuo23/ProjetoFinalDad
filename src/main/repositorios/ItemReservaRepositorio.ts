@@ -123,6 +123,16 @@ export class ItemReservaRepositorio extends RepositorioBase implements Repositor
     })
   }
 
+  async somarDiarias(reservaId: number): Promise<number> {
+    return this.comCliente(async (cliente) => {
+      const linhas = await cliente.query(
+        'SELECT COALESCE(SUM(valor_diaria), 0) AS total FROM item_reserva WHERE id_reserva = ?',
+        [reservaId],
+      )
+      return numero(linhas[0] ?? {}, 'total', 'ITEM_RESERVA')
+    })
+  }
+
   private async lerPorChave(
     cliente: ClienteBanco,
     chave: ChaveItemReservaEntrada,

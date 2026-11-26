@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Cliente, Reserva } from '../../shared/contratos/modelos'
+import type { Cliente, Reserva, StatusReserva } from '../../shared/contratos/modelos'
 import type { RepositorioClientes, RepositorioReservas } from '../repositorios/portas'
 import { ReservaServico } from './ReservaServico'
 import type { ServicoClima, ServicoDisponibilidade, ServicoFeriados } from './portas'
@@ -103,6 +103,25 @@ function servico(climaServico: ServicoClima, feriadosServico: ServicoFeriados): 
   )
 }
 
+function servicoComStatus(status: StatusReserva): ReservaServico {
+  const atual: Reserva = { ...reserva(), statusReserva: status }
+  const repositorio: RepositorioReservas = {
+    ...repositorioReservas(),
+    buscarPorId: async () => atual,
+    atualizar: async (dados) => ({
+      ...atual,
+      statusReserva: dados.statusReserva ?? atual.statusReserva,
+    }),
+  }
+  return new ReservaServico(
+    repositorio,
+    repositorioClientes(),
+    disponibilidade(),
+    clima('Previsão indisponível.', null),
+    feriados(),
+  )
+}
+
 describe('ReservaServico — efeito real da integração na confirmação', () => {
   it('sinaliza alta demanda pelo clima e grava o aviso na previsão', async () => {
     const confirmada = await servico(
@@ -145,5 +164,40 @@ describe('ReservaServico — efeito real da integração na confirmação', () =
 
     expect(confirmada.statusReserva).toBe('Confirmada')
     expect('altaDemandaPrevista' in confirmada).toBe(false)
+  })
+})
+
+describe('ReservaServico — transições de status', () => {
+  it('permite Confirmada → Concluída', async () => {
+    const concluida = await servicoComStatus('Confirmada').atualizar({
+      id: 1,
+      statusReserva: 'Concluída',
+    })
+
+    expect(concluida.statusReserva).toBe('Concluída')
+  })
+
+  it('rejeita Concluída → Confirmada', async () => {
+    await expect(
+      servicoComStatus('Concluída').atualizar({ id: 1, statusReserva: 'Confirmada' }),
+    ).rejects.toMatchObject({
+      codigo: 'DADOS_INVALIDOS',
+      mensagem: expect.stringContaining('Concluída'),
+    })
+  })
+
+  it('rejeita Cancelada → Pendente', async () => {
+    await expect(
+      servicoComStatus('Cancelada').atualizar({ id: 1, statusReserva: 'Pendente' }),
+    ).rejects.toMatchObject({ codigo: 'DADOS_INVALIDOS' })
+  })
+
+  it('mantém o mesmo status sem erro', async () => {
+    const atual = await servicoComStatus('Cancelada').atualizar({
+      id: 1,
+      statusReserva: 'Cancelada',
+    })
+
+    expect(atual.statusReserva).toBe('Cancelada')
   })
 })

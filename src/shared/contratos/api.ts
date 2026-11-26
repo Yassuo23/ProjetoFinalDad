@@ -88,8 +88,10 @@ export interface ApiZenite {
   /** Operações exclusivas de administrador (autorização conferida no main). */
   usuarios: {
     listar(filtros?: UsuarioListarFiltros): Promise<UsuarioPublico[]>
+    buscarPorId(id: number): Promise<UsuarioPublico>
     criar(dados: UsuarioCriarEntrada): Promise<UsuarioPublico>
     atualizar(dados: UsuarioAtualizarEntrada): Promise<UsuarioPublico>
+    inativar(id: number): Promise<void>
     alterarSenha(dados: UsuarioAlterarSenhaEntrada): Promise<void>
   }
 

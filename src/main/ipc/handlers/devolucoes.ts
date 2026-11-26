@@ -1,8 +1,10 @@
 import { CANAIS } from '../../../shared/contratos/canais'
 import {
+  esquemaCalcularMulta,
   esquemaDevolucaoAtualizar,
   esquemaDevolucaoCriar,
   esquemaDevolucaoListar,
+  esquemaDevolucoesListarPendentes,
   esquemaId,
 } from '../../../shared/contratos/esquemas'
 import type { ServicoDevolucoes } from '../../servicos/portas'
@@ -20,6 +22,18 @@ export function registrarDevolucoes(registro: RegistroIpc, servico: ServicoDevol
     CANAIS.devolucoesBuscarPorId,
     esquemaId,
     async ({ id }) => servico.buscarPorId(id),
+    PERFIS.ambos,
+  )
+  registro.registrar(
+    CANAIS.devolucoesListarPendentes,
+    esquemaDevolucoesListarPendentes,
+    async (entrada) => servico.listarPendentes(entrada),
+    PERFIS.ambos,
+  )
+  registro.registrar(
+    CANAIS.devolucoesCalcularMulta,
+    esquemaCalcularMulta,
+    async (dados) => servico.calcularMulta(dados),
     PERFIS.ambos,
   )
   registro.registrar(

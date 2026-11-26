@@ -4,6 +4,7 @@ import type {
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
+  StatusReserva,
 } from '../../shared/contratos/modelos'
 import type {
   RepositorioClientes,
@@ -120,6 +121,7 @@ export class ReservaServico implements ServicoReservas {
     idClienteProprietario?: number,
   ): Promise<Reserva> {
     const atual = await this.buscarPorId(dados.id, idClienteProprietario)
+    this.validarTransicaoStatus(atual.statusReserva, dados.statusReserva)
 
     if (dados.clienteId !== undefined && dados.clienteId !== atual.clienteId) {
       await this.validarCliente(dados.clienteId, idClienteProprietario)
@@ -211,6 +213,29 @@ export class ReservaServico implements ServicoReservas {
         ? new ErroDeDominio('RELACAO_INVALIDA', 'Cliente não encontrado.')
         : NAO_ENCONTRADO()
     }
+  }
+
+  /**
+   * Transições permitidas (regra de negócio, ADR 0007):
+   * `Pendente → Confirmada | Cancelada`, `Confirmada → Concluída | Cancelada`.
+   * `Concluída` e `Cancelada` são finais; manter o status atual é sempre idempotente.
+   */
+  private validarTransicaoStatus(
+    origem: StatusReserva,
+    destino: StatusReserva | undefined,
+  ): void {
+    if (destino === undefined || destino === origem) return
+    const permitidas: Readonly<Record<StatusReserva, readonly StatusReserva[]>> = {
+      Pendente: ['Confirmada', 'Cancelada'],
+      Confirmada: ['Concluída', 'Cancelada'],
+      Cancelada: [],
+      Concluída: [],
+    }
+    if (permitidas[origem].includes(destino)) return
+    throw new ErroDeDominio(
+      'DADOS_INVALIDOS',
+      `Não é possível alterar o status de ${origem} para ${destino}.`,
+    )
   }
 
   private validarPeriodo(dataInicio: string, dataFim: string): void {

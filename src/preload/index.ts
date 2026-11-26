@@ -26,8 +26,10 @@ const api: ApiZenite = {
 
   usuarios: {
     listar: (filtros) => ipcRenderer.invoke(CANAIS.usuariosListar, filtros),
+    buscarPorId: (id) => ipcRenderer.invoke(CANAIS.usuariosBuscarPorId, { id }),
     criar: (dados) => ipcRenderer.invoke(CANAIS.usuariosCriar, dados),
     atualizar: (dados) => ipcRenderer.invoke(CANAIS.usuariosAtualizar, dados),
+    inativar: (id) => ipcRenderer.invoke(CANAIS.usuariosInativar, { id }),
     alterarSenha: (dados) => ipcRenderer.invoke(CANAIS.usuariosAlterarSenha, dados),
   },
 

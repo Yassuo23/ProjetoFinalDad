@@ -6,6 +6,7 @@ import { migracaoDisponibilidadeEquipamento } from './004-disponibilidade-equipa
 import { migracaoValorDiariaEquipamento } from './005-valor-diaria-equipamento'
 import { migracaoAutenticacaoCategorias } from './006-autenticacao-e-auditoria-categorias'
 import { migracaoVinculoUsuarioCliente } from './007-vinculo-usuario-cliente'
+import { migracaoOrdemManutencao } from './008-ordem-manutencao'
 
 export const MIGRACOES: readonly Migracao[] = [
   migracaoCategorias,
@@ -15,4 +16,5 @@ export const MIGRACOES: readonly Migracao[] = [
   migracaoValorDiariaEquipamento,
   migracaoAutenticacaoCategorias,
   migracaoVinculoUsuarioCliente,
+  migracaoOrdemManutencao,
 ]

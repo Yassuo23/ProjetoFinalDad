@@ -114,6 +114,18 @@ describe('EquipamentoRepositorio — disponibilidade', () => {
     expect(cliente.ultima('FROM equipamento e')?.sql).toContain("e.disponibilidade = 'Disponível'")
   })
 
+  it('exclui reserva confirmada sobreposta no mesmo equipamento', async () => {
+    const cliente = new ClienteBancoFalso([linha(1, 'Disponível')])
+
+    await repositorio(cliente).listarDisponiveis(periodo)
+
+    const consulta = cliente.ultima('FROM equipamento e')
+    expect(consulta?.sql).toContain("r.status_reserva = 'Confirmada'")
+    expect(consulta?.sql).toContain('r.data_inicio <= ?')
+    expect(consulta?.sql).toContain('r.data_fim >= ?')
+    expect(consulta?.valores).toEqual(['2026-02-12', '2026-02-10', null])
+  })
+
   it('grava o default na inserção quando o chamador omite o campo', async () => {
     const cliente = new ClienteBancoFalso([linha(7, 'Disponível')])
 

@@ -10,6 +10,7 @@ import { DevolucaoRepositorio } from '../../repositorios/DevolucaoRepositorio'
 import { EquipamentoRepositorio } from '../../repositorios/EquipamentoRepositorio'
 import { FornecedorRepositorio } from '../../repositorios/FornecedorRepositorio'
 import { ItemReservaRepositorio } from '../../repositorios/ItemReservaRepositorio'
+import { ManutencaoRepositorio } from '../../repositorios/ManutencaoRepositorio'
 import { PagamentoRepositorio } from '../../repositorios/PagamentoRepositorio'
 import { ReservaRepositorio } from '../../repositorios/ReservaRepositorio'
 import { UsuarioRepositorio } from '../../repositorios/UsuarioRepositorio'
@@ -20,6 +21,7 @@ import { CategoriaServico } from '../../servicos/CategoriaServico'
 import { ClienteServico } from '../../servicos/ClienteServico'
 import { ClimaServico } from '../../servicos/ClimaServico'
 import { CnpjServico } from '../../servicos/CnpjServico'
+import { DashboardServico } from '../../servicos/DashboardServico'
 import { DevolucaoServico } from '../../servicos/DevolucaoServico'
 import { DisponibilidadeServico } from '../../servicos/DisponibilidadeServico'
 import { EquipamentoServico } from '../../servicos/EquipamentoServico'
@@ -27,6 +29,7 @@ import { ErroDeDominio } from '../../servicos/ErroDeDominio'
 import { FeriadosServico } from '../../servicos/FeriadosServico'
 import { FornecedorServico } from '../../servicos/FornecedorServico'
 import { ItemReservaServico } from '../../servicos/ItemReservaServico'
+import { ManutencaoServico } from '../../servicos/ManutencaoServico'
 import { PagamentoServico } from '../../servicos/PagamentoServico'
 import { ReservaServico } from '../../servicos/ReservaServico'
 import { UsuarioServico } from '../../servicos/UsuarioServico'
@@ -34,11 +37,13 @@ import { PERFIS, type RegistroIpc } from '../RegistroIpc'
 import { registrarAutenticacao } from './auth'
 import { registrarCategorias } from './categorias'
 import { registrarClientes } from './clientes'
+import { registrarDashboard } from './dashboard'
 import { registrarDevolucoes } from './devolucoes'
 import { registrarEquipamentos } from './equipamentos'
 import { registrarFornecedores } from './fornecedores'
 import { registrarIntegracoes } from './integracoes'
 import { registrarItensReserva } from './itensReserva'
+import { registrarManutencao } from './manutencao'
 import { registrarPagamentos } from './pagamentos'
 import { registrarReservas } from './reservas'
 import { registrarUsuarios } from './usuarios'
@@ -86,6 +91,7 @@ export function registrarHandlers(
   const itensRepo = new ItemReservaRepositorio(conexao)
   const pagamentosRepo = new PagamentoRepositorio(conexao)
   const devolucoesRepo = new DevolucaoRepositorio(conexao)
+  const manutencaoRepo = new ManutencaoRepositorio(conexao)
   const usuariosRepo = new UsuarioRepositorio(conexao)
   // ADR 0009: o main injeta a infraestrutura de cadastro sem alterar
   // `src/main/index.ts`, que continua criando apenas AutenticacaoServico.
@@ -107,8 +113,17 @@ export function registrarHandlers(
     equipamentosRepo,
     disponibilidade,
   )
-  const pagamentos = new PagamentoServico(pagamentosRepo, reservasRepo)
+  const pagamentos = new PagamentoServico(pagamentosRepo, reservasRepo, itensRepo)
   const devolucoes = new DevolucaoServico(devolucoesRepo, reservasRepo, feriados)
+  const manutencao = new ManutencaoServico(manutencaoRepo, equipamentosRepo, fornecedoresRepo)
+  const dashboard = new DashboardServico(
+    reservasRepo,
+    equipamentosRepo,
+    pagamentosRepo,
+    devolucoes,
+    clima,
+    feriados,
+  )
   const usuarios = new UsuarioServico(usuariosRepo, autenticacao)
 
   registrarAutenticacao(registro, autenticacao)
@@ -121,5 +136,7 @@ export function registrarHandlers(
   registrarItensReserva(registro, itens, autenticacao)
   registrarPagamentos(registro, pagamentos)
   registrarDevolucoes(registro, devolucoes)
+  registrarManutencao(registro, manutencao)
+  registrarDashboard(registro, dashboard, autenticacao)
   registrarIntegracoes(registro, { previsaoTempo: clima, cnpj, feriados })
 }

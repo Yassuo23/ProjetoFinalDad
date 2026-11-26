@@ -8,8 +8,22 @@ import type {
 import type { ClienteBanco, ParametroSql, RegistroBanco } from '../banco/ClienteBanco'
 import type { ConexaoBanco } from '../banco/ConexaoBanco'
 import { ErroDeDominio, paraErroDominio } from '../banco/ErrosBanco'
-import { booleano, dataHora, numero, textoEnumerado, textoOpcional } from './mapeamento'
-import type { EfeitosDevolucao, RepositorioDevolucoes } from './portas'
+import {
+  booleano,
+  dataApenas,
+  dataHora,
+  dataHoraSql,
+  numero,
+  numeroOpcional,
+  texto,
+  textoEnumerado,
+  textoOpcional,
+} from './mapeamento'
+import type {
+  DevolucaoPendenteBruta,
+  EfeitosDevolucao,
+  RepositorioDevolucoes,
+} from './portas'
 import { RepositorioBase } from './RepositorioBase'
 
 const ESTADOS: readonly EstadoPosUso[] = ['Perfeito', 'Com avarias leves', 'Danificado']
@@ -31,6 +45,40 @@ function mapearDevolucao(linha: RegistroBanco): Devolucao {
     observacoes: textoOpcional(linha, 'observacoes', 'DEVOLUCAO'),
     ativo: booleano(linha, 'ativo', 'DEVOLUCAO'),
     atualizadoEm: dataHora(linha, 'atualizadoEm', 'DEVOLUCAO'),
+  }
+}
+
+const PENDENTES = `
+  SELECT r.id_reserva AS reservaId, r.id_cliente AS clienteId,
+         c.nome AS clienteNome, r.data_fim AS dataPrevista,
+         (SELECT ir.id_equipamento
+            FROM item_reserva ir
+           WHERE ir.id_reserva = r.id_reserva
+           ORDER BY ir.id_equipamento LIMIT 1) AS equipamentoId,
+         (SELECT e.nome
+            FROM item_reserva ir
+            JOIN equipamento e ON e.id_equipamento = ir.id_equipamento
+           WHERE ir.id_reserva = r.id_reserva
+           ORDER BY ir.id_equipamento LIMIT 1) AS equipamentoNome
+  FROM reserva r
+  JOIN cliente c ON c.id_cliente = r.id_cliente
+  WHERE r.ativo = 1
+    AND r.status_reserva IN ('Confirmada', 'Concluída')
+    AND r.data_fim <= ?
+    AND NOT EXISTS (
+      SELECT 1 FROM devolucao d
+       WHERE d.id_reserva = r.id_reserva AND d.ativo = 1
+    )
+`
+
+function mapearPendente(linha: RegistroBanco): DevolucaoPendenteBruta {
+  return {
+    reservaId: numero(linha, 'reservaId', 'DEVOLUCAO'),
+    clienteId: numero(linha, 'clienteId', 'DEVOLUCAO'),
+    clienteNome: texto(linha, 'clienteNome', 'DEVOLUCAO'),
+    equipamentoId: numeroOpcional(linha, 'equipamentoId', 'DEVOLUCAO'),
+    equipamentoNome: textoOpcional(linha, 'equipamentoNome', 'DEVOLUCAO'),
+    dataPrevista: dataApenas(linha, 'dataPrevista', 'DEVOLUCAO'),
   }
 }
 
@@ -78,6 +126,13 @@ export class DevolucaoRepositorio extends RepositorioBase implements Repositorio
     })
   }
 
+  async listarPendentes(data: string): Promise<readonly DevolucaoPendenteBruta[]> {
+    return this.comCliente(async (cliente) => {
+      const linhas = await cliente.query(`${PENDENTES} ORDER BY r.data_fim, r.id_reserva`, [data])
+      return linhas.map(mapearPendente)
+    })
+  }
+
   /** A devolução e seus efeitos (multa e manutenção) são atômicos. */
   async criarComEfeitos(
     dados: DevolucaoCriarEntrada,
@@ -92,7 +147,7 @@ export class DevolucaoRepositorio extends RepositorioBase implements Repositorio
       ]
       if (dados.dataDevolucaoEfetiva !== undefined) {
         colunas.push('data_devolucao_efetiva')
-        valores.push(dados.dataDevolucaoEfetiva)
+        valores.push(dataHoraSql(dados.dataDevolucaoEfetiva) ?? null)
       }
 
       let id: number
@@ -115,7 +170,8 @@ export class DevolucaoRepositorio extends RepositorioBase implements Repositorio
         if (efeitos.manutencao) {
           await cliente.execute(
             `UPDATE equipamento
-             SET estado_conservacao = 'Em Manutenção'
+             SET estado_conservacao = 'Em Manutenção',
+                  disponibilidade = 'Em manutenção'
              WHERE id_equipamento IN (
                SELECT id_equipamento FROM item_reserva WHERE id_reserva = ?
              ) AND ativo = 1`,
@@ -140,7 +196,7 @@ export class DevolucaoRepositorio extends RepositorioBase implements Repositorio
 
     if (dados.dataDevolucaoEfetiva !== undefined) {
       campos.push('data_devolucao_efetiva = ?')
-      valores.push(dados.dataDevolucaoEfetiva)
+      valores.push(dataHoraSql(dados.dataDevolucaoEfetiva) ?? null)
     }
     if (dados.estadoPosUso !== undefined) {
       campos.push('estado_pos_uso = ?')

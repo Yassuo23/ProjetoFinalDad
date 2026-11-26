@@ -1,5 +1,6 @@
 import { CANAIS } from '../../../shared/contratos/canais'
 import {
+  esquemaId,
   esquemaUsuarioAlterarSenha,
   esquemaUsuarioAtualizar,
   esquemaUsuarioCriar,
@@ -17,6 +18,12 @@ export function registrarUsuarios(registro: RegistroIpc, servico: ServicoUsuario
     PERFIS.admin,
   )
   registro.registrar(
+    CANAIS.usuariosBuscarPorId,
+    esquemaId,
+    async ({ id }) => servico.buscarPorId(id),
+    PERFIS.admin,
+  )
+  registro.registrar(
     CANAIS.usuariosCriar,
     esquemaUsuarioCriar,
     async (dados) => servico.criar(dados),
@@ -26,6 +33,14 @@ export function registrarUsuarios(registro: RegistroIpc, servico: ServicoUsuario
     CANAIS.usuariosAtualizar,
     esquemaUsuarioAtualizar,
     async (dados) => servico.atualizar(dados),
+    PERFIS.admin,
+  )
+  registro.registrar(
+    CANAIS.usuariosInativar,
+    esquemaId,
+    async ({ id }) => {
+      await servico.inativar(id)
+    },
     PERFIS.admin,
   )
   registro.registrar(

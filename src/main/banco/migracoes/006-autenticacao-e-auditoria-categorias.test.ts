@@ -38,7 +38,7 @@ class ClienteMigracaoFalso implements ClienteMigracao {
 
 describe('migração 006 — autenticação e auditoria de categorias', () => {
   it('é a continuação aditiva de 005', () => {
-    expect(MIGRACOES.map((migracao) => migracao.id)).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(MIGRACOES.map((migracao) => migracao.id)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
     expect(migracaoAutenticacaoCategorias.id).toBe(6)
   })
 

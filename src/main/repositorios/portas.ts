@@ -9,10 +9,12 @@ import type {
   DevolucaoAtualizarEntrada,
   DevolucaoCriarEntrada,
   DevolucaoListarFiltros,
+  DisponibilidadeEquipamento,
   Equipamento,
   EquipamentoAtualizarEntrada,
   EquipamentoCriarEntrada,
   EquipamentoListarFiltros,
+  EstadoConservacao,
   Fornecedor,
   FornecedorAtualizarEntrada,
   FornecedorCriarEntrada,
@@ -21,6 +23,11 @@ import type {
   ItemReservaAtualizarEntrada,
   ItemReservaCriarEntrada,
   ItemReservaListarFiltros,
+  OrdemManutencao,
+  OrdemManutencaoAtualizarEntrada,
+  OrdemManutencaoConcluirEntrada,
+  OrdemManutencaoCriarEntrada,
+  OrdemManutencaoListarFiltros,
   Pagamento,
   PagamentoAtualizarEntrada,
   PagamentoCriarEntrada,
@@ -44,6 +51,23 @@ import type {
 export interface EfeitosDevolucao {
   readonly valorMulta: number
   readonly manutencao: boolean
+}
+
+/** Estado do equipamento aplicado junto com a abertura/retorno da ordem. */
+export interface EfeitosManutencao {
+  readonly estadoConservacao: EstadoConservacao
+  readonly disponibilidade: DisponibilidadeEquipamento
+}
+
+/** Linha agregada pelo repositório para a prévia de devoluções pendentes. */
+export interface DevolucaoPendenteBruta {
+  readonly reservaId: number
+  readonly clienteId: number
+  readonly clienteNome: string
+  readonly equipamentoId: number | null
+  readonly equipamentoNome: string | null
+  /** ISO `YYYY-MM-DD`. */
+  readonly dataPrevista: string
 }
 
 export interface DadosCriacaoUsuario {
@@ -160,6 +184,8 @@ export interface RepositorioItensReserva {
   criar(dados: ItemReservaCriarEntrada): Promise<ItemReserva>
   atualizar(dados: ItemReservaAtualizarEntrada): Promise<ItemReserva | null>
   remover(chave: ChaveItemReservaEntrada): Promise<boolean>
+  /** Soma das diárias cadastradas — base para o teto de valor do pagamento. */
+  somarDiarias(reservaId: number): Promise<number>
 }
 
 export interface RepositorioPagamentos {
@@ -174,7 +200,28 @@ export interface RepositorioDevolucoes {
   listar(filtros?: DevolucaoListarFiltros): Promise<readonly Devolucao[]>
   buscarPorId(id: number): Promise<Devolucao | null>
   buscarPorReserva(reservaId: number): Promise<Devolucao | null>
+  /** Reservas com prazo vencido até `data` e sem devolução registrada. */
+  listarPendentes(data: string): Promise<readonly DevolucaoPendenteBruta[]>
   criarComEfeitos(dados: DevolucaoCriarEntrada, efeitos: EfeitosDevolucao): Promise<Devolucao>
   atualizar(dados: DevolucaoAtualizarEntrada): Promise<Devolucao | null>
+  inativar(id: number): Promise<boolean>
+}
+
+/**
+ * Manutenção (ADR 0007): `criarComEfeitos` e `concluirComEfeitos` mantêm a ordem
+ * e o estado do equipamento na mesma transação.
+ */
+export interface RepositorioManutencoes {
+  listar(filtros?: OrdemManutencaoListarFiltros): Promise<readonly OrdemManutencao[]>
+  buscarPorId(id: number): Promise<OrdemManutencao | null>
+  criarComEfeitos(
+    dados: OrdemManutencaoCriarEntrada,
+    efeitos: EfeitosManutencao,
+  ): Promise<OrdemManutencao>
+  atualizar(dados: OrdemManutencaoAtualizarEntrada): Promise<OrdemManutencao | null>
+  concluirComEfeitos(
+    dados: OrdemManutencaoConcluirEntrada,
+    efeitos: EfeitosManutencao,
+  ): Promise<OrdemManutencao | null>
   inativar(id: number): Promise<boolean>
 }

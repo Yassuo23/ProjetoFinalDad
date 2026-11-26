@@ -93,6 +93,23 @@ export function dataHoraOpcional(
   return dataHora(linha, coluna, entidade)
 }
 
+/**
+ * ISO 8601 (contrato IPC) → `YYYY-MM-DD HH:mm:ss` (TIMESTAMP do MySQL).
+ *
+ * Necessário porque o MySQL em `STRICT_TRANS_TABLES` rejeita `T`, `Z` e
+ * milissegundos quando a data chega como parâmetro string. Valores já no formato SQL
+ * passam intactos; valores inválidos seguem para o driver e são traduzidos por
+ * `paraErroDominio`.
+ */
+export function dataHoraSql(valor: string | null | undefined): string | null | undefined {
+  if (valor === null || valor === undefined) return valor
+  // Já está no formato do banco: não converter, senão `Date` aplica o fuso local.
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(valor)) return valor
+  const data = new Date(valor)
+  if (Number.isNaN(data.getTime())) return valor
+  return data.toISOString().slice(0, 19).replace('T', ' ')
+}
+
 /** DATE → `YYYY-MM-DD`, sem conversão de fuso horário. */
 export function dataApenas(linha: RegistroBanco, coluna: string, entidade: string): string {
   const valor = linha[coluna]
@@ -117,6 +134,17 @@ export function dataApenas(linha: RegistroBanco, coluna: string, entidade: strin
     }
   }
   return linhaInvalida(entidade)
+}
+
+/** DATE opcional → `YYYY-MM-DD` ou `null`. */
+export function dataApenasOpcional(
+  linha: RegistroBanco,
+  coluna: string,
+  entidade: string,
+): string | null {
+  const valor = linha[coluna]
+  if (valor === null || valor === undefined) return null
+  return dataApenas(linha, coluna, entidade)
 }
 
 function dataValida(ano: number, mes: number, dia: number): boolean {

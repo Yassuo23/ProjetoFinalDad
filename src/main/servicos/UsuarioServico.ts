@@ -53,6 +53,14 @@ export class UsuarioServico implements ServicoUsuarios {
     return usuarios.map(paraPublico)
   }
 
+  async buscarPorId(id: number): Promise<UsuarioPublico> {
+    const usuario = await this.usuarios.buscarPorId(id)
+    if (!usuario) {
+      throw new ErroDeDominio('NAO_ENCONTRADO', 'Usuário não encontrado.')
+    }
+    return paraPublico(usuario)
+  }
+
   async criar(dados: {
     readonly nome: string
     readonly login: string
@@ -103,6 +111,14 @@ export class UsuarioServico implements ServicoUsuarios {
       this.sessao.atualizarSessao(atualizado.ativo ? paraSessao(atualizado, clienteId) : null)
     }
     return paraPublico(atualizado)
+  }
+
+  /** Soft delete: a sessão de um usuário inativado é encerrada no próprio main. */
+  async inativar(id: number): Promise<void> {
+    if (this.sessao.sessao()?.usuarioId === id) {
+      throw new ErroDeDominio('DADOS_INVALIDOS', 'Não é possível inativar o próprio usuário.')
+    }
+    await this.atualizar({ id, ativo: false })
   }
 
   async alterarSenha(dados: {

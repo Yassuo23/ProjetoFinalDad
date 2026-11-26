@@ -4,8 +4,10 @@ import type {
   PagamentoAtualizarEntrada,
   PagamentoCriarEntrada,
   PagamentoListarFiltros,
+  Reserva,
 } from '../../shared/contratos/modelos'
 import type {
+  RepositorioItensReserva,
   RepositorioPagamentos,
   RepositorioReservas,
 } from '../repositorios/portas'
@@ -26,10 +28,25 @@ function vazio(valor: string | null | undefined): boolean {
   return valor === undefined || valor === null || valor.trim() === ''
 }
 
+function validarValor(valor: number, nome: string): void {
+  if (!Number.isFinite(valor) || valor < 0) {
+    throw new ErroDeDominio('DADOS_INVALIDOS', `${nome} deve ser um número não negativo.`)
+  }
+}
+
+function diasReserva(reserva: Reserva): number {
+  const inicio = Date.parse(`${reserva.dataInicio.slice(0, 10)}T00:00:00Z`)
+  const fim = Date.parse(`${reserva.dataFim.slice(0, 10)}T00:00:00Z`)
+  if (!Number.isFinite(inicio) || !Number.isFinite(fim)) return 0
+  return Math.max(1, Math.round((fim - inicio) / 86_400_000) + 1)
+}
+
 export class PagamentoServico implements ServicoPagamentos {
   constructor(
     private readonly repositorio: RepositorioPagamentos,
     private readonly repositorioReservas: RepositorioReservas,
+    /** Opcional por compatibilidade; o main sempre injeta para aplicar o teto. */
+    private readonly repositorioItens?: RepositorioItensReserva,
   ) {}
 
   listar(filtros?: PagamentoListarFiltros): Promise<readonly Pagamento[]> {
@@ -43,9 +60,13 @@ export class PagamentoServico implements ServicoPagamentos {
   }
 
   async criar(dados: PagamentoCriarEntrada): Promise<Pagamento> {
-    await this.validarReserva(dados.reservaId)
-
+    const reserva = await this.validarReserva(dados.reservaId)
     const valorMulta = dados.valorMulta ?? 0
+    validarValor(dados.valorBase, 'Valor da reserva')
+    validarValor(valorMulta, 'Valor da multa')
+    await this.validarTeto(reserva, dados.valorBase)
+
+    // O total é sempre derivado: `valorTotal` externo nunca é repassado nem aceito.
     const valorTotal = dados.valorBase + valorMulta
     const statusPagamento = dados.statusPagamento
     const dataPagamento =
@@ -53,7 +74,6 @@ export class PagamentoServico implements ServicoPagamentos {
         ? new Date().toISOString()
         : dados.dataPagamento
 
-    // Somente campos conhecidos: um `valorTotal` externo nunca é repassado.
     const envio: PagamentoCriarEntrada = {
       reservaId: dados.reservaId,
       valorBase: dados.valorBase,
@@ -75,15 +95,15 @@ export class PagamentoServico implements ServicoPagamentos {
 
   async atualizar(dados: PagamentoAtualizarEntrada): Promise<Pagamento> {
     const atual = await this.buscarPorId(dados.id)
-
-    if (dados.reservaId !== undefined && dados.reservaId !== atual.reservaId) {
-      await this.validarReserva(dados.reservaId)
-    }
+    const reserva = await this.validarReserva(dados.reservaId ?? atual.reservaId)
 
     const valorBase = dados.valorBase ?? atual.valorBase
     const valorMulta = dados.valorMulta ?? atual.valorMulta
-    const valorTotal = valorBase + valorMulta
+    validarValor(valorBase, 'Valor da reserva')
+    validarValor(valorMulta, 'Valor da multa')
+    await this.validarTeto(reserva, valorBase)
 
+    const valorTotal = valorBase + valorMulta
     const statusPagamento = dados.statusPagamento ?? atual.statusPagamento
     const dataPagamentoEfetiva =
       dados.dataPagamento !== undefined ? dados.dataPagamento : atual.dataPagamento
@@ -100,8 +120,9 @@ export class PagamentoServico implements ServicoPagamentos {
       ...(dados.formaPagamento !== undefined
         ? { formaPagamento: formaPagamentoValida(dados.formaPagamento) }
         : {}),
-      ...(dados.statusPagamento !== undefined ? { statusPagamento: dados.statusPagamento } : {}),
-      ...(dados.dataPagamento !== undefined || (statusPagamento === 'Pago' && vazio(dataPagamentoEfetiva))
+      ...(dados.statusPagamento !== undefined ? { statusPagamento } : {}),
+      ...(dados.dataPagamento !== undefined ||
+      (statusPagamento === 'Pago' && vazio(dataPagamentoEfetiva))
         ? { dataPagamento }
         : {}),
     }
@@ -127,13 +148,32 @@ export class PagamentoServico implements ServicoPagamentos {
     if (!inativado) throw NAO_ENCONTRADO()
   }
 
-  private async validarReserva(id: number): Promise<void> {
-    let reserva: unknown
+  private async validarReserva(id: number): Promise<Reserva> {
+    let reserva: Reserva | null
     try {
       reserva = await this.repositorioReservas.buscarPorId(id)
     } catch (erro) {
       throw paraErroDominio(erro, 'reserva')
     }
     if (!reserva) throw new ErroDeDominio('RELACAO_INVALIDA', 'Reserva não encontrada.')
+    return reserva
+  }
+
+  /** O valor da reserva não pode ultrapassar a soma das diárias pelo período. */
+  private async validarTeto(reserva: Reserva, valorBase: number): Promise<void> {
+    if (this.repositorioItens === undefined) return
+    let diarias: number
+    try {
+      diarias = await this.repositorioItens.somarDiarias(reserva.id)
+    } catch (erro) {
+      throw paraErroDominio(erro, 'itens da reserva')
+    }
+    const previsto = diarias * diasReserva(reserva)
+    if (valorBase > previsto + 0.009) {
+      throw new ErroDeDominio(
+        'DADOS_INVALIDOS',
+        'O valor da reserva excede o total previsto para o período.',
+      )
+    }
   }
 }

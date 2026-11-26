@@ -73,8 +73,10 @@ export const CANAIS = {
 
   // Usuários — somente administrador (ADR 0007).
   usuariosListar: 'usuarios:listar',
+  usuariosBuscarPorId: 'usuarios:buscar-por-id',
   usuariosCriar: 'usuarios:criar',
   usuariosAtualizar: 'usuarios:atualizar',
+  usuariosInativar: 'usuarios:inativar',
   usuariosAlterarSenha: 'usuarios:alterar-senha',
 
   // Catálogo auxiliar — CRUD completo; `categoriasListar` já existia.

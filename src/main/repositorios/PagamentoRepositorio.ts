@@ -13,6 +13,7 @@ import {
   booleano,
   dataHora,
   dataHoraOpcional,
+  dataHoraSql,
   numero,
   textoEnumerado,
   textoEnumeradoOpcional,
@@ -68,6 +69,19 @@ export class PagamentoRepositorio extends RepositorioBase implements Repositorio
       condicoes.push('forma_pagamento = ?')
       valores.push(filtros.formaPagamento)
     }
+    if (filtros.dataInicio !== undefined) {
+      condicoes.push('DATE(data_pagamento) >= ?')
+      valores.push(filtros.dataInicio)
+    }
+    if (filtros.dataFim !== undefined) {
+      condicoes.push('DATE(data_pagamento) <= ?')
+      valores.push(filtros.dataFim)
+    }
+    if (filtros.tipo === 'Multa') {
+      condicoes.push('valor_multa > 0')
+    } else if (filtros.tipo === 'Reserva') {
+      condicoes.push('valor_multa = 0')
+    }
 
     const where = condicoes.length > 0 ? ` WHERE ${condicoes.join(' AND ')}` : ''
     const paginacao = filtros.limite !== undefined ? ' LIMIT ? OFFSET ?' : ''
@@ -103,7 +117,7 @@ export class PagamentoRepositorio extends RepositorioBase implements Repositorio
             dados.valorBase + multa,
             dados.formaPagamento ?? null,
             dados.statusPagamento ?? 'Pendente',
-            dados.dataPagamento ?? null,
+            dataHoraSql(dados.dataPagamento) ?? null,
           ],
         )
         id = resultado.insertId
@@ -144,7 +158,7 @@ export class PagamentoRepositorio extends RepositorioBase implements Repositorio
     }
     if (dados.dataPagamento !== undefined) {
       campos.push('data_pagamento = ?')
-      valores.push(dados.dataPagamento)
+      valores.push(dataHoraSql(dados.dataPagamento) ?? null)
     }
     if (campos.length === 0) return null
 
