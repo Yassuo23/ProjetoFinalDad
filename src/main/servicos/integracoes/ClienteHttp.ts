@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod'
-import { ErroIntegracao } from './ErroIntegracao'
+import { ErroIntegracao, ErroNaoEncontrado } from './ErroIntegracao'
 
 /** Hosts permitidos: constantes, https, nunca vindos do renderer ou de `.env`. */
 export const HOSTS = {
@@ -10,6 +10,15 @@ export const HOSTS = {
 } as const
 
 export const TEMPO_LIMITE_MS = 6_000
+/**
+ * A borda da BrasilAPI recusa o `User-Agent` padrão do Node (`node`) com 403;
+ * um agente identificável e o `Accept` explícito foram verificados com 200 em
+ * CNPJ, feriados e ViaCEP em 26/11/2026. Não é credencial nem segredo.
+ */
+export const CABECALHOS_PADRAO: Readonly<Record<string, string>> = {
+  'User-Agent': 'Zenite/0.1',
+  Accept: 'application/json',
+}
 /** Uma original + no máximo uma nova tentativa (ADR 0008). */
 const TOTAL_TENTATIVAS = 2
 
@@ -50,14 +59,19 @@ export class ClienteHttp {
 
     for (let tentativa = 0; tentativa < TOTAL_TENTATIVAS; tentativa += 1) {
       try {
-        const resposta = await this.buscar(url, { signal: AbortSignal.timeout(TEMPO_LIMITE_MS) })
+        const resposta = await this.buscar(url, {
+          signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+          headers: CABECALHOS_PADRAO,
+        })
 
         if (!resposta.ok) {
           if (resposta.status === 429 || resposta.status >= 500) {
             ultimoErro = new ErroIntegracao('SERVICO_FORA')
             continue
           }
-          throw new ErroIntegracao('SEM_DADOS')
+          throw resposta.status === 404
+            ? new ErroNaoEncontrado()
+            : new ErroIntegracao('SEM_DADOS')
         }
 
         let corpo: unknown

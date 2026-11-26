@@ -20,7 +20,6 @@ import type {
   DevolucaoListarFiltros,
   DevolucaoPendente,
   DevolucoesPendentesEntrada,
-  EnderecoCep,
   EstadoSessao,
   Equipamento,
   EquipamentoAtualizarEntrada,
@@ -45,6 +44,7 @@ import type {
   PagamentoListarFiltros,
   PeriodoEntrada,
   Reserva,
+  RespostaCep,
   RespostaCnpj,
   RespostaFeriados,
   RespostaPrevisaoTempo,
@@ -117,7 +117,7 @@ export interface ServicoClientes {
   /** `idClienteProprietario` é derivado da sessão no main (ADR 0009). */
   listar(filtros?: ClienteListarFiltros, idClienteProprietario?: number): Promise<readonly Cliente[]>
   buscarPorId(id: number, idClienteProprietario?: number): Promise<Cliente>
-  buscarCep(cep: string): Promise<EnderecoCep>
+  buscarCep(cep: string): Promise<RespostaCep>
   criar(dados: ClienteCriarEntrada): Promise<Cliente>
   atualizar(dados: ClienteAtualizarEntrada, idClienteProprietario?: number): Promise<Cliente>
   inativar(id: number): Promise<void>
@@ -195,7 +195,7 @@ export interface ServicoDisponibilidade {
 }
 
 export interface ServicoCep {
-  buscar(cep: string): Promise<EnderecoCep>
+  buscar(cep: string): Promise<RespostaCep>
 }
 
 export interface ServicoClima {

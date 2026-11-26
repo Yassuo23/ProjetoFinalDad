@@ -12,4 +12,6 @@ export {
   ordenarPor,
 } from './FiltrosListas'
 export type { DirecaoOrdenacao } from './FiltrosListas'
+export { interpretarRespostaCep } from './InterpretadorCep'
+export type { AvisoCep, InterpretacaoCep } from './InterpretadorCep'
 export { avisoFeriadosIndisponiveis, textoMulta } from './TextosMulta'

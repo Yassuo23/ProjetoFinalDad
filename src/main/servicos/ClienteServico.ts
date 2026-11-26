@@ -4,6 +4,7 @@ import type {
   ClienteCriarEntrada,
   ClienteListarFiltros,
   EnderecoCep,
+  RespostaCep,
 } from '../../shared/contratos/modelos'
 import type { RepositorioClientes } from '../repositorios/portas'
 import { ErroDeDominio, paraErroDominio } from './ErroDeDominio'
@@ -46,12 +47,13 @@ export class ClienteServico implements ServicoClientes {
     return cliente
   }
 
-  async buscarCep(cep: string): Promise<EnderecoCep> {
-    try {
-      return await this.servicoCep.buscar(cep)
-    } catch (erro) {
-      throw paraErroDominio(erro, 'CEP')
-    }
+  buscarCep(cep: string): Promise<RespostaCep> {
+    return this.servicoCep.buscar(cep)
+  }
+
+  /** Só devolve endereço real: estados de falha não autorizam dado inventado. */
+  private enderecoDisponivel(resposta: RespostaCep): EnderecoCep | null {
+    return resposta.estado === 'disponivel' ? resposta.endereco : null
   }
 
   async criar(dados: ClienteCriarEntrada): Promise<Cliente> {
@@ -67,11 +69,13 @@ export class ClienteServico implements ServicoClientes {
 
     const cep = dados.cep
     if (!vazio(cep) && CAMPOS_ENDERECO.some((campo) => vazio(dados[campo]))) {
-      const endereco = await this.buscarCep(cep as string)
-      if (vazio(logradouro)) logradouro = endereco.logradouro
-      if (vazio(bairro)) bairro = endereco.bairro
-      if (vazio(cidade)) cidade = endereco.cidade
-      if (vazio(uf)) uf = endereco.uf
+      const endereco = this.enderecoDisponivel(await this.buscarCep(cep as string))
+      if (endereco !== null) {
+        if (vazio(logradouro)) logradouro = endereco.logradouro
+        if (vazio(bairro)) bairro = endereco.bairro
+        if (vazio(cidade)) cidade = endereco.cidade
+        if (vazio(uf)) uf = endereco.uf
+      }
     }
 
     const envio: ClienteCriarEntrada = {
@@ -118,16 +122,18 @@ export class ClienteServico implements ServicoClientes {
     const preenchidos = new Set<CampoEndereco>()
 
     if (!vazio(cep) && (cepMudou || enderecoVazio)) {
-      const endereco = await this.buscarCep(cep as string)
-      for (const campo of CAMPOS_ENDERECO) {
-        const valorEfetivo = dados[campo] !== undefined ? dados[campo] : atual[campo]
-        if (!vazio(valorEfetivo)) continue
+      const endereco = this.enderecoDisponivel(await this.buscarCep(cep as string))
+      if (endereco !== null) {
+        for (const campo of CAMPOS_ENDERECO) {
+          const valorEfetivo = dados[campo] !== undefined ? dados[campo] : atual[campo]
+          if (!vazio(valorEfetivo)) continue
 
-        preenchidos.add(campo)
-        if (campo === 'logradouro') logradouro = endereco.logradouro
-        if (campo === 'bairro') bairro = endereco.bairro
-        if (campo === 'cidade') cidade = endereco.cidade
-        if (campo === 'uf') uf = endereco.uf
+          preenchidos.add(campo)
+          if (campo === 'logradouro') logradouro = endereco.logradouro
+          if (campo === 'bairro') bairro = endereco.bairro
+          if (campo === 'cidade') cidade = endereco.cidade
+          if (campo === 'uf') uf = endereco.uf
+        }
       }
     }
 

@@ -12,6 +12,7 @@ status HTTP, stack ou dado bruto de API; ele consome os canais `clientes:buscar-
 | --- | --- |
 | Hosts | Constantes `https://viacep.com.br`, `https://api.open-meteo.com`, `https://geocoding-api.open-meteo.com`, `https://brasilapi.com.br`. Qualquer outra origem é recusada antes do `fetch`. |
 | URL | `new URL()` sobre a constante + `encodeURIComponent` em cada parâmetro. |
+| Cabeçalhos | `User-Agent: Zenite/0.1` e `Accept: application/json` em toda chamada (`ClienteHttp.ts`). A borda da BrasilAPI devolve `403 Forbidden` ao `User-Agent: node` do `fetch` do Node; com o agente identificável, CNPJ/feriados/ViaCEP responderam `200` em 26/11/2026. Não é credencial. |
 | Timeout | 6 s por tentativa (`AbortSignal.timeout`). |
 | Tentativas | 1 original + no máximo 1 nova, somente em timeout, erro de rede, `429` ou `5xx`. |
 | Cache | `Map` em memória, chave = URL completa. Não persiste após reiniciar o app. |
@@ -29,7 +30,7 @@ Motivos de indisponibilidade (contrato ADR 0007): `SERVICO_FORA`, `CREDENCIAL_AU
 | Endpoint | `GET https://viacep.com.br/ws/{8 dígitos}/json/` |
 | Limites | 8 dígitos; o main remove pontuação antes de montar a URL. |
 | Janela / TTL | Sem janela temporal; cache de **24 h** por CEP. |
-| Erros / fallback | CEP inexistente, `4xx`, resposta inválida ou falha de rede viram `ErroDeDominio('CEP_INVALIDO', mensagem amigável)`. O usuário pode preencher o endereço manualmente. |
+| Erros / fallback | `CepServico.consultar` (e `buscar`, mesma união) devolve `disponivel` (endereço), `nao-encontrado` (CEP inexistente, `404` ou menos de 8 dígitos) ou `indisponivel` com motivo (`SERVICO_FORA`/`SEM_DADOS`) em timeout, rede/`5xx` ou corpo inválido — nunca lança para falha upstream. O contrato público `clientes:buscar-cep` expõe `RespostaCep` em `shared/contratos/modelos.ts`; não há mais adaptador `ErroDeDominio`. A tela mostra o estado e preserva o botão “Preencher manualmente” e os campos digitados nas duas falhas (`PaginaClientes.ts`). |
 | Onde aparece | Clientes → `( Buscar CEP )` e preenchimento automático ao salvar com endereço incompleto. |
 
 ## Open‑Meteo — previsão pela data da reserva
@@ -53,8 +54,9 @@ desfavorável; `null` se a integração estiver indisponível. O campo é aditiv
 | Item | Valor |
 | --- | --- |
 | Finalidade | Validar e preencher dados do fornecedor (razão social, nome fantasia, situação, atividade e endereço opcional). |
-| Endpoint | `GET https://brasilapi.com.br/api/cnpj/v1/{14 dígitos}` |
-| Limites | Schema do IPC aceita pontuação; o main valida os **dois dígitos verificadores** antes da chamada. |
+| Endpoint | `GET https://brasilapi.com.br/api/cnpj/v1/{14 dígitos}` — documentado na [OpenAPI da BrasilAPI](https://brasilapi.com.br/docs) e no [README oficial](https://github.com/brasilapi/brasilapi). |
+| Limites | Schema do IPC aceita pontuação; o main valida os **dois dígitos verificadores** antes da chamada. Sem chave; uso automatizado em volume deve respeitar os [termos oficiais](https://github.com/brasilapi/brasilapi#termos-de-uso). |
+| Diagnóstico 26/11/2026 | `fetch` sem cabeçalhos e com `Accept: application/json` → `403 Forbidden`; com `User-Agent` identificável → `200 OK` e corpo com `razao_social`, `situacao_cadastral`, `cnae_fiscal_descricao`, `municipio`, `uf`, `cep`. A correção foi o cabeçalho no cliente comum; **não houve troca de provedor**, de host ou de contrato público. |
 | Janela / TTL | Sem janela temporal; cache de **24 h** por CNPJ. |
 | Erros / fallback | Dígitos inválidos → `indisponivel / PESQUISA_INVALIDA`; `404` ou resposta inválida → `SEM_DADOS`; rede/timeout/`5xx` → `SERVICO_FORA`. Nenhum erro bruto atravessa o IPC. |
 | Onde aparece | Fornecedores → consulta de CNPJ no cadastro; `DadosCnpj` inclui campos de endereço opcionais para preenchimento. |

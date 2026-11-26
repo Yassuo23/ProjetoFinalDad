@@ -28,6 +28,7 @@ export function registrarClientes(
     async ({ id }) => servico.buscarPorId(id, idClienteDaSessao(sessao)),
     PERFIS.autenticados,
   )
+  // `buscarCep` devolve a união tipada; o handler apenas delega, sem adaptar erro.
   registro.registrar(
     CANAIS.clientesBuscarCep,
     esquemaBuscarCep,

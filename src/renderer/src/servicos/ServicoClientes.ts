@@ -4,7 +4,7 @@ import type {
   ClienteAtualizarEntrada,
   ClienteCriarEntrada,
   ClienteListarFiltros,
-  EnderecoCep,
+  RespostaCep,
 } from '../../../shared/contratos/modelos'
 
 export class ServicoClientes {
@@ -16,7 +16,7 @@ export class ServicoClientes {
     return vigiarSessao(window.electronAPI.clientes.buscarPorId(id))
   }
 
-  buscarCep(cep: string): Promise<EnderecoCep> {
+  buscarCep(cep: string): Promise<RespostaCep> {
     return vigiarSessao(window.electronAPI.clientes.buscarCep(cep))
   }
 

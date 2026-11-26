@@ -53,6 +53,26 @@ describe('CnpjServico', () => {
     expect(url.origin).toBe('https://brasilapi.com.br')
     expect(url.pathname).toBe(`/api/cnpj/v1/${DIGITOS}`)
     expect(init?.signal).toBeDefined()
+    expect(init?.headers).toMatchObject({
+      'User-Agent': 'Zenite/0.1',
+      Accept: 'application/json',
+    })
+  })
+
+  it('traduz 403 da BrasilAPI em indisponivel sem repetir', async () => {
+    const buscar = vi.fn(async (_url: URL, _init?: RequestInit) =>
+      resposta({ error: { code: '403', message: 'Forbidden' } }, 403),
+    )
+    const resultado = await new CnpjServico(new ClienteHttp(buscar)).consultar(CNPJ)
+
+    expect(resultado).toMatchObject({
+      estado: 'indisponivel',
+      cnpj: DIGITOS,
+      motivo: 'SEM_DADOS',
+    })
+    expect(buscar).toHaveBeenCalledTimes(1)
+    const [, init] = buscar.mock.calls[0] as [URL, RequestInit | undefined]
+    expect(init?.headers).toMatchObject({ 'User-Agent': 'Zenite/0.1' })
   })
 
   it('recusa dígitos verificadores inválidos sem consultar a rede', async () => {

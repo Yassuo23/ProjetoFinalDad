@@ -25,7 +25,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoClientes } from '../servicos'
-import { codigoErro, formatadorPtBr, mensagemErroOperacao } from '../util'
+import { formatadorPtBr, interpretarRespostaCep, mensagemErroOperacao } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -512,41 +512,52 @@ export class PaginaClientes extends Componente {
     this.cepConsultado = digitos
 
     try {
-      const endereco = await this.servico.buscarCep(digitos)
-      this.formulario.logradouro = endereco.logradouro ?? ''
-      this.formulario.bairro = endereco.bairro ?? ''
-      this.formulario.cidade = endereco.cidade ?? ''
-      this.formulario.uf = normalizarUf(endereco.uf ?? '')
-      this.campos?.logradouro.definirValor(this.formulario.logradouro)
-      this.campos?.bairro.definirValor(this.formulario.bairro)
-      this.campos?.cidade.definirValor(this.formulario.cidade)
-      this.campos?.uf.definirValor(this.formulario.uf)
-      this.campos?.uf.definirErro(null)
-      this.campoCep?.definirErro(null)
-      if (this.botaoManual !== null) {
-        this.botaoManual.className = CLASSES.oculto
+      const resultado = interpretarRespostaCep(await this.servico.buscarCep(digitos))
+
+      if (resultado.estado === 'disponivel') {
+        const endereco = resultado.endereco
+        this.formulario.logradouro = endereco.logradouro ?? ''
+        this.formulario.bairro = endereco.bairro ?? ''
+        this.formulario.cidade = endereco.cidade ?? ''
+        this.formulario.uf = normalizarUf(endereco.uf ?? '')
+        this.campos?.logradouro.definirValor(this.formulario.logradouro)
+        this.campos?.bairro.definirValor(this.formulario.bairro)
+        this.campos?.cidade.definirValor(this.formulario.cidade)
+        this.campos?.uf.definirValor(this.formulario.uf)
+        this.campos?.uf.definirErro(null)
+        this.campoCep?.definirErro(null)
+        if (this.botaoManual !== null) {
+          this.botaoManual.className = CLASSES.oculto
+        }
+        this.toasts.exibir({
+          titulo: 'CEP localizado',
+          mensagem: 'Endereço preenchido. Confira o número e o complemento.',
+          tom: 'sucesso',
+        })
+        return
       }
-      this.toasts.exibir({
-        titulo: 'CEP localizado',
-        mensagem: 'Endereço preenchido. Confira o número e o complemento.',
-        tom: 'sucesso',
-      })
-    } catch (erro) {
-      const naoEncontrado = codigoErro(erro) === 'CEP_INVALIDO'
-      this.campoCep?.definirErro(
-        naoEncontrado
-          ? 'CEP não encontrado. Preencha o endereço manualmente.'
-          : 'Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.',
-      )
+
+      // Estado de falha não apaga nem inventa nada: botão manual e campos permanecem.
+      this.campoCep?.definirErro(resultado.aviso.mensagem)
       if (this.botaoManual !== null) {
         this.botaoManual.className = CLASSES.botaoManual
       }
       this.toasts.exibir({
-        titulo: naoEncontrado ? 'CEP não encontrado' : 'Falha ao consultar o CEP',
-        mensagem: naoEncontrado
-          ? 'Preencha o endereço manualmente para continuar.'
-          : 'Verifique sua conexão e tente novamente.',
-        tom: naoEncontrado ? 'alerta' : 'erro',
+        titulo: resultado.aviso.titulo,
+        mensagem: resultado.aviso.mensagem,
+        tom: resultado.estado === 'nao-encontrado' ? 'alerta' : 'erro',
+      })
+    } catch {
+      // Somente falha inesperada do canal (ex.: sessão expirada) chega aqui.
+      const mensagem = 'Não foi possível consultar o CEP. Preencha o endereço manualmente.'
+      this.campoCep?.definirErro(mensagem)
+      if (this.botaoManual !== null) {
+        this.botaoManual.className = CLASSES.botaoManual
+      }
+      this.toasts.exibir({
+        titulo: 'Falha ao consultar o CEP',
+        mensagem,
+        tom: 'erro',
       })
     }
   }

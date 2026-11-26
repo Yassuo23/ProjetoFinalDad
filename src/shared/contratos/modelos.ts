@@ -511,6 +511,20 @@ export type MotivoIndisponibilidade =
   | 'SEM_DADOS'
   | 'PESQUISA_INVALIDA'
 
+/**
+ * Contrato público de `clientes:buscar-cep`. Como clima/CNPJ/feriados, uma falha
+ * upstream é RETORNO tipado, nunca exceção. `nao-encontrado` (CEP inexistente)
+ * não se confunde com `indisponivel` (serviço fora/timeout/corpo inválido).
+ */
+export type RespostaCep =
+  | { readonly estado: 'disponivel'; readonly endereco: EnderecoCep }
+  | { readonly estado: 'nao-encontrado'; readonly cep: string }
+  | {
+      readonly estado: 'indisponivel'
+      readonly cep: string
+      readonly motivo: MotivoIndisponibilidade
+    }
+
 export type CondicaoTempo = 'Ensolarado' | 'Nublado' | 'Chuvoso' | 'Outro'
 
 export interface PrevisaoTempoEntrada {

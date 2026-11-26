@@ -19,7 +19,6 @@ import type {
   DevolucaoCriarEntrada,
   DevolucaoListarFiltros,
   DevolucaoPendente,
-  EnderecoCep,
   Equipamento,
   EquipamentoAtualizarEntrada,
   EquipamentoCriarEntrada,
@@ -52,6 +51,7 @@ import type {
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
+  RespostaCep,
   RespostaCnpj,
   RespostaFeriados,
   RespostaPrevisaoTempo,
@@ -114,7 +114,7 @@ export interface ApiZenite {
   clientes: {
     listar(filtros?: ClienteListarFiltros): Promise<Cliente[]>
     buscarPorId(id: number): Promise<Cliente>
-    buscarCep(cep: string): Promise<EnderecoCep>
+    buscarCep(cep: string): Promise<RespostaCep>
     criar(dados: ClienteCriarEntrada): Promise<Cliente>
     atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente>
     inativar(id: number): Promise<void>

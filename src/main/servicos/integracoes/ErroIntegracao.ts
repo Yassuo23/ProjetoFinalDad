@@ -23,6 +23,18 @@ export function motivoIntegracao(erro: unknown): MotivoIndisponibilidade {
   return erro instanceof ErroIntegracao ? erro.motivo : 'SERVICO_FORA'
 }
 
+/** `404` é "não encontrado"; os demais `4xx` continuam sendo `SEM_DADOS`. */
+export class ErroNaoEncontrado extends ErroIntegracao {
+  constructor() {
+    super('SEM_DADOS')
+  }
+}
+
 export function mensagemIntegracao(erro: unknown): string {
   return erro instanceof ErroIntegracao ? erro.message : MENSAGENS.SERVICO_FORA
+}
+
+/** Texto amigável derivado do motivo, sem expor status, URL ou stack. */
+export function mensagemMotivo(motivo: MotivoIndisponibilidade): string {
+  return MENSAGENS[motivo]
 }

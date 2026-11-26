@@ -9,17 +9,19 @@ import { z } from 'zod'
 const textoOpcional = z.string().trim().nullish()
 const numeroOpcional = z.number().finite().nullish()
 
-/** ViaCEP responde `200 { erro: true }` quando o CEP não existe. */
-export const esquemaRespostaViaCep = z
-  .object({
-    cep: z.string().optional(),
-    logradouro: z.string().optional(),
-    bairro: z.string().optional(),
-    localidade: z.string().optional(),
-    uf: z.string().optional(),
-    erro: z.boolean().optional(),
-  })
-  .refine((dados) => dados.erro !== true, { message: 'CEP_NAO_ENCONTRADO' })
+/**
+ * ViaCEP responde `200 { erro: true }` quando o CEP não existe. O sinal é
+ * validado como parte do DTO e interpretado pelo serviço (estado "não
+ * encontrado"), distinto de corpo inválido (estado "indisponível").
+ */
+export const esquemaRespostaViaCep = z.object({
+  cep: z.string().optional(),
+  logradouro: z.string().optional(),
+  bairro: z.string().optional(),
+  localidade: z.string().optional(),
+  uf: z.string().optional(),
+  erro: z.boolean().optional(),
+})
 
 /** Open-Meteo Forecast: campos diários podem conter `null` em dias sem modelo. */
 export const esquemaRespostaPrevisao = z.object({

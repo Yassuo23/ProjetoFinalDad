@@ -242,7 +242,7 @@ botão → logradouro → número → complemento → bairro → cidade → UF �
 
 | API / canal | Motivo | Texto ao usuário |
 | --- | --- | --- |
-| `clientes.buscarCep` (ViaCEP; 8 dígitos; timeout 6 s; 1 retry; cache 24 h) | CEP inexistente, `4xx`, resposta inválida ou rede → `CEP_INVALIDO` com mensagem amigável | “CEP não encontrado. Preencha o endereço manualmente.” (inexistente) / “Não foi possível consultar o CEP. Verifique sua conexão e tente novamente.” (rede) |
+| `clientes.buscarCep` (ViaCEP; 8 dígitos; timeout 6 s; 1 retry; cache 24 h) | `disponivel` preenche logradouro/bairro/cidade/UF; `nao-encontrado` e `indisponivel` (com `motivo`) são RETORNO tipado, não exceção | “CEP não encontrado. Preencha o endereço manualmente.” (inexistente) / “Serviço de CEP indisponível (`motivo`): … Preencha o endereço manualmente.” (fora/rede/inválido); botão manual e campos digitados preservados |
 | idem | `CREDENCIAL_AUSENTE` / `SERVICO_FORA` (quando vier do motivo genérico de integração) | “Consulta de endereço temporariamente indisponível. Você pode preencher manualmente.” |
 | `clientes.criar` | falha local | “Não foi possível salvar. Verifique os dados e tente novamente em instantes.” |
 

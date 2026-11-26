@@ -1,7 +1,6 @@
-import type { EnderecoCep } from '../../shared/contratos/modelos'
-import { ErroDeDominio } from './ErroDeDominio'
+import type { RespostaCep } from '../../shared/contratos/modelos'
 import { ClienteHttp, HOSTS } from './integracoes/ClienteHttp'
-import { mensagemIntegracao } from './integracoes/ErroIntegracao'
+import { ErroNaoEncontrado, motivoIntegracao } from './integracoes/ErroIntegracao'
 import { esquemaRespostaViaCep } from './integracoes/esquemasExternos'
 import type { ServicoCep } from './portas'
 
@@ -17,10 +16,15 @@ function textoOuNulo(valor: string | undefined): string | null {
 export class CepServico implements ServicoCep {
   constructor(private readonly http: ClienteHttp = new ClienteHttp()) {}
 
-  async buscar(cep: string): Promise<EnderecoCep> {
+  /**
+   * Padrão das demais integrações: falha upstream é RETORNO tipado, nunca
+   * exceção. CEP inexistente (`nao-encontrado`) não se confunde com serviço
+   * fora/resposta inválida (`indisponivel`, com `motivo`).
+   */
+  async consultar(cep: string): Promise<RespostaCep> {
     const digitos = cep.replace(/\D/g, '')
     if (digitos.length !== 8) {
-      throw new ErroDeDominio('CEP_INVALIDO', 'CEP inválido. Informe os 8 dígitos.')
+      return { estado: 'nao-encontrado', cep: digitos }
     }
 
     // Host fixo; o renderer informa somente os dígitos, nunca uma URL.
@@ -28,16 +32,30 @@ export class CepServico implements ServicoCep {
 
     try {
       const dados = await this.http.obter(url, esquemaRespostaViaCep, TTL_CEP_MS)
+      if (dados.erro === true) {
+        return { estado: 'nao-encontrado', cep: digitos }
+      }
       return {
-        cep: digitos,
-        logradouro: textoOuNulo(dados.logradouro),
-        bairro: textoOuNulo(dados.bairro),
-        cidade: textoOuNulo(dados.localidade),
-        uf: textoOuNulo(dados.uf),
+        estado: 'disponivel',
+        endereco: {
+          cep: digitos,
+          logradouro: textoOuNulo(dados.logradouro),
+          bairro: textoOuNulo(dados.bairro),
+          cidade: textoOuNulo(dados.localidade),
+          uf: textoOuNulo(dados.uf),
+        },
       }
     } catch (erro) {
       // Nunca expõe status HTTP, URL, stack nem detalhe do fetch ao renderer.
-      throw new ErroDeDominio('CEP_INVALIDO', mensagemIntegracao(erro))
+      if (erro instanceof ErroNaoEncontrado) {
+        return { estado: 'nao-encontrado', cep: digitos }
+      }
+      return { estado: 'indisponivel', cep: digitos, motivo: motivoIntegracao(erro) }
     }
+  }
+
+  /** Nome adotado pela porta de clientes; retorna o mesmo contrato de `consultar`. */
+  buscar(cep: string): Promise<RespostaCep> {
+    return this.consultar(cep)
   }
 }
