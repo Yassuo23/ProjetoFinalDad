@@ -348,3 +348,23 @@ Sair — sem Dashboard, Clientes, Equipamentos, Fornecedores, Manutenção, Paga
   essa chamada, sem alterar layout.
 - Nenhuma dependência nova foi instalada e nenhum `git add`, `git commit` ou `git push` foi executado.
   Os arquivos alterados estão listados no resumo final da entrega.
+
+## Edição de itens de reserva e situação de usuários (Tarefa 1)
+
+### Estado aplicado
+
+- Na edição administrativa de reservas, o bloco “Itens da reserva” usa somente `ServicoItensReserva`:
+  `criar` para adicionar, `atualizar` para a diária acordada e `remover` após confirmação no `Modal`
+  do projeto. A adição revalida `equipamentos.listarDisponiveis` com `reservaId` e toma a diária do
+  equipamento devolvido pelo main; nada é inventado no renderer.
+- Falha de canal não é engolida: vira toast de erro e `EstadoErro` com “Tentar de novo” no bloco de
+  itens. Após cada escrita, os itens são recarregados e o total é recalculado. Durante a edição, uma
+  consulta de disponibilidade não remove da tela itens já persistidos.
+- `ServicoUsuarios` passou a expor `buscarPorId` e `inativar`. A inativação consulta o registro
+  antes de agir e usa o id devolvido; a reativação continua em `usuarios:atualizar({ ativo: true })`
+  porque o contrato não oferece canal de ativação.
+
+### Handoff / risco residual
+
+- Nenhum canal, schema, handler, tipo compartilhado, `.env` ou ADR foi alterado; não há handoff novo
+  ao Arquiteto/ED. O clique real na GUI permanece para verificação manual (800×600 e 1920×1080).

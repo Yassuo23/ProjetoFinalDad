@@ -1,9 +1,13 @@
 import type {
   CategoriaEquipamento,
+  ChaveItemReservaEntrada,
   Cliente,
   Equipamento,
   FeriadoNacional,
   FormaPagamento,
+  ItemReserva,
+  ItemReservaAtualizarEntrada,
+  ItemReservaCriarEntrada,
   ItemReservaEntrada,
   Reserva,
   ReservaAtualizarEntrada,
@@ -112,6 +116,13 @@ const CLASSES = {
   etapaAtiva: 'rounded-pill px-3 py-1 bg-floresta text-pedra',
   etapaConteudo: 'flex flex-col gap-3',
   previsao: 'rounded-card border border-granito/45 bg-pedra p-3 text-sm text-grafite',
+  itensEdicao: 'flex flex-col gap-3 rounded-card border border-granito/45 bg-superficie p-3',
+  itensEdicaoTitulo: 'font-display text-sm font-semibold text-floresta',
+  itensEdicaoLinha:
+    'flex flex-wrap items-end gap-2 border-t border-granito/30 pt-3 first:border-0 first:pt-0',
+  itensEdicaoNome: 'min-w-40 flex-1 text-sm text-grafite',
+  itensEdicaoAcoes: 'flex flex-wrap items-center gap-2',
+  itensEdicaoAdicionar: 'flex flex-wrap items-end gap-2',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
@@ -319,6 +330,11 @@ export class PaginaReservas extends Componente {
   private resumoSlot: HTMLElement | null = null
   private totalSlot: HTMLElement | null = null
   private motivoSlot: HTMLElement | null = null
+  private itensSlot: HTMLElement | null = null
+  private itemParaAdicionar: number | null = null
+  private readonly diariasEdicao = new Map<number, number>()
+  private itemErro: string | null = null
+  private itemAcao: (() => void) | null = null
   private botaoConfirmar: Botao | null = null
   private campoFiltroCliente: Campo | null = null
   private campoFormaPagamento: Select | null = null
@@ -531,6 +547,7 @@ export class PaginaReservas extends Componente {
     this.resumoSlot = null
     this.totalSlot = null
     this.motivoSlot = null
+    this.itensSlot = null
     this.botaoConfirmar = null
     this.campoFiltroCliente = null
     this.campoFormaPagamento = null
@@ -722,6 +739,7 @@ export class PaginaReservas extends Componente {
       this.atualizarOpcoesCliente()
       this.renderizarClientes()
       this.renderizarEquipamentos()
+      this.renderizarItensEdicao()
       this.atualizarResumo()
       this.renderizarIntegracoes()
       this.atualizarMotivo()
@@ -942,6 +960,7 @@ export class PaginaReservas extends Componente {
 
     this.clientesSlot = criarElemento('div')
     this.equipamentosSlot = criarElemento('div')
+    this.itensSlot = criarElemento('div', { atributos: { 'aria-live': 'polite' } })
     this.resumoSlot = criarElemento('div', {
       className: CLASSES.resumo,
       atributos: { 'aria-live': 'polite' },
@@ -1013,6 +1032,25 @@ export class PaginaReservas extends Componente {
             this.equipamentosSlot,
           ],
         }),
+        ...(this.editandoId === null
+          ? []
+          : [
+              criarElemento('div', {
+                className: CLASSES.secao,
+                filhos: [
+                  criarElemento('div', {
+                    className: CLASSES.secaoTopo,
+                    filhos: [
+                      criarElemento('h3', {
+                        className: CLASSES.secaoTitulo,
+                        texto: 'Itens da reserva',
+                      }),
+                    ],
+                  }),
+                  this.itensSlot,
+                ],
+              }),
+            ]),
       ],
     })
     const secaoConferencia = criarElemento('div', {
@@ -1132,6 +1170,323 @@ export class PaginaReservas extends Componente {
     this.equipamentosSlot.replaceChildren(this.lista.raiz)
   }
 
+  /** Itens persistentes da reserva em edição; na criação o wizard continua como antes. */
+  private renderizarItensEdicao(): void {
+    const slot = this.itensSlot
+    if (slot === null || this.editandoId === null) {
+      return
+    }
+    const filhos: Array<Node> = []
+    if (this.itemErro !== null) {
+      const area = criarElemento('div')
+      new EstadoErro({
+        titulo: 'Não foi possível concluir a alteração',
+        mensagem: this.itemErro,
+        aoTentar: () => this.itemAcao?.(),
+      }).montar(area)
+      filhos.push(area)
+    }
+
+    const opcoes = this.disponiveis
+      .filter((equipamento) => !this.itens.has(equipamento.id))
+      .map((equipamento) => ({
+        valor: String(equipamento.id),
+        rotulo: `${equipamento.nome} · ${formatadorPtBr.moeda(equipamento.valorDiaria ?? 0)}/dia`,
+      }))
+    const selecionar = new Select({
+      id: 'reserva-item-adicionar',
+      rotulo: 'Adicionar equipamento',
+      placeholder: 'Selecione um equipamento disponível',
+      valorInicial: this.itemParaAdicionar === null ? '' : String(this.itemParaAdicionar),
+      opcoes,
+      aoAlterar: (valor) => {
+        const id = Number(valor)
+        this.itemParaAdicionar =
+          valor === '' || !Number.isSafeInteger(id) || id <= 0 ? null : id
+      },
+    })
+    const adicionar = new Botao({
+      texto: 'Adicionar item',
+      aoClicar: () => {
+        const equipamentoId = this.itemParaAdicionar
+        if (equipamentoId === null) {
+          this.toasts.exibir({
+            titulo: 'Escolha um equipamento',
+            mensagem: 'Selecione um equipamento disponível para adicionar.',
+            tom: 'alerta',
+          })
+          return
+        }
+        void this.adicionarItem(equipamentoId)
+      },
+    })
+    filhos.push(
+      criarElemento('div', {
+        className: CLASSES.itensEdicaoAdicionar,
+        filhos: [selecionar.raiz, adicionar.raiz],
+      }),
+    )
+
+    if (this.itens.size === 0) {
+      filhos.push(
+        criarElemento('p', {
+          className: CLASSES.motivo,
+          texto: 'Nenhum item nesta reserva. Escolha um equipamento disponível acima.',
+        }),
+      )
+    } else {
+      const linhas: Array<Node> = [
+        criarElemento('h4', {
+          className: CLASSES.itensEdicaoTitulo,
+          texto: `Itens da reserva (${this.itens.size})`,
+        }),
+      ]
+      for (const [equipamentoId, valorDiaria] of this.itens) {
+        const campoDiaria = new Campo({
+          id: `reserva-item-diaria-${equipamentoId}`,
+          rotulo: `Diária — ${this.nomeEquipamento(equipamentoId)}`,
+          tipo: 'number',
+          valorInicial: String(this.diariasEdicao.get(equipamentoId) ?? valorDiaria),
+          ajuda: 'Valor acordado por dia; salve a alteração para atualizar o item.',
+          aoAlterar: (valor) => {
+            const numero = Number(valor)
+            if (valor.trim() === '' || !Number.isFinite(numero) || numero < 0) {
+              this.diariasEdicao.delete(equipamentoId)
+              campoDiaria.definirErro('Informe um valor válido.')
+              return
+            }
+            this.diariasEdicao.set(equipamentoId, numero)
+            campoDiaria.definirErro(null)
+          },
+        })
+        const salvar = new Botao({
+          texto: 'Salvar diária',
+          variante: 'secundario',
+          aoClicar: () => {
+            const numero = this.diariasEdicao.get(equipamentoId)
+            if (numero === undefined) {
+              this.toasts.exibir({
+                titulo: 'Confira a diária',
+                mensagem: 'Informe um valor válido antes de salvar.',
+                tom: 'alerta',
+              })
+              return
+            }
+            void this.atualizarDiariaItem(equipamentoId, numero)
+          },
+        })
+        const remover = new Botao({
+          texto: 'Remover',
+          variante: 'destrutivo',
+          aoClicar: () => this.confirmarRemocaoItem(equipamentoId),
+        })
+        linhas.push(
+          criarElemento('div', {
+            className: CLASSES.itensEdicaoLinha,
+            filhos: [
+              campoDiaria.raiz,
+              criarElemento('div', {
+                className: CLASSES.itensEdicaoAcoes,
+                filhos: [salvar.raiz, remover.raiz],
+              }),
+            ],
+          }),
+        )
+      }
+      filhos.push(criarElemento('div', { className: CLASSES.itensEdicao, filhos: linhas }))
+    }
+    slot.replaceChildren(...filhos)
+  }
+
+  private async adicionarItem(equipamentoId: number): Promise<void> {
+    const reservaId = this.editandoId
+    if (reservaId === null) {
+      return
+    }
+    const tentar = (): void => {
+      void this.adicionarItem(equipamentoId)
+    }
+    this.itemErro = null
+    this.itemAcao = null
+    try {
+      const disponiveis = await this.servicoEquipamentos.listarDisponiveis({
+        dataInicio: this.formulario.dataInicio,
+        dataFim: this.formulario.dataFim,
+        reservaId,
+      })
+      const equipamento = disponiveis.find((item) => item.id === equipamentoId)
+      if (equipamento === undefined) {
+        this.itemErro =
+          'O equipamento não está disponível para o período desta reserva. Escolha outro.'
+        this.itemAcao = tentar
+        this.renderizarItensEdicao()
+        this.toasts.exibir({
+          titulo: 'Equipamento indisponível',
+          mensagem: this.itemErro,
+          tom: 'alerta',
+        })
+        return
+      }
+      const dados: ItemReservaCriarEntrada = {
+        reservaId,
+        equipamentoId,
+        valorDiaria: equipamento.valorDiaria ?? 0,
+      }
+      await this.servicoItens.criar(dados)
+      this.disponiveis = disponiveis
+      for (const item of disponiveis) {
+        this.catalogoItens.set(item.id, item)
+      }
+      this.itemParaAdicionar = null
+      if (!(await this.recarregarItensAposEscrita())) {
+        return
+      }
+      this.renderizarEquipamentos()
+      this.toasts.exibir({
+        titulo: 'Item adicionado',
+        mensagem: `${equipamento.nome} · ${formatadorPtBr.moeda(dados.valorDiaria)}/dia.`,
+        tom: 'sucesso',
+      })
+    } catch (erro) {
+      this.itemErro = 'Não foi possível adicionar o item. Tente novamente.'
+      this.itemAcao = tentar
+      this.renderizarItensEdicao()
+      this.toasts.exibir({
+        titulo: 'Não foi possível adicionar',
+        mensagem: mensagemErroOperacao(erro, 'o item'),
+        tom: 'erro',
+      })
+    }
+  }
+
+  private async atualizarDiariaItem(equipamentoId: number, valorDiaria: number): Promise<void> {
+    const reservaId = this.editandoId
+    if (reservaId === null) {
+      return
+    }
+    const tentar = (): void => {
+      void this.atualizarDiariaItem(equipamentoId, valorDiaria)
+    }
+    this.itemErro = null
+    this.itemAcao = null
+    try {
+      const dados: ItemReservaAtualizarEntrada = { reservaId, equipamentoId, valorDiaria }
+      await this.servicoItens.atualizar(dados)
+      this.diariasEdicao.delete(equipamentoId)
+      if (!(await this.recarregarItensAposEscrita())) {
+        return
+      }
+      this.toasts.exibir({
+        titulo: 'Diária atualizada',
+        mensagem: `${this.nomeEquipamento(equipamentoId)} · ${formatadorPtBr.moeda(valorDiaria)}/dia.`,
+        tom: 'sucesso',
+      })
+    } catch (erro) {
+      this.itemErro = 'Não foi possível salvar a diária. Tente novamente.'
+      this.itemAcao = tentar
+      this.renderizarItensEdicao()
+      this.toasts.exibir({
+        titulo: 'Não foi possível salvar a diária',
+        mensagem: mensagemErroOperacao(erro, 'a diária'),
+        tom: 'erro',
+      })
+    }
+  }
+
+  private confirmarRemocaoItem(equipamentoId: number): void {
+    if (this.editandoId === null || !this.itens.has(equipamentoId)) {
+      return
+    }
+    this.confirmar({
+      titulo: 'Remover item da reserva',
+      conteudo: criarElemento('p', {
+        className: CLASSES.leituraLinha,
+        texto: `Remover ${this.nomeEquipamento(equipamentoId)} desta reserva? O equipamento voltará a ficar disponível no período.`,
+      }),
+      rotulo: 'Remover item',
+      variante: 'destrutivo',
+      acao: () => {
+        void this.removerItem(equipamentoId)
+      },
+    })
+  }
+
+  private async removerItem(equipamentoId: number): Promise<void> {
+    const reservaId = this.editandoId
+    if (reservaId === null) {
+      return
+    }
+    const tentar = (): void => {
+      void this.removerItem(equipamentoId)
+    }
+    this.itemErro = null
+    this.itemAcao = null
+    try {
+      const chave: ChaveItemReservaEntrada = { reservaId, equipamentoId }
+      await this.servicoItens.remover(chave)
+      const nome = this.nomeEquipamento(equipamentoId)
+      this.diariasEdicao.delete(equipamentoId)
+      if (!(await this.recarregarItensAposEscrita())) {
+        return
+      }
+      await this.buscarDisponibilidade(++this.requisicaoDisponibilidade)
+      this.toasts.exibir({
+        titulo: 'Item removido',
+        mensagem: `${nome} foi removido da reserva.`,
+        tom: 'sucesso',
+      })
+    } catch (erro) {
+      this.itemErro = 'Não foi possível remover o item. Tente novamente.'
+      this.itemAcao = tentar
+      this.renderizarItensEdicao()
+      this.toasts.exibir({
+        titulo: 'Não foi possível remover',
+        mensagem: mensagemErroOperacao(erro, 'o item'),
+        tom: 'erro',
+      })
+    }
+  }
+
+  private async recarregarItens(): Promise<void> {
+    const reservaId = this.editandoId
+    if (reservaId === null) {
+      return
+    }
+    const itens: readonly ItemReserva[] = await this.servicoItens.listar({ reservaId })
+    this.itens = new Map(itens.map((item) => [item.equipamentoId, item.valorDiaria]))
+    this.diariasInvalidas.clear()
+    for (const equipamentoId of [...this.diariasEdicao.keys()]) {
+      if (!this.itens.has(equipamentoId)) {
+        this.diariasEdicao.delete(equipamentoId)
+      }
+    }
+    this.atualizarResumo()
+    this.renderizarItensEdicao()
+    this.atualizarMotivo()
+  }
+
+  private async recarregarItensAposEscrita(): Promise<boolean> {
+    this.itemErro = null
+    this.itemAcao = null
+    try {
+      await this.recarregarItens()
+      return true
+    } catch {
+      this.itemErro =
+        'A alteração foi enviada, mas não foi possível recarregar os itens. Tente de novo.'
+      this.itemAcao = () => {
+        void this.recarregarItensAposEscrita()
+      }
+      this.renderizarItensEdicao()
+      this.toasts.exibir({
+        titulo: 'Lista desatualizada',
+        mensagem: this.itemErro,
+        tom: 'alerta',
+      })
+      return false
+    }
+  }
+
   private opcoesCliente(): readonly { readonly valor: string; readonly rotulo: string }[] {
     const selecionado = this.formulario.clienteId
     const termo = this.formulario.buscaCliente.trim().toLocaleLowerCase('pt-BR')
@@ -1214,10 +1569,12 @@ export class PaginaReservas extends Componente {
     void this.buscarDisponibilidade(this.requisicaoDisponibilidade)
   }
 
-  private async buscarDisponibilidade(token: number): Promise<void> {
+  /** Na edição os itens vêm do banco: uma consulta de disponibilidade não pode removê-los da tela. */
+  private async buscarDisponibilidade(token: number, preservarItens?: boolean): Promise<void> {
     if (!this.periodoValido() || token !== this.requisicaoDisponibilidade) {
       return
     }
+    const manterItens = preservarItens ?? this.editandoId !== null
     this.disponibilidadeCarregando = true
     this.disponibilidadeErro = null
     this.renderizarEquipamentos()
@@ -1236,10 +1593,12 @@ export class PaginaReservas extends Componente {
       for (const equipamento of disponiveis) {
         this.catalogoItens.set(equipamento.id, equipamento)
       }
-      for (const id of [...this.itens.keys()]) {
-        if (!disponiveis.some((equipamento) => equipamento.id === id)) {
-          this.itens.delete(id)
-          this.diariasInvalidas.delete(id)
+      if (!manterItens) {
+        for (const id of [...this.itens.keys()]) {
+          if (!disponiveis.some((equipamento) => equipamento.id === id)) {
+            this.itens.delete(id)
+            this.diariasInvalidas.delete(id)
+          }
         }
       }
     } catch {
@@ -1470,6 +1829,10 @@ export class PaginaReservas extends Componente {
     this.formulario = formularioVazio()
     this.itens = new Map()
     this.diariasInvalidas.clear()
+    this.itemParaAdicionar = null
+    this.diariasEdicao.clear()
+    this.itemErro = null
+    this.itemAcao = null
     this.catalogoItens.clear()
     this.disponiveis = []
     this.disponibilidadeCarregando = false
@@ -1565,6 +1928,10 @@ export class PaginaReservas extends Componente {
       }
       this.itens = new Map(itens.map((item) => [item.equipamentoId, item.valorDiaria]))
       this.diariasInvalidas.clear()
+      this.itemParaAdicionar = null
+      this.diariasEdicao.clear()
+      this.itemErro = null
+      this.itemAcao = null
       this.disponiveis = []
       this.consultaFeita = false
       this.disponibilidadeErro = null

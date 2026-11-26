@@ -775,7 +775,22 @@ export class PaginaUsuarios extends Componente {
 
   private async alterarSituacao(usuario: UsuarioPublico, ativo: boolean): Promise<void> {
     try {
-      await this.servico.atualizar({ id: usuario.id, ativo })
+      if (ativo) {
+        // Não existe canal de ativação: `atualizar` é a única operação disponível.
+        await this.servico.atualizar({ id: usuario.id, ativo: true })
+      } else {
+        const atual = await this.servico.buscarPorId(usuario.id)
+        if (!atual.ativo) {
+          this.toasts.exibir({
+            titulo: 'Usuário já inativo',
+            mensagem: `${atual.nome} já está inativo.`,
+            tom: 'alerta',
+          })
+          await this.recarregar()
+          return
+        }
+        await this.servico.inativar(atual.id)
+      }
       this.toasts.exibir({
         titulo: ativo ? 'Usuário ativado' : 'Usuário inativado',
         mensagem: `${usuario.nome} · ${ativo ? 'acesso liberado' : 'acesso bloqueado'}.`,
