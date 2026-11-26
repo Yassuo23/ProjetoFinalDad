@@ -357,6 +357,8 @@ export const esquemaCadastroCliente = z
     cpf,
     login,
     senha,
+    telefone: textoOpcional(20),
+    email: z.email().max(100).nullish(),
     ...camposEndereco,
   })
   .strict()

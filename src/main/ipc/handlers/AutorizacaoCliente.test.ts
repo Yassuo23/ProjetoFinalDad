@@ -230,4 +230,30 @@ describe('Grupos de permissão e escopo do cliente no main (ADR 0009)', () => {
       }),
     ).rejects.toThrow(`IPC_INVALIDO:${CANAIS.authCadastrarCliente}`)
   })
+
+  it('aceita o payload do formulário com telefone e email opcionais', async () => {
+    const ipcPublico = new RegistradorFalso()
+    registrarAutenticacao(new RegistroIpc(ipcPublico, { sessao: () => null }), {
+      ...autenticacao,
+      cadastrarCliente: async () => cliente,
+    })
+
+    await expect(
+      ipcPublico.invocar(CANAIS.authCadastrarCliente, {
+        nome: 'Carla',
+        cpf: '52998224725',
+        login: 'carla',
+        senha: 'SenhaForte2026',
+        telefone: null,
+        email: null,
+        cep: null,
+        logradouro: null,
+        numero: null,
+        complemento: null,
+        bairro: null,
+        cidade: null,
+        uf: null,
+      }),
+    ).resolves.toEqual(cliente)
+  })
 })
