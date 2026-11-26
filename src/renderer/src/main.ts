@@ -4,6 +4,7 @@ import { Carregando, EstadoErro } from './componentes'
 import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import {
   ROTA_404,
+  ROTA_ACESSO_RESTRITO,
   ROTA_CADASTRO_CLIENTE,
   ROTA_CLIENTE_DISPONIBILIDADE,
   ROTA_CLIENTE_MINHAS_RESERVAS,
@@ -26,6 +27,7 @@ import {
 } from './nucleo'
 import type { FabricaPagina, GuardiaoRota } from './nucleo'
 import {
+  PaginaAcessoRestrito,
   PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
@@ -42,8 +44,13 @@ import {
   PaginaPrimeiraExecucao,
   PaginaReservas,
   PaginaSobre,
+  PaginaUsuarios,
 } from './paginas'
-import { ServicoAutenticacao } from './servicos'
+import { EVENTO_SESSAO_EXPIRADA, ServicoAutenticacao } from './servicos'
+
+/** A sessão expira no main (8h por padrão); aqui só se decide para onde voltar. */
+const MENSAGEM_SESSAO_EXPIRADA = 'Sua sessão expirou. Entre novamente.'
+const INTERVALO_VERIFICACAO_SESSAO_MS = 15_000
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
@@ -73,6 +80,7 @@ const ROTAS = new Map<string, FabricaPagina>([
   ['/reservas/nova', () => new PaginaReservas('novo')],
   ['/devolucoes', () => new PaginaDevolucoes()],
   ['/pagamentos', () => new PaginaPagamentos()],
+  ['/usuarios', () => new PaginaUsuarios()],
   ['/sobre', () => new PaginaSobre()],
   [
     ROTA_CLIENTE_DISPONIBILIDADE,
@@ -106,13 +114,20 @@ const ROTAS = new Map<string, FabricaPagina>([
         aoVoltar: () => {
           window.location.hash = `#${ROTA_ESCOLHA_CONTA}`
         },
+        aoEntrar: () => {
+          window.location.hash = `#${ROTA_LOGIN}`
+        },
       }),
   ],
-  [ROTA_LOGIN, () => new PaginaLogin({ aoEntrar: aplicarSessao })],
+  [
+    ROTA_LOGIN,
+    () => new PaginaLogin({ aoEntrar: aplicarSessao, avisoInicial: avisoLogin }),
+  ],
   [
     ROTA_PRIMEIRA_EXECUCAO,
     () => new PaginaPrimeiraExecucao({ aoCriar: aplicarSessao }),
   ],
+  [ROTA_ACESSO_RESTRITO, () => new PaginaAcessoRestrito()],
   [ROTA_404, () => new PaginaNaoEncontrada()],
 ])
 
@@ -126,6 +141,7 @@ const TITULOS = new Map<string, string>([
   ['/reservas/nova', 'Nova reserva'],
   ['/devolucoes', 'Devoluções'],
   ['/pagamentos', 'Pagamentos'],
+  ['/usuarios', 'Usuários'],
   ['/sobre', 'Sobre'],
   [ROTA_CLIENTE_DISPONIBILIDADE, 'Disponibilidade'],
   [ROTA_CLIENTE_MINHAS_RESERVAS, 'Minhas reservas'],
@@ -134,6 +150,7 @@ const TITULOS = new Map<string, string>([
   [ROTA_CADASTRO_CLIENTE, 'Cadastro de cliente'],
   [ROTA_LOGIN, 'Login'],
   [ROTA_PRIMEIRA_EXECUCAO, 'Primeira execução'],
+  [ROTA_ACESSO_RESTRITO, 'Acesso restrito'],
   [ROTA_404, 'Página não encontrada'],
 ])
 
@@ -155,6 +172,7 @@ substituirConteudo(root, shell)
 const servico = new ServicoAutenticacao()
 /** Espelho local do estado do main; nunca substitui a autorização do IPC. */
 let estado: EstadoSessao = { estado: 'anonima' }
+let avisoLogin: string | null = null
 
 const sidebar = new Sidebar()
 sidebar.montar(sidebarSlot)
@@ -204,6 +222,7 @@ const roteador = new Roteador(
 )
 
 function aplicarSessao(sessao: Sessao): void {
+  avisoLogin = null
   definirSessao(sessao)
   estado = { estado: 'autenticada', sessao }
   roteador.navegar(destinoAposEntrada(sessao))
@@ -220,6 +239,41 @@ async function sair(): Promise<void> {
   limparRotaPendente()
   roteador.navegar(ROTA_ESCOLHA_CONTA)
 }
+
+/**
+ * Expiração é diferente de "sair": o main encerrou a sessão, então voltamos ao
+ * Login com aviso — nunca à escolha de conta, que é o fluxo de quem nunca entrou.
+ */
+function encerrarSessaoExpirada(): void {
+  if (estado.estado !== 'autenticada') {
+    return
+  }
+  estado = { estado: 'anonima' }
+  limparSessao()
+  limparRotaPendente()
+  avisoLogin = MENSAGEM_SESSAO_EXPIRADA
+  roteador.navegar(ROTA_LOGIN)
+}
+
+/** Sessão expirada em repouso: nenhum IPC foi chamado, mas o main já a encerrou. */
+async function verificarSessao(): Promise<void> {
+  if (estado.estado !== 'autenticada') {
+    return
+  }
+  try {
+    const atual = await servico.sessaoAtual()
+    if (estado.estado === 'autenticada' && atual.estado !== 'autenticada') {
+      encerrarSessaoExpirada()
+    }
+  } catch {
+    // Falha de transporte não encerra a sessão local: a próxima chamada dirá.
+  }
+}
+
+let temporizadorSessao: number | null = null
+window.addEventListener(EVENTO_SESSAO_EXPIRADA, () => {
+  encerrarSessaoExpirada()
+})
 
 async function iniciar(): Promise<void> {
   sidebarSlot.className = CLASSES.oculto
@@ -250,6 +304,11 @@ async function iniciar(): Promise<void> {
   }
 
   roteador.iniciar()
+  if (temporizadorSessao === null) {
+    temporizadorSessao = window.setInterval(() => {
+      void verificarSessao()
+    }, INTERVALO_VERIFICACAO_SESSAO_MS)
+  }
 }
 
 void iniciar()

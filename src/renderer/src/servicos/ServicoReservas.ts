@@ -1,3 +1,4 @@
+import { vigiarSessao } from './VigilanciaSessao'
 import type {
   Reserva,
   ReservaAtualizarEntrada,
@@ -7,22 +8,22 @@ import type {
 
 export class ServicoReservas {
   listar(filtros?: ReservaListarFiltros): Promise<Reserva[]> {
-    return window.electronAPI.reservas.listar(filtros)
+    return vigiarSessao(window.electronAPI.reservas.listar(filtros))
   }
 
   buscarPorId(id: number): Promise<Reserva> {
-    return window.electronAPI.reservas.buscarPorId(id)
+    return vigiarSessao(window.electronAPI.reservas.buscarPorId(id))
   }
 
   criar(dados: ReservaCriarEntrada): Promise<Reserva> {
-    return window.electronAPI.reservas.criar(dados)
+    return vigiarSessao(window.electronAPI.reservas.criar(dados))
   }
 
   atualizar(dados: ReservaAtualizarEntrada): Promise<Reserva> {
-    return window.electronAPI.reservas.atualizar(dados)
+    return vigiarSessao(window.electronAPI.reservas.atualizar(dados))
   }
 
   inativar(id: number): Promise<void> {
-    return window.electronAPI.reservas.inativar(id)
+    return vigiarSessao(window.electronAPI.reservas.inativar(id))
   }
 }

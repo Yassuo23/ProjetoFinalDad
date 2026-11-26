@@ -20,6 +20,8 @@ export interface OpcoesPaginaCadastroCliente {
   /** Chamado apenas depois que o main devolve a sessão já autenticada. */
   readonly aoCriar: (sessao: Sessao) => void
   readonly aoVoltar: () => void
+  /** Cliente que já tem conta volta ao Login (o mesmo `auth:entrar` serve a todos). */
+  readonly aoEntrar: () => void
 }
 
 interface CamposCadastro {
@@ -250,6 +252,12 @@ export class PaginaCadastroCliente extends Componente {
       variante: 'secundario',
       aoClicar: opcoes.aoVoltar,
     })
+    const botaoEntrar = new Botao({
+      id: 'cadastro-cliente-entrar',
+      texto: 'Já tenho conta. Entrar',
+      variante: 'ghost',
+      aoClicar: opcoes.aoEntrar,
+    })
 
     const formulario = criarElemento('form', {
       className: CLASSES.cartao,
@@ -295,7 +303,7 @@ export class PaginaCadastroCliente extends Componente {
         areaCarregando,
         criarElemento('div', {
           className: CLASSES.acoes,
-          filhos: [botaoVoltar.raiz, botaoCriar.raiz],
+          filhos: [botaoVoltar.raiz, botaoEntrar.raiz, botaoCriar.raiz],
         }),
       ],
     })

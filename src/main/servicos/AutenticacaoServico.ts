@@ -114,14 +114,20 @@ export class AutenticacaoServico implements ServicoAutenticacao {
   }
 
   async entrar(dados: { readonly login: string; readonly senha: string }): Promise<Sessao> {
-    const chave = normalizarLogin(dados.login)
+    // CPF é aceito como identificador (o campo do renderer diz "Usuário ou CPF").
+    // A chave de bloqueio usa dígitos para não mudar com a formatação digitada.
+    const cpf = cpfValido(dados.login) ? normalizarCpf(dados.login) : null
+    const login = normalizarLogin(cpf ?? dados.login)
+    const chave = cpf === null ? login : `cpf:${cpf}`
     const agora = this.relogio.agora()
     this.limparBloqueioExpirado(chave, agora)
     if (this.estaBloqueado(chave, agora)) {
       throw this.credenciaisInvalidas()
     }
 
-    const usuario = await this.usuarios.buscarPorLogin(chave)
+    // Login é conferido primeiro para preservar contas cujo login é um CPF.
+    const porLogin = await this.usuarios.buscarPorLogin(login)
+    const usuario = porLogin ?? (cpf === null ? null : await this.usuarios.buscarPorCpf(cpf))
     if (!usuario || !(await this.senhas.conferir(dados.senha, usuario.senhaHash))) {
       this.registrarFalha(chave, agora)
       throw this.credenciaisInvalidas()

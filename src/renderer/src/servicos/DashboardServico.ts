@@ -12,6 +12,7 @@ import type {
   StatusPagamento as StatusPagamentoContrato,
 } from '../../../shared/contratos/modelos'
 import { ServicoIntegracoes } from './ServicoIntegracoes'
+import { vigiarSessao } from './VigilanciaSessao'
 
 /** Tipos locais de apresentação: nenhum deles reexecuta regra de negócio do main. */
 
@@ -90,7 +91,7 @@ export function hojeISO(): string {
 
 async function buscar<T>(promessa: Promise<readonly T[]>): Promise<Fonte<T>> {
   try {
-    return { itens: await promessa, falhou: false }
+    return { itens: await vigiarSessao(promessa), falhou: false }
   } catch {
     return { itens: [], falhou: true }
   }

@@ -16,6 +16,7 @@ export type { Perfil } from './Perfil'
 export { definirSessao, limparSessao, observarSessao, sessaoAtiva } from './Sessao'
 export {
   ROTA_404,
+  ROTA_ACESSO_RESTRITO,
   ROTA_CADASTRO_CLIENTE,
   ROTA_CLIENTE_DISPONIBILIDADE,
   ROTA_CLIENTE_MINHAS_RESERVAS,
@@ -24,7 +25,9 @@ export {
   ROTA_ESCOLHA_CONTA,
   ROTA_LOGIN,
   ROTA_PRIMEIRA_EXECUCAO,
+  ROTAS_ADMIN,
   ROTAS_CLIENTE,
+  ROTAS_COMPARTILHADAS,
   ROTAS_PUBLICAS,
   consumirRotaPendente,
   destinoAutenticada,

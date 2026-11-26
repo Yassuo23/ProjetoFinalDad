@@ -1,3 +1,4 @@
+import { vigiarSessao } from './VigilanciaSessao'
 import type {
   FeriadosEntrada,
   PrevisaoTempoEntrada,
@@ -12,14 +13,14 @@ import type {
  */
 export class ServicoIntegracoes {
   previsaoTempo(entrada: PrevisaoTempoEntrada): Promise<RespostaPrevisaoTempo> {
-    return window.electronAPI.integracoes.previsaoTempo(entrada)
+    return vigiarSessao(window.electronAPI.integracoes.previsaoTempo(entrada))
   }
 
   cnpj(cnpj: string): Promise<RespostaCnpj> {
-    return window.electronAPI.integracoes.cnpj(cnpj)
+    return vigiarSessao(window.electronAPI.integracoes.cnpj(cnpj))
   }
 
   feriados(entrada: FeriadosEntrada): Promise<RespostaFeriados> {
-    return window.electronAPI.integracoes.feriados(entrada)
+    return vigiarSessao(window.electronAPI.integracoes.feriados(entrada))
   }
 }

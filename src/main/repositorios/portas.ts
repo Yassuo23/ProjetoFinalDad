@@ -102,6 +102,8 @@ export interface RepositorioUsuarios {
   listar(filtros?: UsuarioListarFiltros): Promise<readonly Usuario[]>
   buscarPorId(id: number): Promise<Usuario | null>
   buscarPorLogin(login: string): Promise<Usuario | null>
+  /** ADR 0009: CPF normalizado do cliente vinculado, para login por CPF. */
+  buscarPorCpf(cpf: string): Promise<Usuario | null>
   loginEmUso(login: string, idExcluido?: number): Promise<boolean>
   criar(dados: DadosCriacaoUsuario): Promise<Usuario>
   atualizar(dados: UsuarioAtualizarEntrada): Promise<Usuario | null>

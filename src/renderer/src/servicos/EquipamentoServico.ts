@@ -1,3 +1,4 @@
+import { vigiarSessao } from './VigilanciaSessao'
 import type {
   Categoria,
   Equipamento,
@@ -91,7 +92,7 @@ const EQUIPAMENTOS_EXEMPLO: readonly Equipamento[] = [
 export class EquipamentoServico {
   async listar(filtros: EquipamentoListarFiltros = {}): Promise<ResultadoEquipamentos> {
     try {
-      const itens = await window.electronAPI.equipamentos.listar(filtros)
+      const itens = await vigiarSessao(window.electronAPI.equipamentos.listar(filtros))
       return { itens, dadosDeExemplo: false }
     } catch {
       return { itens: EQUIPAMENTOS_EXEMPLO, dadosDeExemplo: true }
@@ -100,7 +101,7 @@ export class EquipamentoServico {
 
   async listarCategorias(): Promise<ResultadoCategorias> {
     try {
-      const itens = await window.electronAPI.categorias.listar()
+      const itens = await vigiarSessao(window.electronAPI.categorias.listar())
       return { itens, dadosDeExemplo: false }
     } catch {
       return { itens: CATEGORIAS_EXEMPLO, dadosDeExemplo: true }

@@ -80,8 +80,8 @@ Estes canais existem no contrato e no preload, mas **não têm handler registrad
   devolução. Hoje a multa definitiva é calculada no main por `devolucoes:criar` e exibida via
   `Pagamento.valorMulta`; o renderer não reimplementa a regra (domingos/feriados).
 
-`auth:*` já está implementado no renderer (ver § Autenticação e sessão); `usuarios:*` permanece
-fora de escopo nesta entrega. Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
+`auth:*` e `usuarios:*` já estão implementados no renderer (ver § Autenticação e sessão).
+Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
 
 ## Fundação visual
 
@@ -217,11 +217,14 @@ fora de escopo nesta entrega. Nenhuma string de canal, Node, SQL ou chave aparec
 - `auth:sair` é chamado antes de limpar o estado local. Se o IPC falhar, o renderer ainda descarta
   a sessão em memória e volta à Escolha de conta; o main pode manter a sessão até expirar. Handoff:
   conferir se `auth:sair` deve ser idempotente para sessão já encerrada.
-- O token/estado do main expira após 8 h (`DURACAO_SESSAO_PADRAO_MS`). O renderer não renova nem
-  monitora expiração; a próxima chamada IPC protegida devolve `NAO_AUTENTICADO` e a tela mostra erro.
+- O token/estado do main expira após 8 h (`DURACAO_SESSAO_PADRAO_MS`). O renderer não renova a
+  sessão: uma chamada IPC devolvendo `NAO_AUTENTICADO` (ou a verificação periódica de
+  `auth:sessaoAtual`) volta ao Login com aviso; ausência de sessão/Sair continua indo à Escolha de
+  conta.
 - A tela de Primeira execução não oferece link para Login: no estado `bootstrap` o guard levaria a
   rota de volta, gerando loop. Quando já existe administrador, a Escolha de conta leva ao Login.
-- `usuarios:*` (gestão de usuários/perfis) segue fora de escopo nesta entrega.
+- `usuarios:*` (gestão de usuários/perfis) é usado somente por `PaginaUsuarios`, visível apenas
+  para administrador; senha nunca é exibida nem guardada no renderer.
 
 ## Identidade do cliente e área do cliente
 

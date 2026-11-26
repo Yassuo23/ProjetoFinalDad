@@ -12,6 +12,13 @@ export { ServicoItensReserva } from './ServicoItensReserva'
 export { ServicoCategorias } from './ServicoCategorias'
 export { DashboardServico, hojeISO } from './DashboardServico'
 export { ServicoAutenticacao } from './ServicoAutenticacao'
+export { ServicoUsuarios } from './ServicoUsuarios'
+export {
+  EVENTO_SESSAO_EXPIRADA,
+  sessaoExpirada,
+  sinalizarSessaoExpirada,
+  vigiarSessao,
+} from './VigilanciaSessao'
 export {
   mensagemErroBootstrap,
   mensagemErroCadastroCliente,

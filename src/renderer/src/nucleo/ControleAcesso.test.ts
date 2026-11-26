@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+  ROTA_ACESSO_RESTRITO,
   ROTA_CADASTRO_CLIENTE,
   ROTA_CLIENTE_DISPONIBILIDADE,
   ROTA_CLIENTE_MINHAS_RESERVAS,
@@ -28,6 +29,13 @@ const SESSAO_CLIENTE = {
   login: 'joao',
   perfil: 'Cliente',
   clienteId: 42,
+} as const
+
+const SESSAO_ATENDENTE = {
+  usuarioId: 3,
+  nome: 'Bia',
+  login: 'bia',
+  perfil: 'Atendente',
 } as const
 
 describe('ControleAcesso', () => {
@@ -72,8 +80,23 @@ describe('ControleAcesso', () => {
     ).toEqual({ tipo: 'app', caminho: ROTA_CLIENTE_MINHAS_RESERVAS })
     expect(resolverDestinoInicial(resultado, '/clientes')).toEqual({
       tipo: 'app',
-      caminho: ROTA_CLIENTE_DISPONIBILIDADE,
+      caminho: ROTA_ACESSO_RESTRITO,
     })
+  })
+
+  it('rota sem permissão mostra acesso restrito para cliente e atendente', () => {
+    const cliente = { estado: 'autenticada', sessao: SESSAO_CLIENTE } as const
+    const atendente = { estado: 'autenticada', sessao: SESSAO_ATENDENTE } as const
+    expect(destinoGuardiao(cliente, '/usuarios')).toBe(ROTA_ACESSO_RESTRITO)
+    expect(destinoGuardiao(cliente, ROTA_ACESSO_RESTRITO)).toBe(ROTA_ACESSO_RESTRITO)
+    expect(destinoGuardiao(atendente, '/usuarios')).toBe(ROTA_ACESSO_RESTRITO)
+    expect(destinoGuardiao(atendente, ROTA_CLIENTE_MINHAS_RESERVAS)).toBe(ROTA_ACESSO_RESTRITO)
+  })
+
+  it('páginas informativas continuam acessíveis ao cliente', () => {
+    const cliente = { estado: 'autenticada', sessao: SESSAO_CLIENTE } as const
+    expect(destinoGuardiao(cliente, '/sobre')).toBe('/sobre')
+    expect(destinoGuardiao(cliente, '/componentes')).toBe('/componentes')
   })
 
   it('anonima preserva a rota tentada e direciona à escolha de conta', () => {

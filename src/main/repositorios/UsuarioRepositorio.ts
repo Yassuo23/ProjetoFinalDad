@@ -92,6 +92,19 @@ export class UsuarioRepositorio extends RepositorioBase implements RepositorioUs
     })
   }
 
+  async buscarPorCpf(cpf: string): Promise<Usuario | null> {
+    return this.comCliente(async (cliente) => {
+      // Subquery evita ambiguidade de colunas entre usuario e cliente.
+      const linhas = await cliente.query(
+        `${CONSULTAR} WHERE id_usuario IN
+          (SELECT id_usuario FROM cliente WHERE cpf = ?) LIMIT 1`,
+        [cpf],
+      )
+      const linha = linhas[0]
+      return linha ? mapearUsuario(linha) : null
+    })
+  }
+
   async loginEmUso(login: string, idExcluido?: number): Promise<boolean> {
     return this.comCliente(async (cliente) => {
       const linhas = await cliente.query(

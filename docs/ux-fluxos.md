@@ -27,7 +27,7 @@ ausência é registrada — não é inventada. Wireframes são **texto**, sem im
 | --- | --- | --- |
 | Login / sessão | Não existe tela. Handlers `auth:*` são propostos, **sem implementação**. | ADR 0007; `main.ts` não registra rota `/login` |
 | Primeira execução | Não existe tela. `auth:bootstrap` proposto, sem handler. Não há senha padrão. | ADR 0007 |
-| Usuários e perfis | Não existe tela. `usuarios:*` proposto, sem handler. | ADR 0007 |
+| Usuários e perfis | Tela `/usuarios` implementada para administrador: listar, criar, editar, ativar/inativar e trocar senha via `usuarios:*`. | `PaginaUsuarios.ts`; ADR 0007 |
 | Categorias (CRUD) | Só leitura: `ServicoCategorias.listar()` e `EquipamentoServico.listarCategorias()` com fallback de exemplo. `categorias:criar/atualizar/inativar` propostos, sem handler. | `ServicoCategorias.ts`; `EquipamentoServico.ts`; ADR 0007 |
 | Manutenção (ordens) | Rota `/manutencao` renderiza `PaginaEmConstrucao('Manutenção', 'manutencao.listar · manutencao.abrir')`. `manutencao:*` sem handler. | `main.ts:30-33`; ADR 0007 |
 | Cálculo de multa/prévia | `devolucoes:calcular-multa` e `devolucoes:listar-pendentes` propostos, sem handler. A tela exibe valores **já gravados** no pagamento e deriva pendentes no renderer. | `ServicoDevolucoes.ts`; `PaginaDevolucoes.ts:385-390,571-597`; ADR 0007 |
@@ -448,7 +448,7 @@ nenhum `<style>`, nenhum `style=`.
   carregar as ordens. Tente novamente.”; sucesso: “Ordem #12 aberta.”
 - Hoje: `/manutencao` mostra “Tela em construção” com o badge das dependências.
 
-### 8.5 Usuários (perfis) — depende de `usuarios:*` (sem handler)
+### 8.5 Usuários (perfis) — implementado (`usuarios:*`)
 
 ```
 +---------------------------------------------------------------------+
@@ -472,8 +472,9 @@ nenhum `<style>`, nenhum `style=`.
 - Vazio: “Nenhum usuário além do administrador.”; carregando: “Carregando usuários…”; erro: “Não
   foi possível carregar os usuários. Tente novamente.”; sucesso: “Usuário criado. Perfil: atendente
   de balcão.”
-- Nunca exibir `senhaHash`. A premissa “senha inicial definida pelo administrador + troca no
-  primeiro acesso” precisa ser confirmada pelo Arquiteto no contrato `usuarios:*`.
+- Nunca exibir `senhaHash` nem guardar senha no renderer. A senha inicial é definida pelo
+  administrador; ao trocar a própria senha, a tela pede a senha atual. Não há troca obrigatória no
+  primeiro acesso.
 
 ---
 
@@ -689,8 +690,8 @@ tipadas. Não há `@apply`, `<style>` nem `style=`.
 2. Confirmar `categorias:criar/atualizar/inativar` e `manutencao:criar/listar/concluir` (ADR 0007).
 3. Confirmar `devolucoes:calcular-multa` e `devolucoes:listar-pendentes` para que a prévia de multa
    deixe de depender de valor já gravado.
-4. Decidir a premissa de senha inicial para novos usuários (definida pelo admin + troca no primeiro
-   acesso). O bootstrap **não** usa senha padrão.
+4. Premissa adotada: senha inicial definida pelo admin, sem troca obrigatória no primeiro acesso;
+   a troca da própria senha exige a atual. O bootstrap **não** usa senha padrão.
 
 ### 12.2 Ao `frontend-developer` — implementação de UX sem CSS próprio
 

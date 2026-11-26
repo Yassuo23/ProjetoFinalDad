@@ -11,6 +11,8 @@ import {
 export interface OpcoesPaginaLogin {
   /** Chamado apenas após o main confirmar as credenciais. */
   readonly aoEntrar: (sessao: Sessao) => void
+  /** Aviso exibido ao abrir a tela, por exemplo depois de sessão expirada. */
+  readonly avisoInicial?: string | null
 }
 
 /** DS 8.1/8.2 + wireframe 8.1 — classes literais, sem interpolação. */
@@ -121,7 +123,7 @@ export class PaginaLogin extends Componente {
             criarElemento('h1', { className: CLASSES.titulo, texto: 'Entre para continuar' }),
             criarElemento('p', {
               className: CLASSES.subtitulo,
-              texto: 'Use seu usuário e sua senha para acessar o balcão.',
+              texto: 'Use seu usuário e sua senha para continuar.',
             }),
           ],
         }),
@@ -183,6 +185,7 @@ export class PaginaLogin extends Componente {
   }
 
   protected aoMontar(): void {
+    this.mostrarErro(this.opcoes.avisoInicial ?? null)
     this.campoLogin.focar()
   }
 

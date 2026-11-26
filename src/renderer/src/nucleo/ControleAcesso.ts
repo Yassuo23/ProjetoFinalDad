@@ -15,7 +15,26 @@ export const ROTA_DASHBOARD = '/dashboard'
 export const ROTA_CLIENTE_DISPONIBILIDADE = '/cliente/disponibilidade'
 export const ROTA_CLIENTE_NOVA_RESERVA = '/cliente/nova-reserva'
 export const ROTA_CLIENTE_MINHAS_RESERVAS = '/cliente/minhas-reservas'
+export const ROTA_ACESSO_RESTRITO = '/acesso-restrito'
 export const ROTA_404 = '/404'
+
+/**
+ * Rotas exclusivas do administrador. O main continua sendo a autoridade em cada
+ * IPC; aqui a lista apenas evita montar uma tela que seria recusada.
+ */
+export const ROTAS_ADMIN: ReadonlySet<string> = new Set([
+  '/equipamentos',
+  '/fornecedores',
+  '/manutencao',
+  '/pagamentos',
+  '/usuarios',
+])
+
+/** Páginas informativas: continuam disponíveis a qualquer perfil autenticado. */
+export const ROTAS_COMPARTILHADAS: ReadonlySet<string> = new Set([
+  '/sobre',
+  '/componentes',
+])
 
 export const ROTAS_PUBLICAS: ReadonlySet<string> = new Set([
   ROTA_ESCOLHA_CONTA,
@@ -51,10 +70,25 @@ export type DestinoInicial =
 
 /** Destino de uma sessão autenticada; nunca devolve rota de outro perfil. */
 export function destinoAutenticada(sessao: Sessao, solicitado: string): string {
-  if (sessao.perfil === 'Cliente') {
-    return ehRotaCliente(solicitado) ? solicitado : ROTA_CLIENTE_DISPONIBILIDADE
+  if (solicitado === ROTA_ACESSO_RESTRITO) {
+    return solicitado
   }
-  if (ehRotaCliente(solicitado) || ehRotaPublica(solicitado)) {
+  if (sessao.perfil === 'Cliente') {
+    if (ehRotaCliente(solicitado) || ROTAS_COMPARTILHADAS.has(solicitado)) {
+      return solicitado
+    }
+    if (ehRotaPublica(solicitado) || solicitado === ROTA_DASHBOARD || solicitado === ROTA_404) {
+      return ROTA_CLIENTE_DISPONIBILIDADE
+    }
+    return ROTA_ACESSO_RESTRITO
+  }
+  if (ehRotaCliente(solicitado)) {
+    return ROTA_ACESSO_RESTRITO
+  }
+  if (sessao.perfil === 'Atendente' && ROTAS_ADMIN.has(solicitado)) {
+    return ROTA_ACESSO_RESTRITO
+  }
+  if (ehRotaPublica(solicitado)) {
     return ROTA_DASHBOARD
   }
   return solicitado

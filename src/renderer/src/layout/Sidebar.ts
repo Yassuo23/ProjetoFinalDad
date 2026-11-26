@@ -72,6 +72,11 @@ const ITENS: readonly ItemNav[] = [
     icone: 'M3 7h18v12H3zM3 11h18M7 15h4',
   },
   {
+    caminho: '/usuarios',
+    rotulo: 'Usuários',
+    icone: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  },
+  {
     caminho: '/sobre',
     rotulo: 'Sobre',
     icone: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 10v6M12 7h.01',
@@ -106,6 +111,7 @@ const SOMENTE_ADMIN: ReadonlySet<string> = new Set([
   '/fornecedores',
   '/manutencao',
   '/pagamentos',
+  '/usuarios',
 ])
 
 export class Sidebar extends Componente {

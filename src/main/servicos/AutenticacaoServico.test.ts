@@ -26,6 +26,7 @@ const AUDITORIA = '2026-11-25T12:00:00.000Z'
 
 class RepositorioUsuariosFalso implements RepositorioUsuarios {
   readonly usuarios: Usuario[] = []
+  readonly cpfs = new Map<string, number>()
   private proximoId = 1
 
   constructor(iniciais: readonly Usuario[] = []) {
@@ -47,6 +48,15 @@ class RepositorioUsuariosFalso implements RepositorioUsuarios {
 
   async buscarPorLogin(login: string): Promise<Usuario | null> {
     return this.usuarios.find((usuario) => usuario.login === login) ?? null
+  }
+
+  async buscarPorCpf(cpf: string): Promise<Usuario | null> {
+    const id = this.cpfs.get(cpf)
+    return id === undefined ? null : (this.usuarios.find((usuario) => usuario.id === id) ?? null)
+  }
+
+  vincularCpf(cpf: string, usuarioId: number): void {
+    this.cpfs.set(cpf.replace(/\D/g, ''), usuarioId)
   }
 
   async loginEmUso(login: string, idExcluido?: number): Promise<boolean> {
@@ -476,6 +486,49 @@ describe('AutenticacaoServico — auto-cadastro de Cliente (ADR 0009)', () => {
     usuarios.usuarios.push(...cadastro.usuarios)
     const reentrada = await servico.entrar({ login: 'CARLA', senha: 'SenhaForte2026' })
     expect(reentrada.clienteId).toBe(20)
+  })
+
+  it('aceita CPF formatado como identificador do cliente', async () => {
+    const { usuarios, cadastro, servico } = composicaoCadastro()
+    await servico.cadastrarCliente(CADASTRO_VALIDO)
+    usuarios.usuarios.push(...cadastro.usuarios)
+    const criado = cadastro.usuarios[0]
+    expect(criado).toBeDefined()
+    usuarios.vincularCpf(cadastro.criacoes[0]?.cpf ?? '', criado?.id ?? -1)
+    await servico.sair()
+
+    const sessao = await servico.entrar({ login: '529.982.247-25', senha: 'SenhaForte2026' })
+    expect(sessao).toMatchObject({ perfil: 'Cliente', login: 'carla', clienteId: 20 })
+    expect(sessao).not.toHaveProperty('senhaHash')
+  })
+
+  it('recusa CPF desconhecido com a mesma mensagem genérica', async () => {
+    const { servico } = composicaoCadastro()
+
+    await expect(
+      servico.entrar({ login: '529.982.247-25', senha: 'SenhaForte2026' }),
+    ).rejects.toMatchObject({
+      codigo: 'CREDENCIAIS_INVALIDAS',
+      mensagem: MENSAGEM_CREDENCIAIS_INVALIDAS,
+    })
+  })
+
+  it('preserva login numérico de administrador quando digitado como CPF', async () => {
+    const repositorio = new RepositorioUsuariosFalso([
+      {
+        id: 1,
+        nome: 'Ana',
+        login: '52998224725',
+        senhaHash: 'hash(SenhaForte2026)',
+        perfil: 'Administrador',
+        ativo: true,
+        atualizadoEm: AUDITORIA,
+      },
+    ])
+    const servico = autenticacao(repositorio, new RelogioFalso())
+
+    const sessao = await servico.entrar({ login: '529.982.247-25', senha: 'SenhaForte2026' })
+    expect(sessao.perfil).toBe('Administrador')
   })
 
   it('rejeita CPF repetido em outra formatação sem revelar titular', async () => {
