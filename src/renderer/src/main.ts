@@ -1,26 +1,64 @@
 import './tailwind.css'
+import type { EstadoSessao, Sessao } from '../../shared/contratos/modelos'
+import { Carregando, EstadoErro } from './componentes'
 import { AreaConteudo, Cabecalho, Sidebar } from './layout'
-import { criarElemento, Roteador, substituirConteudo } from './nucleo'
-import type { FabricaPagina } from './nucleo'
+import {
+  ROTA_404,
+  ROTA_CADASTRO_CLIENTE,
+  ROTA_CLIENTE_DISPONIBILIDADE,
+  ROTA_CLIENTE_MINHAS_RESERVAS,
+  ROTA_CLIENTE_NOVA_RESERVA,
+  ROTA_DASHBOARD,
+  ROTA_ESCOLHA_CONTA,
+  ROTA_LOGIN,
+  ROTA_PRIMEIRA_EXECUCAO,
+  Roteador,
+  consumirRotaPendente,
+  criarElemento,
+  definirSessao,
+  destinoGuardiao,
+  ehRotaCliente,
+  ehRotaPublica,
+  guardarRotaPendente,
+  limparRotaPendente,
+  limparSessao,
+  substituirConteudo,
+} from './nucleo'
+import type { FabricaPagina, GuardiaoRota } from './nucleo'
 import {
   PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
+  PaginaCadastroCliente,
   PaginaDevolucoes,
+  PaginaDisponibilidadeCliente,
   PaginaEmConstrucao,
   PaginaEquipamentos,
+  PaginaEscolhaConta,
   PaginaFornecedores,
+  PaginaLogin,
   PaginaNaoEncontrada,
   PaginaPagamentos,
+  PaginaPrimeiraExecucao,
   PaginaReservas,
   PaginaSobre,
 } from './paginas'
+import { ServicoAutenticacao } from './servicos'
 
 const root = document.querySelector<HTMLDivElement>('#app')
 
 if (!root) {
   throw new Error('Root element #app was not found')
 }
+
+/** Classes literais do shell — o Tailwind não enxerga valores concatenados. */
+const CLASSES = {
+  shell: 'flex h-screen overflow-hidden bg-pedra font-sans text-grafite',
+  sidebarSlot: 'flex shrink-0',
+  cabecalhoSlot: 'shrink-0',
+  conteudoSlot: 'flex min-h-0 flex-1 flex-col',
+  oculto: 'hidden',
+} as const
 
 const ROTAS = new Map<string, FabricaPagina>([
   ['/dashboard', () => new PaginaDashboard()],
@@ -36,7 +74,46 @@ const ROTAS = new Map<string, FabricaPagina>([
   ['/devolucoes', () => new PaginaDevolucoes()],
   ['/pagamentos', () => new PaginaPagamentos()],
   ['/sobre', () => new PaginaSobre()],
-  ['/404', () => new PaginaNaoEncontrada()],
+  [
+    ROTA_CLIENTE_DISPONIBILIDADE,
+    () => new PaginaDisponibilidadeCliente(),
+  ],
+  [
+    ROTA_CLIENTE_MINHAS_RESERVAS,
+    () => new PaginaReservas('consulta', { modoCliente: true }),
+  ],
+  [
+    ROTA_CLIENTE_NOVA_RESERVA,
+    () => new PaginaReservas('novo', { modoCliente: true }),
+  ],
+  [
+    ROTA_ESCOLHA_CONTA,
+    () =>
+      new PaginaEscolhaConta({
+        aoAdministrador: () => {
+          window.location.hash = `#${ROTA_LOGIN}`
+        },
+        aoCliente: () => {
+          window.location.hash = `#${ROTA_CADASTRO_CLIENTE}`
+        },
+      }),
+  ],
+  [
+    ROTA_CADASTRO_CLIENTE,
+    () =>
+      new PaginaCadastroCliente({
+        aoCriar: aplicarSessao,
+        aoVoltar: () => {
+          window.location.hash = `#${ROTA_ESCOLHA_CONTA}`
+        },
+      }),
+  ],
+  [ROTA_LOGIN, () => new PaginaLogin({ aoEntrar: aplicarSessao })],
+  [
+    ROTA_PRIMEIRA_EXECUCAO,
+    () => new PaginaPrimeiraExecucao({ aoCriar: aplicarSessao }),
+  ],
+  [ROTA_404, () => new PaginaNaoEncontrada()],
 ])
 
 const TITULOS = new Map<string, string>([
@@ -50,7 +127,14 @@ const TITULOS = new Map<string, string>([
   ['/devolucoes', 'Devoluções'],
   ['/pagamentos', 'Pagamentos'],
   ['/sobre', 'Sobre'],
-  ['/404', 'Página não encontrada'],
+  [ROTA_CLIENTE_DISPONIBILIDADE, 'Disponibilidade'],
+  [ROTA_CLIENTE_MINHAS_RESERVAS, 'Minhas reservas'],
+  [ROTA_CLIENTE_NOVA_RESERVA, 'Nova reserva'],
+  [ROTA_ESCOLHA_CONTA, 'Escolha de conta'],
+  [ROTA_CADASTRO_CLIENTE, 'Cadastro de cliente'],
+  [ROTA_LOGIN, 'Login'],
+  [ROTA_PRIMEIRA_EXECUCAO, 'Primeira execução'],
+  [ROTA_404, 'Página não encontrada'],
 ])
 
 if (import.meta.env.DEV) {
@@ -58,31 +142,114 @@ if (import.meta.env.DEV) {
   TITULOS.set('/componentes', 'Componentes')
 }
 
-const shell = criarElemento('div', {
-  className: 'flex h-screen overflow-hidden bg-pedra font-sans text-grafite',
-})
-
-const sidebarSlot = criarElemento('div', { className: 'flex shrink-0' })
-const coluna = criarElemento('div', { className: 'flex min-w-0 flex-1 flex-col' })
-const cabecalhoSlot = criarElemento('div', { className: 'shrink-0' })
-const conteudoSlot = criarElemento('div', { className: 'flex min-h-0 flex-1 flex-col' })
+const shell = criarElemento('div', { className: CLASSES.shell })
+const sidebarSlot = criarElemento('div', { className: CLASSES.sidebarSlot })
+const coluna = criarElemento('div', { className: CLASSES.conteudoSlot })
+const cabecalhoSlot = criarElemento('div', { className: CLASSES.cabecalhoSlot })
+const conteudoSlot = criarElemento('div', { className: CLASSES.conteudoSlot })
 
 coluna.append(cabecalhoSlot, conteudoSlot)
 shell.append(sidebarSlot, coluna)
 substituirConteudo(root, shell)
 
+const servico = new ServicoAutenticacao()
+/** Espelho local do estado do main; nunca substitui a autorização do IPC. */
+let estado: EstadoSessao = { estado: 'anonima' }
+
 const sidebar = new Sidebar()
 sidebar.montar(sidebarSlot)
 
-const cabecalho = new Cabecalho('Dashboard')
+const cabecalho = new Cabecalho('Dashboard', {
+  aoSair: () => {
+    void sair()
+  },
+})
 cabecalho.montar(cabecalhoSlot)
 
 const areaConteudo = new AreaConteudo()
 areaConteudo.montar(conteudoSlot)
 
-const roteador = new Roteador(areaConteudo.raiz, ROTAS, (caminho) => {
-  cabecalho.definirTitulo(TITULOS.get(caminho) ?? 'Zênite')
-  sidebar.definirAtivo(caminho)
-})
+/** Só decisão de navegação: o main continua validando perfil em cada canal. */
+const guardiao: GuardiaoRota = (caminho) => {
+  const permitido = destinoGuardiao(estado, caminho)
+  if (permitido === caminho) {
+    return permitido
+  }
+  if (estado.estado === 'anonima') {
+    guardarRotaPendente(caminho)
+  }
+  return permitido
+}
 
-roteador.iniciar()
+/** Rota pós-login/bcadastro: nunca devolve rota pública ou do outro perfil. */
+function destinoAposEntrada(sessao: Sessao): string {
+  const pendente = consumirRotaPendente()
+  if (sessao.perfil === 'Cliente') {
+    return ROTA_CLIENTE_DISPONIBILIDADE
+  }
+  return ehRotaCliente(pendente) ? ROTA_DASHBOARD : pendente
+}
+
+const roteador = new Roteador(
+  areaConteudo.raiz,
+  ROTAS,
+  (caminho) => {
+    const publica = ehRotaPublica(caminho)
+    sidebarSlot.className = publica ? CLASSES.oculto : CLASSES.sidebarSlot
+    cabecalhoSlot.className = publica ? CLASSES.oculto : CLASSES.cabecalhoSlot
+    cabecalho.definirTitulo(TITULOS.get(caminho) ?? 'Zênite')
+    sidebar.definirAtivo(caminho)
+  },
+  guardiao,
+)
+
+function aplicarSessao(sessao: Sessao): void {
+  definirSessao(sessao)
+  estado = { estado: 'autenticada', sessao }
+  roteador.navegar(destinoAposEntrada(sessao))
+}
+
+async function sair(): Promise<void> {
+  try {
+    await servico.sair()
+  } catch {
+    // Mesmo se o IPC falhar, a sessão local é descartada por segurança.
+  }
+  estado = { estado: 'anonima' }
+  limparSessao()
+  limparRotaPendente()
+  roteador.navegar(ROTA_ESCOLHA_CONTA)
+}
+
+async function iniciar(): Promise<void> {
+  sidebarSlot.className = CLASSES.oculto
+  cabecalhoSlot.className = CLASSES.oculto
+  substituirConteudo(
+    areaConteudo.raiz,
+    new Carregando({ mensagem: 'Verificando sua sessão…' }).raiz,
+  )
+
+  try {
+    const resultado = await servico.sessaoAtual()
+    estado = resultado
+    definirSessao(resultado.estado === 'autenticada' ? resultado.sessao : null)
+  } catch {
+    estado = { estado: 'anonima' }
+    definirSessao(null)
+    substituirConteudo(
+      areaConteudo.raiz,
+      new EstadoErro({
+        titulo: 'Não foi possível verificar sua sessão.',
+        mensagem: 'Não foi possível carregar a sessão. Tente novamente.',
+        aoTentar: () => {
+          void iniciar()
+        },
+      }).raiz,
+    )
+    return
+  }
+
+  roteador.iniciar()
+}
+
+void iniciar()

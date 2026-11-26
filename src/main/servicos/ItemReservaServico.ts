@@ -25,8 +25,16 @@ export class ItemReservaServico implements ServicoItensReserva {
     private readonly servicoDisponibilidade: ServicoDisponibilidade,
   ) {}
 
-  listar(filtros?: ItemReservaListarFiltros): Promise<readonly ItemReserva[]> {
-    return filtros === undefined ? this.repositorio.listar() : this.repositorio.listar(filtros)
+  listar(
+    filtros?: ItemReservaListarFiltros,
+    idClienteProprietario?: number,
+  ): Promise<readonly ItemReserva[]> {
+    if (filtros === undefined) {
+      return idClienteProprietario === undefined
+        ? this.repositorio.listar()
+        : this.repositorio.listar({}, idClienteProprietario)
+    }
+    return this.repositorio.listar(filtros, idClienteProprietario)
   }
 
   async buscarPorId(chave: ChaveItemReservaEntrada): Promise<ItemReserva> {

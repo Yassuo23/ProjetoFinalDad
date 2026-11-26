@@ -25,10 +25,13 @@ import {
 import type { ColunaTabela, OpcaoListaSelecionavel, TomToast, VarianteBotao } from '../componentes'
 import {
   Componente,
+  clienteVinculado,
   criarElemento,
   ehAdministrador,
+  idClienteVinculado,
   observarPerfil,
   registrarAtalhos,
+  sessaoAtiva,
   substituirConteudo,
 } from '../nucleo'
 import {
@@ -40,6 +43,14 @@ import {
 import { formatadorPtBr } from '../util'
 
 type ModoReservas = 'consulta' | 'novo'
+
+export interface OpcoesPaginaReservas {
+  /**
+   * Modo cliente: sem seleção de cliente, sem tabela administrativa e sem
+   * consulta a `categorias:*` (categorias são domínio fechado no contrato).
+   */
+  readonly modoCliente?: boolean
+}
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -85,6 +96,12 @@ const CLASSES = {
   botoesRodape: 'flex flex-wrap items-center justify-end gap-2',
   motivo: 'max-w-md text-xs text-floresta/70',
   motivoAlerta: 'max-w-md text-xs font-semibold text-alerta',
+  cartaoReserva:
+    'flex w-full flex-col gap-2 rounded-card border border-granito/45 bg-superficie p-4 text-left shadow-card transition-colors motion-reduce:transition-none hover:border-floresta/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  cartaoReservaAtivo:
+    'flex w-full flex-col gap-2 rounded-card border border-lima bg-superficie p-4 text-left shadow-card transition-colors motion-reduce:transition-none hover:border-floresta/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  cartaoTitulo: 'font-semibold text-floresta',
+  cartaoLinha: 'text-sm text-grafite',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
@@ -303,7 +320,10 @@ export class PaginaReservas extends Componente {
   private consultaFeita = false
   private preservarAoDesmontar = true
 
-  constructor(private readonly modo: ModoReservas = 'consulta') {
+  constructor(
+    private readonly modo: ModoReservas = 'consulta',
+    private readonly opcoes: OpcoesPaginaReservas = {},
+  ) {
     super(criarElemento('section', { className: CLASSES.pagina }))
 
     this.cancelarAtalhos = registrarAtalhos({
@@ -342,6 +362,10 @@ export class PaginaReservas extends Componente {
       modalAberto: () => this.modal !== null,
     })
     this.cancelarPerfil = observarPerfil(() => this.montarEstrutura())
+  }
+
+  private get modoCliente(): boolean {
+    return this.opcoes.modoCliente === true
   }
 
   protected aoMontar(): void {
@@ -384,7 +408,15 @@ export class PaginaReservas extends Componente {
   private async carregarDados(): Promise<void> {
     this.carregando = true
     this.montarEstrutura()
-    const tarefas: Array<Promise<void>> = [this.carregarClientes(false), this.carregarCategorias()]
+    const tarefas: Array<Promise<void>> = []
+    if (this.modoCliente) {
+      this.clientes = []
+      this.clientesCarregando = false
+      this.clientesErro = null
+      this.categorias = CATEGORIAS
+    } else {
+      tarefas.push(this.carregarClientes(false), this.carregarCategorias())
+    }
     if (this.modo === 'consulta') {
       tarefas.push(this.carregarReservas())
     }
@@ -398,6 +430,9 @@ export class PaginaReservas extends Componente {
   }
 
   private async carregarClientes(renderizar: boolean): Promise<void> {
+    if (this.modoCliente) {
+      return
+    }
     this.clientesCarregando = true
     this.clientesErro = null
     if (renderizar) {
@@ -479,8 +514,11 @@ export class PaginaReservas extends Componente {
           ? `Editar reserva #${this.editandoId ?? ''}`
           : 'Nova reserva'
         : 'Reservas'
-    const subtitulo =
-      this.modo === 'novo'
+    const subtitulo = this.modoCliente
+      ? this.modo === 'novo'
+        ? 'Escolha o período e os equipamentos antes de confirmar.'
+        : 'Acompanhe suas reservas, equipamentos e previsão do tempo.'
+      : this.modo === 'novo'
         ? 'Escolha cliente, período e equipamentos antes de confirmar.'
         : ehAdministrador()
           ? 'Consulte, confirme, cancele e edite as locações.'
@@ -490,7 +528,7 @@ export class PaginaReservas extends Componente {
       this.modo === 'novo'
         ? [
             new Botao({
-              texto: 'Voltar à consulta',
+              texto: this.modoCliente ? 'Voltar às minhas reservas' : 'Voltar à consulta',
               variante: 'secundario',
               aoClicar: () => this.irParaConsulta(),
             }).raiz,
@@ -585,10 +623,13 @@ export class PaginaReservas extends Componente {
       ],
     })
 
+    const mensagemCarregamento = this.modoCliente
+      ? 'Carregando o formulário…'
+      : 'Carregando clientes e categorias…'
     let corpo: Node = this.construirFormulario()
     if (this.carregando) {
       corpo = new Carregando({
-        mensagem: 'Carregando clientes e categorias…',
+        mensagem: mensagemCarregamento,
         variante: 'skeleton',
         linhas: 4,
       }).raiz
@@ -610,7 +651,7 @@ export class PaginaReservas extends Componente {
       rodape: this.carregando || this.falhaEdicao !== null ? [] : [rodape],
       carregando: this.carregando,
       desabilitado: this.carregando || this.falhaEdicao !== null,
-      mensagemCarregando: 'Carregando clientes e categorias…',
+      mensagemCarregando: mensagemCarregamento,
     })
     this.painelSlot.replaceChildren(this.painel.raiz)
     if (!this.carregando && this.falhaEdicao === null) {
@@ -698,6 +739,28 @@ export class PaginaReservas extends Componente {
       atributos: { 'aria-live': 'polite' },
     })
 
+    if (this.modoCliente) {
+      const id = idClienteVinculado()
+      this.clientesSlot.replaceChildren(
+        criarElemento('div', {
+          className: CLASSES.grupoCliente,
+          filhos: [
+            criarElemento('p', {
+              className: CLASSES.motivo,
+              texto: `Reserva em nome de ${sessaoAtiva()?.nome ?? 'você'}.`,
+            }),
+            criarElemento('p', {
+              className: CLASSES.motivo,
+              texto:
+                id === null
+                  ? 'Sua conta ainda não está vinculada a um cliente. Fale com a loja.'
+                  : 'Você não precisa informar o cliente; o sistema usa sua conta.',
+            }),
+          ],
+        }),
+      )
+    }
+
     return criarElemento('div', {
       className: CLASSES.gradeContainer,
       filhos: [
@@ -737,7 +800,7 @@ export class PaginaReservas extends Componente {
   }
 
   private renderizarClientes(): void {
-    if (this.clientesSlot === null || this.campos === null) {
+    if (this.modoCliente || this.clientesSlot === null || this.campos === null) {
       return
     }
     if (this.carregando || this.clientesCarregando) {
@@ -843,7 +906,7 @@ export class PaginaReservas extends Componente {
   }
 
   private atualizarOpcoesCliente(): void {
-    if (this.campos === null) {
+    if (this.modoCliente || this.campos === null) {
       return
     }
     this.campos.cliente.definirOpcoes(this.opcoesCliente())
@@ -1036,11 +1099,15 @@ export class PaginaReservas extends Componente {
 
   private calcularMotivos(): readonly string[] {
     const motivos: string[] = []
-    const carregando = this.carregando || this.clientesCarregando
+    const carregando = this.carregando || (!this.modoCliente && this.clientesCarregando)
     if (carregando) {
       motivos.push('Carregando dados')
     }
-    if (this.clientesErro !== null) {
+    if (this.modoCliente) {
+      if (!clienteVinculado()) {
+        motivos.push('Sua conta não está vinculada a um cliente')
+      }
+    } else if (this.clientesErro !== null) {
       motivos.push('Não foi possível carregar os clientes')
     } else if (!carregando && this.clientes.length === 0) {
       motivos.push('Cadastre um cliente para continuar')
@@ -1098,7 +1165,11 @@ export class PaginaReservas extends Componente {
     const motivos = this.calcularMotivos()
     this.validarPeriodo()
     const clienteId = Number(this.formulario.clienteId)
-    if (this.clientesErro !== null) {
+    if (this.modoCliente) {
+      this.campos?.cliente.definirErro(
+        clienteVinculado() ? null : 'Fale com a loja para vincular sua conta.',
+      )
+    } else if (this.clientesErro !== null) {
       this.campos?.cliente.definirErro('Não foi possível carregar os clientes.')
     } else if (this.clientes.length === 0) {
       this.campos?.cliente.definirErro('Cadastre um cliente para continuar.')
@@ -1168,20 +1239,36 @@ export class PaginaReservas extends Componente {
     this.painel?.focarPrimeiroControle()
   }
 
+  private rotaConsulta(): string {
+    return this.modoCliente ? '#/cliente/minhas-reservas' : '#/reservas'
+  }
+
+  private rotaNovo(): string {
+    return this.modoCliente ? '#/cliente/nova-reserva' : '#/reservas/nova'
+  }
+
+  private idClienteParaEnvio(): number | null {
+    if (this.modoCliente) {
+      return idClienteVinculado()
+    }
+    const id = Number(this.formulario.clienteId)
+    return Number.isSafeInteger(id) && id > 0 ? id : null
+  }
+
   private irParaNovo(): void {
     limparRascunho()
-    window.location.hash = '#/reservas/nova'
+    window.location.hash = this.rotaNovo()
   }
 
   private irParaConsulta(): void {
     this.guardarRascunho()
-    window.location.hash = '#/reservas'
+    window.location.hash = this.rotaConsulta()
   }
 
   private irParaConsultaAposSucesso(): void {
     this.preservarAoDesmontar = false
     limparRascunho()
-    window.location.hash = '#/reservas'
+    window.location.hash = this.rotaConsulta()
   }
 
   private irParaEdicao(id: number): void {
@@ -1283,8 +1370,8 @@ export class PaginaReservas extends Componente {
   private criarFiltros(): HTMLElement {
     this.campoFiltroCliente = new Campo({
       id: 'reservas-filtro-cliente',
-      rotulo: 'Cliente ou reserva',
-      placeholder: 'Nome, CPF ou número',
+      rotulo: this.modoCliente ? 'Número da reserva' : 'Cliente ou reserva',
+      placeholder: this.modoCliente ? 'Ex.: 42' : 'Nome, CPF ou número',
       icone: ICONE_BUSCA,
       valorInicial: this.filtros.cliente,
       aoAlterar: (valor) => {
@@ -1371,10 +1458,49 @@ export class PaginaReservas extends Componente {
         titulo: filtrando ? 'Nenhuma reserva com estes filtros' : 'Nenhuma reserva lançada',
         mensagem: filtrando
           ? 'Ajuste os filtros ou limpe a busca para ver outras reservas.'
-          : 'Crie a primeira reserva da locadora.',
+          : this.modoCliente
+            ? 'Faça sua primeira reserva quando quiser alugar um equipamento.'
+            : 'Crie a primeira reserva da locadora.',
         acao: { texto: 'Nova reserva', aoClicar: () => this.irParaNovo() },
       }).montar(area)
       this.tabelaSlot.replaceChildren(area)
+      return
+    }
+
+    if (this.modoCliente) {
+      const cartoes = reservas.map((reserva) => {
+        const selecionado = this.selecionadoId === reserva.id
+        const cartao = criarElemento('button', {
+          className: selecionado ? CLASSES.cartaoReservaAtivo : CLASSES.cartaoReserva,
+          atributos: {
+            type: 'button',
+            'aria-pressed': selecionado ? 'true' : 'false',
+          },
+          filhos: [
+            criarElemento('span', {
+              className: CLASSES.cartaoTitulo,
+              texto: `Reserva #${reserva.id}`,
+            }),
+            criarElemento('span', {
+              className: CLASSES.cartaoLinha,
+              texto: `${formatadorPtBr.data(reserva.dataInicio)} a ${formatadorPtBr.data(reserva.dataFim)}`,
+            }),
+            badgeStatus(reserva.statusReserva).raiz,
+          ],
+        })
+        cartao.addEventListener('click', () => this.selecionar(reserva.id))
+        return cartao
+      })
+      const filhos: Array<Node> = cartoes
+      if (this.falhaLista !== null) {
+        filhos.push(
+          criarElemento('div', {
+            className: CLASSES.avisoDesatualizado,
+            texto: 'Dados desatualizados · tente recarregar',
+          }),
+        )
+      }
+      this.tabelaSlot.replaceChildren(...filhos)
       return
     }
 
@@ -1512,7 +1638,9 @@ export class PaginaReservas extends Componente {
       new EstadoVazio({
         ilustracao: 'reservas',
         titulo: 'Nenhuma reserva selecionada',
-        mensagem: 'Selecione uma linha da tabela para ver cliente, período e previsão.',
+        mensagem: this.modoCliente
+          ? 'Selecione uma reserva para ver período, status e previsão.'
+          : 'Selecione uma linha da tabela para ver cliente, período e previsão.',
         acao: { texto: 'Nova reserva', aoClicar: () => this.irParaNovo() },
       }).montar(area)
       this.areaDetalhes.replaceChildren(area)
@@ -1521,7 +1649,10 @@ export class PaginaReservas extends Componente {
 
     const linhas: Array<Node> = [
       this.criarLinhaDetalhe('Reserva', `#${reserva.id}`),
-      this.criarLinhaDetalhe('Cliente', this.nomeCliente(reserva.clienteId)),
+      this.criarLinhaDetalhe(
+        this.modoCliente ? 'Titular' : 'Cliente',
+        this.nomeCliente(reserva.clienteId),
+      ),
       this.criarLinhaDetalhe(
         'Período',
         `${formatadorPtBr.data(reserva.dataInicio)} a ${formatadorPtBr.data(reserva.dataFim)}`,
@@ -1600,6 +1731,9 @@ export class PaginaReservas extends Componente {
   }
 
   private nomeCliente(id: number): string {
+    if (this.modoCliente) {
+      return sessaoAtiva()?.nome ?? 'Você'
+    }
     return this.clientes.find((cliente) => cliente.id === id)?.nome ?? `Cliente ${id}`
   }
 
@@ -1695,6 +1829,14 @@ export class PaginaReservas extends Componente {
   }
 
   private abrirConfirmacaoCriacao(): void {
+    const clienteId = this.idClienteParaEnvio()
+    if (clienteId === null) {
+      this.toasts.exibir({
+        mensagem: 'Sua conta não está vinculada a um cliente. Fale com a loja.',
+        tom: 'alerta',
+      })
+      return
+    }
     const itens: readonly ItemReservaEntrada[] = [...this.itens].map(
       ([equipamentoId, valorDiaria]) => ({
         equipamentoId,
@@ -1702,7 +1844,7 @@ export class PaginaReservas extends Componente {
       }),
     )
     const dados: ReservaCriarEntrada = {
-      clienteId: Number(this.formulario.clienteId),
+      clienteId,
       dataInicio: this.formulario.dataInicio,
       dataFim: this.formulario.dataFim,
       itens,

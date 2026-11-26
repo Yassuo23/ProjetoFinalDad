@@ -1,40 +1,58 @@
+import { observarSessao, sessaoAtiva } from './Sessao'
+
 /**
- * Perfil de demonstração do renderer. Não há contrato `auth:*`: o estado vive
- * somente em memória e some a cada recarregamento da aplicação.
+ * Perfil derivado da sessão real do main.
+ *
+ * Não existe alternador de demonstração: o renderer não decide perfil,
+ * apenas reflete `Sessao.perfil`. Sem sessão, adota o perfil menos
+ * privilegiado — nunca transforma um Cliente em atendente.
  */
-export type Perfil = 'atendente' | 'administrador'
+export type Perfil = 'cliente' | 'atendente' | 'administrador'
 
 export const ROTULOS_PERFIL: Readonly<Record<Perfil, string>> = {
+  cliente: 'Cliente',
   atendente: 'Atendente de balcão',
   administrador: 'Administrador',
 }
 
 type OuvintePerfil = (perfil: Perfil) => void
 
-let atual: Perfil = 'atendente'
-const ouvintes = new Set<OuvintePerfil>()
-
 export function perfilAtivo(): Perfil {
-  return atual
+  const perfil = sessaoAtiva()?.perfil
+  if (perfil === 'Administrador') {
+    return 'administrador'
+  }
+  if (perfil === 'Atendente') {
+    return 'atendente'
+  }
+  return 'cliente'
 }
 
 export function ehAdministrador(): boolean {
-  return atual === 'administrador'
+  return sessaoAtiva()?.perfil === 'Administrador'
 }
 
-export function definirPerfil(perfil: Perfil): void {
-  if (perfil === atual) {
-    return
+export function ehCliente(): boolean {
+  return sessaoAtiva()?.perfil === 'Cliente'
+}
+
+/** Cliente sem vínculo é tratado como sem acesso a dados de reserva. */
+export function clienteVinculado(): boolean {
+  return idClienteVinculado() !== null
+}
+
+/** Devolve somente o `clienteId` informado pelo main na sessão. */
+export function idClienteVinculado(): number | null {
+  const sessao = sessaoAtiva()
+  if (sessao === null || sessao.perfil !== 'Cliente') {
+    return null
   }
-  atual = perfil
-  for (const ouvinte of [...ouvintes]) {
-    ouvinte(atual)
-  }
+  const id = sessao.clienteId
+  return typeof id === 'number' && Number.isInteger(id) && id > 0 ? id : null
 }
 
 export function observarPerfil(ouvinte: OuvintePerfil): () => void {
-  ouvintes.add(ouvinte)
-  return () => {
-    ouvintes.delete(ouvinte)
-  }
+  return observarSessao(() => {
+    ouvinte(perfilAtivo())
+  })
 }

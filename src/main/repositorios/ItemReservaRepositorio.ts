@@ -32,10 +32,19 @@ export class ItemReservaRepositorio extends RepositorioBase implements Repositor
     super(conexao)
   }
 
-  async listar(filtros: ItemReservaListarFiltros = {}): Promise<readonly ItemReserva[]> {
+  async listar(
+    filtros: ItemReservaListarFiltros = {},
+    idClienteProprietario?: number,
+  ): Promise<readonly ItemReserva[]> {
     const condicoes: string[] = []
     const valores: ParametroSql[] = []
 
+    // ADR 0009: o dono vem da sessão, nunca do payload. A subconsulta evita
+    // trust in any `reservaId` informado pelo renderer.
+    if (idClienteProprietario !== undefined) {
+      condicoes.push('id_reserva IN (SELECT id_reserva FROM reserva WHERE id_cliente = ?)')
+      valores.push(idClienteProprietario)
+    }
     if (filtros.reservaId !== undefined) {
       condicoes.push('id_reserva = ?')
       valores.push(filtros.reservaId)

@@ -9,6 +9,8 @@ import { ConexaoBanco } from './banco/ConexaoBanco'
 import { lerConfiguracaoBanco } from './banco/ConfiguracaoBanco'
 import { Migrador } from './banco/Migrador'
 import { MIGRACOES } from './banco/migracoes'
+import { UsuarioRepositorio } from './repositorios/UsuarioRepositorio'
+import { AutenticacaoServico } from './servicos/AutenticacaoServico'
 import { politicaCsp } from './seguranca/Csp'
 
 const arquivoEnv = path.join(process.cwd(), '.env')
@@ -102,7 +104,10 @@ function createWindow(): void {
 }
 
 function registerIpcHandlers(conexao: ConexaoBanco): void {
-  registrarHandlers(new RegistroIpc(ipcMain), conexao)
+  // Uma única instância: a guarda de perfil e os handlers de auth compartilham
+  // a mesma sessão em memória. Nada de token ou hash atravessa o IPC.
+  const autenticacao = new AutenticacaoServico(new UsuarioRepositorio(conexao))
+  registrarHandlers(new RegistroIpc(ipcMain, autenticacao), conexao, autenticacao)
 }
 
 function sendPing(): void {

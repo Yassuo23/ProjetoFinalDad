@@ -4,6 +4,8 @@ import { migracaoLocacao } from './002-locacao'
 import { migracaoAuditoriaSoftDelete } from './003-auditoria-soft-delete'
 import { migracaoDisponibilidadeEquipamento } from './004-disponibilidade-equipamento'
 import { migracaoValorDiariaEquipamento } from './005-valor-diaria-equipamento'
+import { migracaoAutenticacaoCategorias } from './006-autenticacao-e-auditoria-categorias'
+import { migracaoVinculoUsuarioCliente } from './007-vinculo-usuario-cliente'
 
 export const MIGRACOES: readonly Migracao[] = [
   migracaoCategorias,
@@ -11,4 +13,6 @@ export const MIGRACOES: readonly Migracao[] = [
   migracaoAuditoriaSoftDelete,
   migracaoDisponibilidadeEquipamento,
   migracaoValorDiariaEquipamento,
+  migracaoAutenticacaoCategorias,
+  migracaoVinculoUsuarioCliente,
 ]

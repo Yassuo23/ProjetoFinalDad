@@ -71,6 +71,11 @@ export class Botao extends Componente {
     this.botao.disabled = valor
   }
 
+  /** Troca apenas o rótulo; o botão não é decorado com ícone neste renderer. */
+  definirTexto(texto: string): void {
+    this.botao.textContent = texto
+  }
+
   focar(): void {
     this.botao.focus()
   }

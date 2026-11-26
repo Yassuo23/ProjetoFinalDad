@@ -25,12 +25,23 @@ export class ClienteServico implements ServicoClientes {
     private readonly servicoCep: ServicoCep,
   ) {}
 
-  listar(filtros?: ClienteListarFiltros): Promise<readonly Cliente[]> {
-    return filtros === undefined ? this.repositorio.listar() : this.repositorio.listar(filtros)
+  listar(
+    filtros?: ClienteListarFiltros,
+    idClienteProprietario?: number,
+  ): Promise<readonly Cliente[]> {
+    if (filtros === undefined) {
+      return idClienteProprietario === undefined
+        ? this.repositorio.listar()
+        : this.repositorio.listar({}, idClienteProprietario)
+    }
+    return this.repositorio.listar(filtros, idClienteProprietario)
   }
 
-  async buscarPorId(id: number): Promise<Cliente> {
-    const cliente = await this.repositorio.buscarPorId(id)
+  async buscarPorId(id: number, idClienteProprietario?: number): Promise<Cliente> {
+    const cliente =
+      idClienteProprietario === undefined
+        ? await this.repositorio.buscarPorId(id)
+        : await this.repositorio.buscarPorId(id, idClienteProprietario)
     if (!cliente) throw NAO_ENCONTRADO()
     return cliente
   }
@@ -84,8 +95,11 @@ export class ClienteServico implements ServicoClientes {
     }
   }
 
-  async atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente> {
-    const atual = await this.buscarPorId(dados.id)
+  async atualizar(
+    dados: ClienteAtualizarEntrada,
+    idClienteProprietario?: number,
+  ): Promise<Cliente> {
+    const atual = await this.buscarPorId(dados.id, idClienteProprietario)
 
     if (dados.cpf !== undefined && (await this.cpfEmUso(dados.cpf, dados.id))) {
       throw new ErroDeDominio('REGISTRO_DUPLICADO', 'CPF já cadastrado.')
@@ -135,7 +149,10 @@ export class ClienteServico implements ServicoClientes {
     }
 
     try {
-      const atualizado = await this.repositorio.atualizar(envio)
+      const atualizado =
+        idClienteProprietario === undefined
+          ? await this.repositorio.atualizar(envio)
+          : await this.repositorio.atualizar(envio, idClienteProprietario)
       if (!atualizado) throw NAO_ENCONTRADO()
       return atualizado
     } catch (erro) {

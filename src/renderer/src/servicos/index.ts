@@ -11,6 +11,29 @@ export { ServicoDevolucoes } from './ServicoDevolucoes'
 export { ServicoItensReserva } from './ServicoItensReserva'
 export { ServicoCategorias } from './ServicoCategorias'
 export { DashboardServico, hojeISO } from './DashboardServico'
+export { ServicoAutenticacao } from './ServicoAutenticacao'
+export {
+  mensagemErroBootstrap,
+  mensagemErroCadastroCliente,
+  mensagemErroEntrada,
+  motivoErroAutenticacao,
+} from './ErrosAutenticacao'
+export type { MotivoErroAutenticacao } from './ErrosAutenticacao'
+export {
+  TEXTO_POLITICA_LOGIN,
+  TEXTO_POLITICA_SENHA,
+  loginValido,
+  nomeValido,
+  senhaValida,
+} from './ValidacaoAutenticacao'
+export {
+  temErrosCadastroCliente,
+  validarCadastroCliente,
+} from './ValidacaoCadastroCliente'
+export type {
+  DadosFormularioCadastroCliente,
+  ErrosCadastroCliente,
+} from './ValidacaoCadastroCliente'
 export type {
   CondicaoClima,
   DadosDashboard,

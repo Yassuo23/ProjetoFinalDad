@@ -63,11 +63,13 @@ export const CANAIS = {
   devolucoesAtualizar: 'devolucoes:atualizar',
   devolucoesInativar: 'devolucoes:inativar',
 
-  // Autenticação e sessão (ADR 0007).
+  // Autenticação e sessão (ADR 0007; auto-cadastro pela ADR 0009).
   authEntrar: 'auth:entrar',
   authSair: 'auth:sair',
   authSessaoAtual: 'auth:sessao-atual',
   authBootstrap: 'auth:bootstrap',
+  /** Auto-cadastro público: o perfil Cliente é fixado no main, nunca no payload. */
+  authCadastrarCliente: 'auth:cadastrar-cliente',
 
   // Usuários — somente administrador (ADR 0007).
   usuariosListar: 'usuarios:listar',

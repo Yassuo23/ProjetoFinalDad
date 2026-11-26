@@ -5,7 +5,7 @@ import {
   esquemaIntegracaoPrevisaoTempo,
 } from '../../../shared/contratos/esquemas'
 import type { ServicoCnpj, ServicoFeriados, ServicoPrevisaoTempo } from '../../servicos/portas'
-import type { RegistroIpc } from '../RegistroIpc'
+import { PERFIS, type RegistroIpc } from '../RegistroIpc'
 
 export interface IntegracoesDoMain {
   readonly previsaoTempo: ServicoPrevisaoTempo
@@ -19,11 +19,18 @@ export function registrarIntegracoes(registro: RegistroIpc, servicos: Integracoe
     CANAIS.integracoesPrevisaoTempo,
     esquemaIntegracaoPrevisaoTempo,
     async ({ data }) => servicos.previsaoTempo.consultar(data),
+    PERFIS.autenticados,
   )
-  registro.registrar(CANAIS.integracoesCnpj, esquemaIntegracaoCnpj, async ({ cnpj }) =>
-    servicos.cnpj.consultar(cnpj),
+  registro.registrar(
+    CANAIS.integracoesCnpj,
+    esquemaIntegracaoCnpj,
+    async ({ cnpj }) => servicos.cnpj.consultar(cnpj),
+    PERFIS.admin,
   )
-  registro.registrar(CANAIS.integracoesFeriados, esquemaIntegracaoFeriados, async ({ ano }) =>
-    servicos.feriados.feriados(ano),
+  registro.registrar(
+    CANAIS.integracoesFeriados,
+    esquemaIntegracaoFeriados,
+    async ({ ano }) => servicos.feriados.feriados(ano),
+    PERFIS.autenticados,
   )
 }

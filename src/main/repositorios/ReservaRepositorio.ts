@@ -41,10 +41,17 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
     super(conexao)
   }
 
-  async listar(filtros: ReservaListarFiltros = {}): Promise<readonly Reserva[]> {
+  async listar(
+    filtros: ReservaListarFiltros = {},
+    idClienteProprietario?: number,
+  ): Promise<readonly Reserva[]> {
     const condicoes: string[] = []
     const valores: ParametroSql[] = []
 
+    if (idClienteProprietario !== undefined) {
+      condicoes.push('id_cliente = ?')
+      valores.push(idClienteProprietario)
+    }
     if (filtros.incluirInativos !== true) condicoes.push('ativo = 1')
     if (filtros.clienteId !== undefined) {
       condicoes.push('id_cliente = ?')
@@ -76,18 +83,19 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
     })
   }
 
-  async buscarPorId(id: number): Promise<Reserva | null> {
-    return this.comCliente((cliente) => this.lerPorId(cliente, id))
+  async buscarPorId(id: number, idClienteProprietario?: number): Promise<Reserva | null> {
+    return this.comCliente((cliente) => this.lerPorId(cliente, id, idClienteProprietario))
   }
 
-  async criar(dados: ReservaCriarEntrada): Promise<Reserva> {
+  async criar(dados: ReservaCriarEntrada, idClienteProprietario?: number): Promise<Reserva> {
+    const clienteId = idClienteProprietario ?? dados.clienteId
     return this.transacao(async (cliente) => {
       let id: number
       try {
         const resultado = await cliente.execute(
           `INSERT INTO reserva (id_cliente, data_inicio, data_fim, previsao_tempo)
            VALUES (?, ?, ?, ?)`,
-          [dados.clienteId, dados.dataInicio, dados.dataFim, dados.previsaoTempo ?? null],
+          [clienteId, dados.dataInicio, dados.dataFim, dados.previsaoTempo ?? null],
         )
         id = resultado.insertId
         for (const item of dados.itens) {
@@ -101,14 +109,17 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
         throw paraErroDominio(erro, 'reserva')
       }
 
-      const criada = await this.lerPorId(cliente, id)
+      const criada = await this.lerPorId(cliente, id, idClienteProprietario)
       if (!criada)
         throw new ErroDeDominio('NAO_ENCONTRADO', 'Reserva não encontrada após a criação.')
       return criada
     })
   }
 
-  async atualizar(dados: ReservaAtualizarEntrada): Promise<Reserva | null> {
+  async atualizar(
+    dados: ReservaAtualizarEntrada,
+    idClienteProprietario?: number,
+  ): Promise<Reserva | null> {
     const campos: string[] = []
     const valores: ParametroSql[] = []
 
@@ -135,20 +146,27 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
     if (campos.length === 0 && dados.itens === undefined) return null
 
     return this.transacao(async (cliente) => {
-      if (!(await this.lerPorId(cliente, dados.id))) return null
+      if (!(await this.lerPorId(cliente, dados.id, idClienteProprietario))) return null
+
+      let condicaoDono = ''
+      const valoresDono: ParametroSql[] = []
+      if (idClienteProprietario !== undefined) {
+        condicaoDono = ' AND id_cliente = ?'
+        valoresDono.push(idClienteProprietario)
+      }
 
       try {
         if (campos.length > 0) {
-          await cliente.execute(`UPDATE reserva SET ${campos.join(', ')} WHERE id_reserva = ?`, [
-            ...valores,
-            dados.id,
-          ])
+          await cliente.execute(
+            `UPDATE reserva SET ${campos.join(', ')} WHERE id_reserva = ?${condicaoDono}`,
+            [...valores, dados.id, ...valoresDono],
+          )
         } else {
           // Somente itens mudaram: o gatilho `ON UPDATE` do MySQL não dispara sem
           // alteração de coluna, então a auditoria é tocada explicitamente.
           await cliente.execute(
-            'UPDATE reserva SET atualizado_em = CURRENT_TIMESTAMP WHERE id_reserva = ?',
-            [dados.id],
+            `UPDATE reserva SET atualizado_em = CURRENT_TIMESTAMP WHERE id_reserva = ?${condicaoDono}`,
+            [dados.id, ...valoresDono],
           )
         }
 
@@ -166,7 +184,7 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
         throw paraErroDominio(erro, 'reserva')
       }
 
-      const atualizada = await this.lerPorId(cliente, dados.id)
+      const atualizada = await this.lerPorId(cliente, dados.id, idClienteProprietario)
       if (!atualizada) {
         throw new ErroDeDominio('NAO_ENCONTRADO', 'Reserva não encontrada após a atualização.')
       }
@@ -188,8 +206,21 @@ export class ReservaRepositorio extends RepositorioBase implements RepositorioRe
     })
   }
 
-  private async lerPorId(cliente: ClienteBanco, id: number): Promise<Reserva | null> {
-    const linhas = await cliente.query(`${CONSULTAR} WHERE id_reserva = ? LIMIT 1`, [id])
+  private async lerPorId(
+    cliente: ClienteBanco,
+    id: number,
+    idClienteProprietario?: number,
+  ): Promise<Reserva | null> {
+    const valores: ParametroSql[] = [id]
+    let condicaoDono = ''
+    if (idClienteProprietario !== undefined) {
+      condicaoDono = ' AND id_cliente = ?'
+      valores.push(idClienteProprietario)
+    }
+    const linhas = await cliente.query(
+      `${CONSULTAR} WHERE id_reserva = ?${condicaoDono} LIMIT 1`,
+      valores,
+    )
     const linha = linhas[0]
     return linha ? mapearReserva(linha) : null
   }

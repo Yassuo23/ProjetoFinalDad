@@ -1,6 +1,8 @@
 import type { Componente } from './Componente'
 
 export type FabricaPagina = () => Componente
+/** Guarda síncrono: devolve a rota efetiva antes de montar qualquer página. */
+export type GuardiaoRota = (caminho: string) => string
 
 const ROTA_INICIAL = '/dashboard'
 const ROTA_404 = '/404'
@@ -16,6 +18,7 @@ export class Roteador {
     private readonly destino: Element,
     private readonly rotas: ReadonlyMap<string, FabricaPagina>,
     private readonly aoNavegar?: (caminho: string) => void,
+    private readonly guardiao?: GuardiaoRota,
   ) {}
 
   iniciar(): void {
@@ -33,7 +36,7 @@ export class Roteador {
     window.location.hash = `#${caminho}`
   }
 
-  private caminhoAtual(): string {
+  private caminhoSolicitado(): string {
     const bruto = window.location.hash.replace(/^#/, '')
     const caminho = bruto.startsWith('/') ? bruto : `/${bruto}`
     if (caminho === '/' || caminho === '') {
@@ -43,15 +46,24 @@ export class Roteador {
   }
 
   private processar(): void {
-    const caminho = this.caminhoAtual()
-    const fabrica = this.rotas.get(caminho)
+    const solicitado = this.caminhoSolicitado()
+    const permitido = this.guardiao?.(solicitado) ?? solicitado
+
+    // Redirecionamento do guard: troca o hash e deixa o próximo evento montar.
+    // Assim a página protegida nunca chega a ser instanciada sem sessão.
+    if (permitido !== solicitado) {
+      window.location.hash = `#${permitido}`
+      return
+    }
+
+    const fabrica = this.rotas.get(permitido)
     if (!fabrica) {
-      throw new Error(`Rota ${caminho} sem fábrica registrada`)
+      throw new Error(`Rota ${permitido} sem fábrica registrada`)
     }
 
     this.atual?.destruir()
     this.atual = fabrica()
     this.atual.montar(this.destino)
-    this.aoNavegar?.(caminho)
+    this.aoNavegar?.(permitido)
   }
 }

@@ -1,4 +1,10 @@
-import { criarElemento, criarIcone, Componente, ehAdministrador, observarPerfil } from '../nucleo'
+import {
+  criarElemento,
+  criarIcone,
+  Componente,
+  observarPerfil,
+  perfilAtivo,
+} from '../nucleo'
 import { LogoZenite } from './LogoZenite'
 
 const CLASSES = {
@@ -72,6 +78,29 @@ const ITENS: readonly ItemNav[] = [
   },
 ]
 
+const ITENS_CLIENTE: readonly ItemNav[] = [
+  {
+    caminho: '/cliente/disponibilidade',
+    rotulo: 'Disponibilidade',
+    icone: 'M4 7h16v12H4zM9 7V5h6v2M4 12h16',
+  },
+  {
+    caminho: '/cliente/minhas-reservas',
+    rotulo: 'Minhas reservas',
+    icone:
+      'M6 3v3M18 3v3M3 9h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z',
+  },
+  {
+    caminho: '/cliente/nova-reserva',
+    rotulo: 'Nova reserva',
+    icone: 'M12 5v14M5 12h14',
+  },
+]
+
+const CAMINHOS_CLIENTE: ReadonlySet<string> = new Set(
+  ITENS_CLIENTE.map((item) => item.caminho),
+)
+
 const SOMENTE_ADMIN: ReadonlySet<string> = new Set([
   '/equipamentos',
   '/fornecedores',
@@ -113,7 +142,7 @@ export class Sidebar extends Componente {
       atributos: { 'aria-label': 'Navegação principal' },
     })
 
-    for (const item of ITENS) {
+    for (const item of [...ITENS, ...ITENS_CLIENTE]) {
       const rotulo = criarElemento('span', {
         className: CLASSES.rotulo,
         texto: item.rotulo,
@@ -145,9 +174,10 @@ export class Sidebar extends Componente {
   }
 
   private aplicarPerfil(): void {
-    const administrador = ehAdministrador()
+    const perfil = perfilAtivo()
     for (const [caminho, link] of this.links) {
-      if (SOMENTE_ADMIN.has(caminho) && !administrador) {
+      const permitido = this.permitidoPara(caminho, perfil)
+      if (!permitido) {
         link.className = CLASSES.oculto
         link.removeAttribute('aria-current')
         link.tabIndex = -1
@@ -165,5 +195,15 @@ export class Sidebar extends Componente {
         link.removeAttribute('aria-current')
       }
     }
+  }
+
+  private permitidoPara(caminho: string, perfil: ReturnType<typeof perfilAtivo>): boolean {
+    if (perfil === 'cliente') {
+      return CAMINHOS_CLIENTE.has(caminho)
+    }
+    if (CAMINHOS_CLIENTE.has(caminho)) {
+      return false
+    }
+    return !SOMENTE_ADMIN.has(caminho) || perfil === 'administrador'
   }
 }

@@ -7,8 +7,17 @@ import type {
   Devolucao,
   DevolucaoAtualizarEntrada,
   DevolucaoCriarEntrada,
+  AutenticarEntrada,
+  BootstrapEntrada,
+  CadastrarClienteEntrada,
+  Categoria,
+  CategoriaAtualizarEntrada,
+  CategoriaCriarEntrada,
+  CategoriaDetalhe,
+  CategoriaListarFiltros,
   DevolucaoListarFiltros,
   EnderecoCep,
+  EstadoSessao,
   Equipamento,
   EquipamentoAtualizarEntrada,
   EquipamentoCriarEntrada,
@@ -33,11 +42,54 @@ import type {
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
   ReservaListarFiltros,
+  Sessao,
+  UsuarioAlterarSenhaEntrada,
+  UsuarioAtualizarEntrada,
+  UsuarioCriarEntrada,
+  UsuarioListarFiltros,
+  UsuarioPublico,
 } from '../../shared/contratos/modelos'
 
 /** Portas usadas pelos handlers — permitem testar sem Electron e sem banco. */
 export interface ServicoCategorias {
-  listar(): Promise<readonly { id: number; nome: string; descricao: string | null }[]>
+  listar(filtros?: CategoriaListarFiltros): Promise<readonly Categoria[]>
+  buscarPorId(id: number): Promise<CategoriaDetalhe>
+  criar(dados: CategoriaCriarEntrada): Promise<CategoriaDetalhe>
+  atualizar(dados: CategoriaAtualizarEntrada): Promise<CategoriaDetalhe>
+  inativar(id: number): Promise<void>
+}
+
+/** Criptografia de senha: scrypt com salt único; `senha` nunca é logo/erro/IPC. */
+export interface ServicoSenhas {
+  gerarHash(senha: string): Promise<string>
+  conferir(senha: string, armazenado: string): Promise<boolean>
+  validarPolitica(senha: string): void
+}
+
+/** Visão síncrona da sessão, usada pela guarda de perfil no main. */
+export interface ProvedorSessao {
+  sessao(): Sessao | null
+}
+
+/** Mutadores de sessão necessários ao serviço de usuários. */
+export interface GestorSessao extends ProvedorSessao {
+  atualizarSessao(sessao: Sessao | null): void
+}
+
+export interface ServicoAutenticacao extends ProvedorSessao {
+  entrar(dados: AutenticarEntrada): Promise<Sessao>
+  sair(): Promise<void>
+  sessaoAtual(): Promise<EstadoSessao>
+  bootstrap(dados: BootstrapEntrada): Promise<Sessao>
+  /** ADR 0009: auto-cadastro público; perfil fixo em `Cliente` no main. */
+  cadastrarCliente(dados: CadastrarClienteEntrada): Promise<Sessao>
+}
+
+export interface ServicoUsuarios {
+  listar(filtros?: UsuarioListarFiltros): Promise<readonly UsuarioPublico[]>
+  criar(dados: UsuarioCriarEntrada): Promise<UsuarioPublico>
+  atualizar(dados: UsuarioAtualizarEntrada): Promise<UsuarioPublico>
+  alterarSenha(dados: UsuarioAlterarSenhaEntrada): Promise<void>
 }
 
 export interface ServicoFornecedores {
@@ -49,11 +101,12 @@ export interface ServicoFornecedores {
 }
 
 export interface ServicoClientes {
-  listar(filtros?: ClienteListarFiltros): Promise<readonly Cliente[]>
-  buscarPorId(id: number): Promise<Cliente>
+  /** `idClienteProprietario` é derivado da sessão no main (ADR 0009). */
+  listar(filtros?: ClienteListarFiltros, idClienteProprietario?: number): Promise<readonly Cliente[]>
+  buscarPorId(id: number, idClienteProprietario?: number): Promise<Cliente>
   buscarCep(cep: string): Promise<EnderecoCep>
   criar(dados: ClienteCriarEntrada): Promise<Cliente>
-  atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente>
+  atualizar(dados: ClienteAtualizarEntrada, idClienteProprietario?: number): Promise<Cliente>
   inativar(id: number): Promise<void>
 }
 
@@ -67,15 +120,19 @@ export interface ServicoEquipamentos {
 }
 
 export interface ServicoReservas {
-  listar(filtros?: ReservaListarFiltros): Promise<readonly Reserva[]>
-  buscarPorId(id: number): Promise<Reserva>
-  criar(dados: ReservaCriarEntrada): Promise<Reserva>
-  atualizar(dados: ReservaAtualizarEntrada): Promise<Reserva>
+  listar(filtros?: ReservaListarFiltros, idClienteProprietario?: number): Promise<readonly Reserva[]>
+  buscarPorId(id: number, idClienteProprietario?: number): Promise<Reserva>
+  /** O dono da sessão sobrepõe qualquer `clienteId` recebido do renderer. */
+  criar(dados: ReservaCriarEntrada, idClienteProprietario?: number): Promise<Reserva>
+  atualizar(dados: ReservaAtualizarEntrada, idClienteProprietario?: number): Promise<Reserva>
   inativar(id: number): Promise<void>
 }
 
 export interface ServicoItensReserva {
-  listar(filtros?: ItemReservaListarFiltros): Promise<readonly ItemReserva[]>
+  listar(
+    filtros?: ItemReservaListarFiltros,
+    idClienteProprietario?: number,
+  ): Promise<readonly ItemReserva[]>
   buscarPorId(chave: ChaveItemReservaEntrada): Promise<ItemReserva>
   criar(dados: ItemReservaCriarEntrada): Promise<ItemReserva>
   atualizar(dados: ItemReservaAtualizarEntrada): Promise<ItemReserva>

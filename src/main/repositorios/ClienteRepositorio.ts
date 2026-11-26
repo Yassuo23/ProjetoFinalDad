@@ -41,10 +41,17 @@ export class ClienteRepositorio extends RepositorioBase implements RepositorioCl
     super(conexao)
   }
 
-  async listar(filtros: ClienteListarFiltros = {}): Promise<readonly Cliente[]> {
+  async listar(
+    filtros: ClienteListarFiltros = {},
+    idClienteProprietario?: number,
+  ): Promise<readonly Cliente[]> {
     const condicoes: string[] = []
     const valores: ParametroSql[] = []
 
+    if (idClienteProprietario !== undefined) {
+      condicoes.push('id_cliente = ?')
+      valores.push(idClienteProprietario)
+    }
     if (filtros.incluirInativos !== true) condicoes.push('ativo = 1')
     if (filtros.nome !== undefined) {
       condicoes.push('nome LIKE ?')
@@ -72,8 +79,8 @@ export class ClienteRepositorio extends RepositorioBase implements RepositorioCl
     })
   }
 
-  async buscarPorId(id: number): Promise<Cliente | null> {
-    return this.comCliente((cliente) => this.lerPorId(cliente, id))
+  async buscarPorId(id: number, idClienteProprietario?: number): Promise<Cliente | null> {
+    return this.comCliente((cliente) => this.lerPorId(cliente, id, idClienteProprietario))
   }
 
   async criar(dados: ClienteCriarEntrada): Promise<Cliente> {
@@ -110,7 +117,10 @@ export class ClienteRepositorio extends RepositorioBase implements RepositorioCl
     })
   }
 
-  async atualizar(dados: ClienteAtualizarEntrada): Promise<Cliente | null> {
+  async atualizar(
+    dados: ClienteAtualizarEntrada,
+    idClienteProprietario?: number,
+  ): Promise<Cliente | null> {
     const campos: string[] = []
     const valores: ParametroSql[] = []
 
@@ -137,16 +147,21 @@ export class ClienteRepositorio extends RepositorioBase implements RepositorioCl
     if (campos.length === 0) return null
 
     valores.push(dados.id)
+    let condicaoDono = ''
+    if (idClienteProprietario !== undefined) {
+      condicaoDono = ' AND id_cliente = ?'
+      valores.push(idClienteProprietario)
+    }
     return this.comCliente(async (cliente) => {
       try {
         await cliente.execute(
-          `UPDATE cliente SET ${campos.join(', ')} WHERE id_cliente = ?`,
+          `UPDATE cliente SET ${campos.join(', ')} WHERE id_cliente = ?${condicaoDono}`,
           valores,
         )
       } catch (erro) {
         throw paraErroDominio(erro, 'cliente')
       }
-      return this.lerPorId(cliente, dados.id)
+      return this.lerPorId(cliente, dados.id, idClienteProprietario)
     })
   }
 
@@ -175,8 +190,21 @@ export class ClienteRepositorio extends RepositorioBase implements RepositorioCl
     })
   }
 
-  private async lerPorId(cliente: ClienteBanco, id: number): Promise<Cliente | null> {
-    const linhas = await cliente.query(`${CONSULTAR} WHERE id_cliente = ? LIMIT 1`, [id])
+  private async lerPorId(
+    cliente: ClienteBanco,
+    id: number,
+    idClienteProprietario?: number,
+  ): Promise<Cliente | null> {
+    const valores: ParametroSql[] = [id]
+    let condicaoDono = ''
+    if (idClienteProprietario !== undefined) {
+      condicaoDono = ' AND id_cliente = ?'
+      valores.push(idClienteProprietario)
+    }
+    const linhas = await cliente.query(
+      `${CONSULTAR} WHERE id_cliente = ?${condicaoDono} LIMIT 1`,
+      valores,
+    )
     const linha = linhas[0]
     return linha ? mapearCliente(linha) : null
   }

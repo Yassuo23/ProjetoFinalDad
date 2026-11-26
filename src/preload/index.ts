@@ -21,6 +21,7 @@ const api: ApiZenite = {
     sair: () => ipcRenderer.invoke(CANAIS.authSair),
     sessaoAtual: () => ipcRenderer.invoke(CANAIS.authSessaoAtual),
     bootstrap: (dados) => ipcRenderer.invoke(CANAIS.authBootstrap, dados),
+    cadastrarCliente: (dados) => ipcRenderer.invoke(CANAIS.authCadastrarCliente, dados),
   },
 
   usuarios: {

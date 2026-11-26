@@ -68,18 +68,30 @@ export class ReservaServico implements ServicoReservas {
     this.servicoFeriados = colaboradores.find(ehFeriados)
   }
 
-  listar(filtros?: ReservaListarFiltros): Promise<readonly Reserva[]> {
-    return filtros === undefined ? this.repositorio.listar() : this.repositorio.listar(filtros)
+  listar(
+    filtros?: ReservaListarFiltros,
+    idClienteProprietario?: number,
+  ): Promise<readonly Reserva[]> {
+    if (filtros === undefined) {
+      return idClienteProprietario === undefined
+        ? this.repositorio.listar()
+        : this.repositorio.listar({}, idClienteProprietario)
+    }
+    return this.repositorio.listar(filtros, idClienteProprietario)
   }
 
-  async buscarPorId(id: number): Promise<Reserva> {
-    const reserva = await this.repositorio.buscarPorId(id)
+  async buscarPorId(id: number, idClienteProprietario?: number): Promise<Reserva> {
+    const reserva =
+      idClienteProprietario === undefined
+        ? await this.repositorio.buscarPorId(id)
+        : await this.repositorio.buscarPorId(id, idClienteProprietario)
     if (!reserva) throw NAO_ENCONTRADO()
     return reserva
   }
 
-  async criar(dados: ReservaCriarEntrada): Promise<Reserva> {
-    await this.validarCliente(dados.clienteId)
+  async criar(dados: ReservaCriarEntrada, idClienteProprietario?: number): Promise<Reserva> {
+    const clienteId = idClienteProprietario ?? dados.clienteId
+    await this.validarCliente(clienteId, idClienteProprietario)
     this.validarPeriodo(dados.dataInicio, dados.dataFim)
     this.validarItens(dados.itens)
 
@@ -89,7 +101,7 @@ export class ReservaServico implements ServicoReservas {
     })
 
     const envio: ReservaCriarEntrada = {
-      clienteId: dados.clienteId,
+      clienteId,
       dataInicio: dados.dataInicio,
       dataFim: dados.dataFim,
       itens: dados.itens,
@@ -97,17 +109,20 @@ export class ReservaServico implements ServicoReservas {
     }
 
     try {
-      return await this.repositorio.criar(envio)
+      return await this.repositorio.criar(envio, idClienteProprietario)
     } catch (erro) {
       throw paraErroDominio(erro, 'reserva')
     }
   }
 
-  async atualizar(dados: ReservaAtualizarEntrada): Promise<Reserva> {
-    const atual = await this.buscarPorId(dados.id)
+  async atualizar(
+    dados: ReservaAtualizarEntrada,
+    idClienteProprietario?: number,
+  ): Promise<Reserva> {
+    const atual = await this.buscarPorId(dados.id, idClienteProprietario)
 
     if (dados.clienteId !== undefined && dados.clienteId !== atual.clienteId) {
-      await this.validarCliente(dados.clienteId)
+      await this.validarCliente(dados.clienteId, idClienteProprietario)
     }
 
     const dataInicio = dados.dataInicio ?? atual.dataInicio
@@ -156,7 +171,7 @@ export class ReservaServico implements ServicoReservas {
     }
 
     try {
-      const atualizada = await this.repositorio.atualizar(envio)
+      const atualizada = await this.repositorio.atualizar(envio, idClienteProprietario)
       if (!atualizada) throw NAO_ENCONTRADO()
       return altaDemandaPrevista === undefined
         ? atualizada
@@ -178,14 +193,24 @@ export class ReservaServico implements ServicoReservas {
     if (!inativado) throw NAO_ENCONTRADO()
   }
 
-  private async validarCliente(id: number): Promise<void> {
+  private async validarCliente(id: number, idClienteProprietario?: number): Promise<void> {
     let cliente: Cliente | null
     try {
-      cliente = await this.repositorioClientes.buscarPorId(id)
+      cliente =
+        idClienteProprietario === undefined
+          ? await this.repositorioClientes.buscarPorId(id)
+          : await this.repositorioClientes.buscarPorId(id, idClienteProprietario)
     } catch (erro) {
       throw paraErroDominio(erro, 'cliente')
     }
-    if (!cliente) throw new ErroDeDominio('RELACAO_INVALIDA', 'Cliente não encontrado.')
+    // ADR 0009: fora do escopo é `NAO_ENCONTRADO`, nunca `SEM_PERMISSAO` —
+    // não se deve confirmar que o outro cliente existe. No balcão, a relação
+    // inválida continua com o código antigo.
+    if (!cliente) {
+      throw idClienteProprietario === undefined
+        ? new ErroDeDominio('RELACAO_INVALIDA', 'Cliente não encontrado.')
+        : NAO_ENCONTRADO()
+    }
   }
 
   private validarPeriodo(dataInicio: string, dataFim: string): void {

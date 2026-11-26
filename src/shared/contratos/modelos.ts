@@ -352,7 +352,8 @@ export interface DevolucaoListarFiltros extends ListarFiltros {
 // Autenticação e usuários (ADR 0007)
 // ---------------------------------------------------------------------------
 
-export type PerfilUsuario = 'Administrador' | 'Atendente'
+/** ADR 0009: `Cliente` é a terceira identidade da mesma tabela `usuario`. */
+export type PerfilUsuario = 'Administrador' | 'Atendente' | 'Cliente'
 
 /** Modelo interno do main: `senhaHash` NUNCA atravessa o IPC. */
 export interface Usuario extends Auditado, Inativavel {
@@ -371,6 +372,13 @@ export interface Sessao {
   readonly nome: string
   readonly login: string
   readonly perfil: PerfilUsuario
+  /**
+   * ADR 0009: `null` para Administrador/Atendente; id da linha em `cliente`
+   * para Cliente. O main sempre preenche; opcional apenas para compatibilidade
+   * com fixtures antigas do renderer, que não podem ser alteradas nesta entrega.
+   * Ausência é tratada como "sem vínculo" (fail-closed) na autorização.
+   */
+  readonly clienteId?: number | null
 }
 
 /** `bootstrap` só aparece quando não existe nenhum usuário cadastrado. */
@@ -389,6 +397,26 @@ export interface BootstrapEntrada {
   readonly login: string
   /** Senha escolhida pelo usuário no primeiro lançamento; nunca hardcoded. */
   readonly senha: string
+}
+
+/**
+ * ADR 0009: auto-cadastro público. Não existe campo `perfil`: o main fixa
+ * `'Cliente'` por literal e rejeita qualquer tentativa de auto-elevação.
+ */
+export interface CadastrarClienteEntrada {
+  readonly nome: string
+  readonly cpf: string
+  readonly login: string
+  readonly senha: string
+  readonly telefone?: string | null
+  readonly email?: string | null
+  readonly cep?: string | null
+  readonly logradouro?: string | null
+  readonly numero?: string | null
+  readonly complemento?: string | null
+  readonly bairro?: string | null
+  readonly cidade?: string | null
+  readonly uf?: string | null
 }
 
 export interface UsuarioListarFiltros extends ListarFiltros {
@@ -655,6 +683,9 @@ export type CodigoErroDominio =
   | 'SENHA_FRACA'
   | 'BOOTSTRAP_JA_REALIZADO'
   | 'LOGIN_DUPLICADO'
+  | 'PERFIL_INVALIDO'
+  | 'CPF_DUPLICADO'
+  | 'BOOTSTRAP_PENDENTE'
 
 export interface ErroDominio {
   readonly codigo: CodigoErroDominio

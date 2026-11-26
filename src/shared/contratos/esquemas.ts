@@ -28,7 +28,29 @@ const limite = z.number().int().positive().max(500).optional()
 const deslocamento = z.number().int().nonnegative().optional()
 const incluirInativos = z.boolean().optional()
 
-const cpf = texto(14).regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF_INVALIDO')
+/** Normalização e dígitos verificadores no mesmo formato do `CnpjServico`. */
+export function normalizarCpf(valor: string): string {
+  return valor.replace(/\D/g, '')
+}
+
+function digitoVerificadorCpf(base: string, pesos: readonly number[]): number {
+  const soma = pesos.reduce((total, peso, indice) => total + Number(base[indice]) * peso, 0)
+  const resto = soma % 11
+  return resto < 2 ? 0 : 11 - resto
+}
+
+export function cpfValido(valor: string): boolean {
+  const digitos = normalizarCpf(valor)
+  if (!/^\d{11}$/.test(digitos) || /^(\d)\1{10}$/.test(digitos)) return false
+  const primeiro = digitoVerificadorCpf(digitos.slice(0, 9), [10, 9, 8, 7, 6, 5, 4, 3, 2])
+  if (primeiro !== Number(digitos[9])) return false
+  const segundo = digitoVerificadorCpf(digitos.slice(0, 10), [11, 10, 9, 8, 7, 6, 5, 4, 3, 2])
+  return segundo === Number(digitos[10])
+}
+
+const cpf = texto(14)
+  .regex(/^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/, 'CPF_INVALIDO')
+  .refine(cpfValido, 'CPF_INVALIDO')
 const cnpj = texto(20).regex(/^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/, 'CNPJ_INVALIDO')
 const cep = texto(10).regex(/^\d{5}-?\d{3}$/, 'CEP_INVALIDO')
 const uf = z.string().trim().length(2).regex(/^[A-Z]{2}$/, 'UF_INVALIDA').nullish()
@@ -44,7 +66,9 @@ const formaPagamentoFiltro = z.enum(['Pix', 'Cartão de Crédito', 'Dinheiro']).
 const statusPagamento = z.enum(['Pendente', 'Pago', 'Estornado'])
 const estadoPosUso = z.enum(['Perfeito', 'Com avarias leves', 'Danificado'])
 const tipoPagamento = z.enum(['Reserva', 'Multa']).optional()
-const perfilUsuario = z.enum(['Administrador', 'Atendente'])
+const perfilUsuario = z.enum(['Administrador', 'Atendente', 'Cliente'])
+/** Canal administrativo nunca cria/promove a perfil Cliente (ADR 0009). */
+const perfilUsuarioStaff = z.enum(['Administrador', 'Atendente'])
 const statusManutencao = z.enum(['Aberta', 'Em andamento', 'Concluída'])
 const login = z.string().trim().min(3).max(80)
 const senha = z
@@ -323,6 +347,20 @@ export const esquemaAuthEntrar = z.object({ login, senha })
 /** Sem senha padrão: a senha do primeiro administrador vem do payload. */
 export const esquemaAuthBootstrap = z.object({ nome: texto(150), login, senha })
 
+/**
+ * ADR 0009: auto-cadastro público. `strict()` recusa `perfil` (e qualquer campo
+ * extra) antes do handler; o serviço fixa `'Cliente'` por literal e valida de novo.
+ */
+export const esquemaCadastroCliente = z
+  .object({
+    nome: texto(150),
+    cpf,
+    login,
+    senha,
+    ...camposEndereco,
+  })
+  .strict()
+
 export const esquemaUsuarioListar = z
   .object({
     nome: textoFiltro(150),
@@ -334,12 +372,17 @@ export const esquemaUsuarioListar = z
   })
   .optional()
 
-export const esquemaUsuarioCriar = z.object({ nome: texto(150), login, senha, perfil: perfilUsuario })
+export const esquemaUsuarioCriar = z.object({
+  nome: texto(150),
+  login,
+  senha,
+  perfil: perfilUsuarioStaff,
+})
 
 export const esquemaUsuarioAtualizar = esquemaAtualizacao({
   nome: texto(150).optional(),
   login: login.optional(),
-  perfil: perfilUsuario.optional(),
+  perfil: perfilUsuarioStaff.optional(),
   ativo: z.boolean().optional(),
 })
 

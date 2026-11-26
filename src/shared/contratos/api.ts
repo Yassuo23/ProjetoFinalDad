@@ -2,6 +2,7 @@ import type {
   AppInfo,
   AutenticarEntrada,
   BootstrapEntrada,
+  CadastrarClienteEntrada,
   CalculoMulta,
   CalculoMultaEntrada,
   Categoria,
@@ -77,6 +78,11 @@ export interface ApiZenite {
     sessaoAtual(): Promise<EstadoSessao>
     /** Primeira execução: senha escolhida pelo usuário, sem credencial fixa. */
     bootstrap(dados: BootstrapEntrada): Promise<Sessao>
+    /**
+     * ADR 0009: auto-cadastro público; o payload não tem `perfil`. O main fixa
+     * `'Cliente'` e devolve a sessão já autenticada com `clienteId` preenchido.
+     */
+    cadastrarCliente(dados: CadastrarClienteEntrada): Promise<Sessao>
   }
 
   /** Operações exclusivas de administrador (autorização conferida no main). */

@@ -6,27 +6,47 @@ import {
   esquemaClienteListar,
   esquemaId,
 } from '../../../shared/contratos/esquemas'
-import type { ServicoClientes } from '../../servicos/portas'
-import type { RegistroIpc } from '../RegistroIpc'
+import { idClienteDaSessao } from '../../seguranca/EscopoCliente'
+import type { ProvedorSessao, ServicoClientes } from '../../servicos/portas'
+import { PERFIS, type RegistroIpc } from '../RegistroIpc'
 
-/** Handler fino: valida pelo schema e delega. Nenhuma regra nem SQL aqui. */
-export function registrarClientes(registro: RegistroIpc, servico: ServicoClientes): void {
-  registro.registrar(CANAIS.clientesListar, esquemaClienteListar, async (filtros) =>
-    servico.listar(filtros),
+/** Handler fino: valida pelo schema, deriva o dono da sessão e delega. */
+export function registrarClientes(
+  registro: RegistroIpc,
+  servico: ServicoClientes,
+  sessao: ProvedorSessao,
+): void {
+  registro.registrar(
+    CANAIS.clientesListar,
+    esquemaClienteListar,
+    async (filtros) => servico.listar(filtros, idClienteDaSessao(sessao)),
+    PERFIS.autenticados,
   )
-  registro.registrar(CANAIS.clientesBuscarPorId, esquemaId, async ({ id }) =>
-    servico.buscarPorId(id),
+  registro.registrar(
+    CANAIS.clientesBuscarPorId,
+    esquemaId,
+    async ({ id }) => servico.buscarPorId(id, idClienteDaSessao(sessao)),
+    PERFIS.autenticados,
   )
-  registro.registrar(CANAIS.clientesBuscarCep, esquemaBuscarCep, async ({ cep }) =>
-    servico.buscarCep(cep),
+  registro.registrar(
+    CANAIS.clientesBuscarCep,
+    esquemaBuscarCep,
+    async ({ cep }) => servico.buscarCep(cep),
+    PERFIS.ambos,
   )
-  registro.registrar(CANAIS.clientesCriar, esquemaClienteCriar, async (dados) =>
-    servico.criar(dados),
+  registro.registrar(
+    CANAIS.clientesCriar,
+    esquemaClienteCriar,
+    async (dados) => servico.criar(dados),
+    PERFIS.ambos,
   )
-  registro.registrar(CANAIS.clientesAtualizar, esquemaClienteAtualizar, async (dados) =>
-    servico.atualizar(dados),
+  registro.registrar(
+    CANAIS.clientesAtualizar,
+    esquemaClienteAtualizar,
+    async (dados) => servico.atualizar(dados, idClienteDaSessao(sessao)),
+    PERFIS.autenticados,
   )
   registro.registrar(CANAIS.clientesInativar, esquemaId, async ({ id }) => {
     await servico.inativar(id)
-  })
+  }, PERFIS.admin)
 }

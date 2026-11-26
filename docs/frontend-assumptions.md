@@ -80,8 +80,8 @@ Estes canais existem no contrato e no preload, mas **não têm handler registrad
   devolução. Hoje a multa definitiva é calculada no main por `devolucoes:criar` e exibida via
   `Pagamento.valorMulta`; o renderer não reimplementa a regra (domingos/feriados).
 
-`auth:*` e `usuarios:*` permanecem fora de escopo por determinação do usuário; o fluxo atual de
-perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
+`auth:*` já está implementado no renderer (ver § Autenticação e sessão); `usuarios:*` permanece
+fora de escopo nesta entrega. Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
 
 ## Fundação visual
 
@@ -166,5 +166,108 @@ perfil continua o de sempre. Nenhuma string de canal, Node, SQL ou chave aparece
 - Rascunho, edição pendente e destaque pós-confirmação vivem apenas na memória do módulo do
   renderer. Um recarregamento completo da aplicação entre ida a Clientes e volta descarta o
   rascunho; isso foi aceito como solução simples, sem novo contrato nem persistência local.
-- Não há login por trás da checagem de administrador além do perfil já existente no renderer; a
-  regra continua a mesma das outras telas. Nenhuma dependência nova foi instalada.
+- A checagem de administrador passou a derivar de `Sessao.perfil` (vinda do main); o alternador de
+  perfil de demonstração foi removido do cabeçalho. Nenhuma dependência nova foi instalada.
+
+## Autenticação e sessão
+
+### Estado atual
+
+- Rotas registradas: `#/escolha-conta`, `#/cadastro-cliente`, `#/cliente/disponibilidade`,
+  `#/cliente/nova-reserva`, `#/cliente/minhas-reservas`, além do fluxo atual `#/login` e
+  `#/primeira-execucao` (nomes escolhidos para casar com os canais `auth:*` e com os wireframes
+  8.1/8.2 de `docs/ux-fluxos.md`). Nenhuma alteração de contrato foi necessária: `ApiZenite.auth`
+  e as funções finas do preload já existem, inclusive `auth.cadastrarCliente`.
+- Guard síncrono em `src/renderer/src/nucleo/Roteador.ts` + `ControleAcesso.ts`. A sessão é lida
+  uma vez por `auth:sessao-atual` antes de iniciar o roteador:
+  - `autenticada` → destino por perfil: Cliente só nas rotas `#/cliente/*`; Administrador/Atendente
+    na rota solicitada, com rotas públicas e de cliente redirecionadas para `#/dashboard`;
+  - `anonima` → rota pública permanece acessível; qualquer rota protegida é guardada em memória e
+    o usuário vai a `#/escolha-conta` (de onde escolhe `#/login`);
+  - `bootstrap` → qualquer rota vai a `#/primeira-execucao`;
+  - falha ao consultar → tela de erro com “Tentar novamente”, sem entrar no app.
+- A rota tentada antes da entrada é preservada e consumida após `auth:entrar`, `auth:bootstrap` ou
+  `auth.cadastrarCliente`. Cliente autenticado sempre começa em `#/cliente/disponibilidade`, mesmo
+  que exista rota pendente. O guard devolve a rota permitida antes de instanciar a página, e o
+  redirecionamento troca o hash numa única etapa — não há montagem de tela protegida sem sessão
+  nem loop de redirecionamento.
+- `src/renderer/src/nucleo/Sessao.ts` guarda somente `Sessao` em memória. Não há token,
+  `localStorage`, cookie, gravação em disco nem hash de senha no renderer. `Perfil.ts` deriva
+  `Perfil` de `Sessao.perfil`: `Administrador`, `Atendente` ou `Cliente`; sem sessão adota
+  `cliente` (fail-closed), nunca transforma Cliente em atendente nem atendente em administrador.
+  `clienteId` ausente, nulo ou inválido significa “sem vínculo” e desabilita ações de reserva.
+  Sidebar e cabeçalho mostram apenas as opções do perfil, e “Sair” chama `auth:sair`, limpa o
+  estado local e volta a `#/escolha-conta`.
+- `ServicoAutenticacao` é a única ponte com `auth:*`: nenhuma string de canal, Zod, Node ou SQL no
+  renderer. `ErrosAutenticacao` traduz o `codigo` devolvido pelo main; mensagens de entrada são
+  genéricas (`Usuário ou senha inválidos.`) para não revelar existência de login nem bloqueio.
+- Telas de Login e Primeira execução tratam carregando, erro e sucesso. Em Primeira execução não
+  há senha padrão nem pré-preenchimento; a política do main é repetida em texto simples e a senha
+  é limpa dos campos após cada tentativa.
+
+### Handoff / risco residual
+
+- `CREDENCIAIS_INVALIDAS` é o único código que o main usa hoje para senha errada **e** bloqueio
+  temporário (`docs/seguranca.md`). O renderer exibe a mensagem genérica para ambos; se o main
+  passar a sinalizar bloqueio com código próprio, `motivoErroAutenticacao` já reconhece texto
+  contendo “bloqueio/tentativa” e mostra “Muitas tentativas incorretas. Aguarde um minuto…”.
+  Handoff ao Arquiteto/ED: formalizar um código de bloqueio no contrato, sem alterar o renderer.
+- A validação local de login/senha espelha o schema do main apenas para feedback imediato; a
+  decisão final continua no processo principal. Nenhuma regra de negócio foi movida para o renderer.
+- `auth:sair` é chamado antes de limpar o estado local. Se o IPC falhar, o renderer ainda descarta
+  a sessão em memória e volta à Escolha de conta; o main pode manter a sessão até expirar. Handoff:
+  conferir se `auth:sair` deve ser idempotente para sessão já encerrada.
+- O token/estado do main expira após 8 h (`DURACAO_SESSAO_PADRAO_MS`). O renderer não renova nem
+  monitora expiração; a próxima chamada IPC protegida devolve `NAO_AUTENTICADO` e a tela mostra erro.
+- A tela de Primeira execução não oferece link para Login: no estado `bootstrap` o guard levaria a
+  rota de volta, gerando loop. Quando já existe administrador, a Escolha de conta leva ao Login.
+- `usuarios:*` (gestão de usuários/perfis) segue fora de escopo nesta entrega.
+
+## Identidade do cliente e área do cliente
+
+### Rotas e permissões aplicadas
+
+| Rota                          | Quem acessa                         | Finalidade                                              |
+| ----------------------------- | ----------------------------------- | ------------------------------------------------------- |
+| `#/escolha-conta`             | pública                             | “Sou dono/atendente da loja” ou “Quero alugar”          |
+| `#/cadastro-cliente`          | pública                             | auto-cadastro via `auth.cadastrarCliente`               |
+| `#/cliente/disponibilidade`   | Cliente                             | consulta de equipamentos livres por período             |
+| `#/cliente/nova-reserva`      | Cliente                             | formulário de reserva em nome da própria conta          |
+| `#/cliente/minhas-reservas`   | Cliente                             | cartões das reservas, detalhes e previsão do tempo      |
+
+A opção “Sou dono/atendente da loja” leva ao fluxo ATUAL (`#/login` ou `#/primeira-execucao`) sem
+alterar comportamento. A opção “Quero alugar equipamentos” leva ao cadastro; após o retorno do main
+com a sessão já autenticada, o renderer entra automaticamente na área do cliente.
+
+`PaginaReservas` é reaproveitada com `modoCliente`: não consulta `clientes.listar`, não mostra o
+seletor de cliente nem a tabela administrativa (são cartões), não exibe “Editar”, “Cancelar” nem
+“Inativar”, e não chama `categorias:*` (usa o domínio fechado `CategoriaEquipamento` do contrato).
+O cabeçalho e a sidebar do cliente mostram só Disponibilidade, Minhas reservas, Nova reserva e
+Sair — sem Dashboard, Clientes, Equipamentos, Fornecedores, Manutenção, Pagamentos ou Devoluções.
+
+### Validação e mensagens
+
+- Máscaras de CPF, telefone e CEP vêm de `FormatadorPtBr`; os valores enviados ao main são dígitos.
+  O payload não contém `perfil`: o main fixa `'Cliente'` no literal e rejeita auto-elevação.
+- `ValidacaoCadastroCliente` só dá feedback imediato; a decisão final é do schema/main.
+- `CPF_DUPLICADO` → “CPF já cadastrado.”
+- `BOOTSTRAP_PENDENTE` → “Ainda não é possível criar contas de cliente. Fale com a loja.”
+- Cliente sem `clienteId` válido na sessão vê “Sua conta ainda não está vinculada a um cliente.
+  Fale com a loja.” e o botão de confirmação permanece desabilitado (fail-closed).
+
+### Handoff / risco residual
+
+- `ReservaCriarEntrada.clienteId` ainda é **obrigatório** em `src/shared/contratos/modelos.ts` e
+  no schema do main. Como o renderer não pode editar contratos, envia somente o `clienteId`
+  devolvido pelo main em `Sessao` — o handler de `reservas:criar` já sobrescreve esse valor com
+  `idClienteDaSessao(sessao)`. Handoff ao Arquiteto: tornar o campo opcional/derivado no contrato
+  para que o renderer não precise enviá-lo. Nenhuma outra mudança de contrato foi necessária.
+- A autoridade de autorização continua no main: guard, menu e desabilitação de botões no renderer
+  são apenas navegação e UX. Nenhuma rota do cliente chama `usuarios:*`, `integracoes:cnpj` ou
+  escrita de equipamentos/categorias.
+- A consulta de disponibilidade usa `equipamentos.listarDisponiveis` diretamente: diferente de
+  `EquipamentoServico.listar`, não há fallback com dados de exemplo. Erro de rede vira
+  “Não foi possível consultar a disponibilidade. Tente novamente.” com “Tentar novamente”.
+- `PaginaDisponibilidadeCliente` e `PaginaCadastroCliente` tratam carregando, erro, vazio e
+  sucesso; foco inicial, `aria-live`, `role="alert"` e `motion-reduce:*` seguem o DS. Classes
+  Tailwind são literais, sem `style=`, `<style>`, CSS novo, `any` ou `innerHTML` dinâmico.

@@ -118,6 +118,11 @@ export class Campo extends Componente {
     this.input.value = valor
   }
 
+  /** Alterna visibilidade de senha sem recriar o campo nem perder o valor. */
+  definirTipoVisibilidade(visivel: boolean): void {
+    this.input.type = visivel ? 'text' : 'password'
+  }
+
   definirErro(mensagem: string | null): void {
     this.mensagemErro.textContent = mensagem ?? ''
     this.mensagemErro.hidden = mensagem === null
