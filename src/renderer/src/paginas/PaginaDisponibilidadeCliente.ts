@@ -16,6 +16,7 @@ import { EquipamentoServico } from '../servicos'
 import { formatadorPtBr } from '../util'
 
 type EstadoConsulta = 'inicial' | 'carregando' | 'erro' | 'sucesso'
+type SituacaoDia = 'livre' | 'ocupado' | 'erro'
 
 /** Categorias são domínio fechado do contrato: não consultamos `categorias:*`. */
 const CATEGORIAS: readonly CategoriaEquipamento[] = [
@@ -40,6 +41,25 @@ const CLASSES = {
   cartaoTitulo: 'font-semibold text-floresta',
   cartaoLinha: 'text-sm text-grafite',
   rodape: 'mt-3 flex flex-wrap items-center justify-between gap-3',
+  calendario: 'rounded-card border border-granito/45 bg-superficie p-4 shadow-card',
+  calendarioTopo: 'mb-3 flex flex-wrap items-center justify-between gap-3',
+  calendarioTitulo: 'font-display text-sm font-semibold text-floresta',
+  calendarioNavegacao: 'flex flex-wrap items-center gap-2',
+  navBotao:
+    'rounded-control border border-granito/45 px-3 py-1 text-sm font-semibold text-floresta hover:bg-floresta/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  gradeSemana: 'grid grid-cols-7 gap-1 text-center text-xs font-semibold text-floresta/70',
+  gradeDias: 'mt-2 grid grid-cols-7 gap-1',
+  dia: 'h-9 rounded-control border border-granito/40 text-sm text-grafite transition-colors motion-reduce:transition-none',
+  diaLivre: 'h-9 rounded-control border border-lima bg-lima/25 text-floresta hover:bg-lima/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
+  diaOcupado:
+    'h-9 rounded-control border border-erro/40 bg-erro-suave text-erro line-through',
+  diaErro: 'h-9 rounded-control border border-alerta/40 bg-alerta-suave text-alerta',
+  diaVazio: 'h-9',
+  legenda: 'mt-3 flex flex-wrap gap-4 text-xs text-grafite',
+  legendaItem: 'inline-flex items-center gap-2',
+  legendaLivre: 'inline-block h-3 w-3 rounded-full bg-lima',
+  legendaOcupado: 'inline-block h-3 w-3 rounded-full bg-erro',
+  legendaErro: 'inline-block h-3 w-3 rounded-full bg-alerta',
 } as const
 
 export class PaginaDisponibilidadeCliente extends Componente {
@@ -50,10 +70,14 @@ export class PaginaDisponibilidadeCliente extends Componente {
   private readonly botaoConsultar: Botao
   private readonly areaErroFormulario: HTMLParagraphElement
   private readonly areaResultado: HTMLElement
+  private readonly areaCalendario: HTMLElement
   private readonly formulario: HTMLFormElement
   private estado: EstadoConsulta = 'inicial'
   private equipamentos: readonly Equipamento[] = []
   private mensagemErro: string | null = null
+  private mesCalendario = new Date()
+  private calendario = new Map<string, SituacaoDia>()
+  private calendarioCarregando = false
   private readonly aoSubmit = (evento: SubmitEvent): void => {
     evento.preventDefault()
     void this.consultar()
@@ -107,6 +131,7 @@ export class PaginaDisponibilidadeCliente extends Componente {
         areaErroFormulario,
       ],
     })
+    const areaCalendario = criarElemento('div', { className: CLASSES.calendario })
     const areaResultado = criarElemento('div', { className: CLASSES.resultado })
 
     super(
@@ -132,6 +157,7 @@ export class PaginaDisponibilidadeCliente extends Componente {
             ],
           }),
           formulario,
+          areaCalendario,
           areaResultado,
         ],
       }),
@@ -143,12 +169,14 @@ export class PaginaDisponibilidadeCliente extends Componente {
     this.botaoConsultar = botaoConsultar
     this.areaErroFormulario = areaErroFormulario
     this.areaResultado = areaResultado
+    this.areaCalendario = areaCalendario
     this.formulario = formulario
     formulario.addEventListener('submit', this.aoSubmit)
   }
 
   protected aoMontar(): void {
     this.campoTipo.focar()
+    void this.carregarCalendario()
   }
 
   protected aoDesmontar(): void {
@@ -188,6 +216,163 @@ export class PaginaDisponibilidadeCliente extends Componente {
       this.botaoConsultar.definirDesabilitado(false)
       this.renderizarResultado()
     }
+  }
+
+  private chaveDia(data: Date): string {
+    const ano = String(data.getFullYear())
+    const mes = String(data.getMonth() + 1).padStart(2, '0')
+    const dia = String(data.getDate()).padStart(2, '0')
+    return `${ano}-${mes}-${dia}`
+  }
+
+  private mudarMes(delta: number): void {
+    const atual = this.mesCalendario
+    this.mesCalendario = new Date(atual.getFullYear(), atual.getMonth() + delta, 1)
+    this.calendario = new Map()
+    void this.carregarCalendario()
+  }
+
+  private async carregarCalendario(): Promise<void> {
+    const ano = this.mesCalendario.getFullYear()
+    const mes = this.mesCalendario.getMonth()
+    const totalDias = new Date(ano, mes + 1, 0).getDate()
+    const chaves = Array.from(
+      { length: totalDias },
+      (_, indice) => this.chaveDia(new Date(ano, mes, indice + 1)),
+    )
+    this.calendarioCarregando = true
+    this.renderizarCalendario()
+    try {
+      const resultados = await Promise.all(
+        chaves.map(async (chave): Promise<readonly [string, SituacaoDia]> => {
+          try {
+            const livres = await this.servico.listarDisponiveis({
+              dataInicio: chave,
+              dataFim: chave,
+            })
+            return [chave, livres.length > 0 ? 'livre' : 'ocupado']
+          } catch {
+            return [chave, 'erro']
+          }
+        }),
+      )
+      this.calendario = new Map(resultados)
+    } finally {
+      this.calendarioCarregando = false
+      this.renderizarCalendario()
+    }
+  }
+
+  private renderizarCalendario(): void {
+    const ano = this.mesCalendario.getFullYear()
+    const mes = this.mesCalendario.getMonth()
+    const rotuloMes = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(
+      this.mesCalendario,
+    )
+    const anterior = criarElemento('button', {
+      className: CLASSES.navBotao,
+      atributos: { type: 'button', 'aria-label': 'Mês anterior' },
+      texto: '‹',
+    })
+    anterior.addEventListener('click', () => this.mudarMes(-1))
+    const proximo = criarElemento('button', {
+      className: CLASSES.navBotao,
+      atributos: { type: 'button', 'aria-label': 'Próximo mês' },
+      texto: '›',
+    })
+    proximo.addEventListener('click', () => this.mudarMes(1))
+
+    const filhos: Array<Node> = [
+      criarElemento('div', {
+        className: CLASSES.calendarioTopo,
+        filhos: [
+          criarElemento('h3', { className: CLASSES.calendarioTitulo, texto: rotuloMes }),
+          criarElemento('div', {
+            className: CLASSES.calendarioNavegacao,
+            filhos: [anterior, proximo],
+          }),
+        ],
+      }),
+      criarElemento('div', {
+        className: CLASSES.gradeSemana,
+        filhos: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia) =>
+          criarElemento('span', { texto: dia }),
+        ),
+      }),
+    ]
+
+    const grade = criarElemento('div', { className: CLASSES.gradeDias })
+    for (let indice = 0; indice < new Date(ano, mes, 1).getDay(); indice += 1) {
+      grade.append(criarElemento('span', { className: CLASSES.diaVazio }))
+    }
+    const totalDias = new Date(ano, mes + 1, 0).getDate()
+    for (let dia = 1; dia <= totalDias; dia += 1) {
+      const data = new Date(ano, mes, dia)
+      const chave = this.chaveDia(data)
+      const situacao = this.calendario.get(chave) ?? 'livre'
+      const classe =
+        situacao === 'ocupado'
+          ? CLASSES.diaOcupado
+          : situacao === 'erro'
+            ? CLASSES.diaErro
+            : this.calendarioCarregando
+              ? CLASSES.dia
+              : CLASSES.diaLivre
+      const botao = criarElemento('button', {
+        className: classe,
+        atributos: {
+          type: 'button',
+          'aria-label': `${formatadorPtBr.data(chave)}: ${
+            situacao === 'ocupado'
+              ? 'sem equipamento livre (reservado ou em manutenção)'
+              : situacao === 'erro'
+                ? 'consulta indisponível'
+                : 'equipamentos livres'
+          }`,
+        },
+        texto: String(dia),
+      })
+      botao.disabled = situacao !== 'livre' || this.calendarioCarregando
+      botao.addEventListener('click', () => {
+        this.campoTipo.definirValor(chave)
+        const fim = this.campoFim.valor()
+        if (fim === '' || fim < chave) {
+          this.campoFim.definirValor(chave)
+        }
+        void this.consultar()
+      })
+      grade.append(botao)
+    }
+    filhos.push(grade)
+    filhos.push(
+      criarElemento('div', {
+        className: CLASSES.legenda,
+        filhos: [
+          criarElemento('span', {
+            className: CLASSES.legendaItem,
+            filhos: [
+              criarElemento('span', { className: CLASSES.legendaLivre }),
+              'Livre para reserva',
+            ],
+          }),
+          criarElemento('span', {
+            className: CLASSES.legendaItem,
+            filhos: [
+              criarElemento('span', { className: CLASSES.legendaOcupado }),
+              'Reservado ou em manutenção',
+            ],
+          }),
+          criarElemento('span', {
+            className: CLASSES.legendaItem,
+            filhos: [
+              criarElemento('span', { className: CLASSES.legendaErro }),
+              'Consulta indisponível',
+            ],
+          }),
+        ],
+      }),
+    )
+    this.areaCalendario.replaceChildren(...filhos)
   }
 
   private renderizarResultado(): void {

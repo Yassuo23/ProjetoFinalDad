@@ -25,6 +25,7 @@ export const ROTA_404 = '/404'
 export const ROTAS_ADMIN: ReadonlySet<string> = new Set([
   '/equipamentos',
   '/fornecedores',
+  '/categorias',
   '/manutencao',
   '/pagamentos',
   '/usuarios',

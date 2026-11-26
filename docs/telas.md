@@ -1,12 +1,12 @@
 # Mapa de telas e wireframes — Zênite · Aluguel Outdoor
 
-- **Status:** aceito
-- **Versão:** 1.6
+- **Status:** aceito · implementado no renderer
+- **Versão:** 1.7
 - **Data:** 2026-11-25
-- **Atualização:** padronização de `Editar` e `Inativar` em todas as telas de cadastro; registros inativos preservados e sinalizados com badge neutro para o administrador.
+- **Atualização:** integração real sem mocks/fallbacks (Bloco 1) e fluxos guiados de reserva, disponibilidade, devolução, pagamentos e atalhos (Bloco 2). Categorias e Manutenção passam a ser telas reais; Dashboard consome `dashboard:resumo` do main. Registros inativos continuam preservados e sinalizados com badge neutro para o administrador.
 - **Dono:** UI/UX Designer (UX)
 - **Base:** `docs/requisitos-cliente.md`, `docs/design-system.md`, `src/shared/contratos/`
-- **Implementação:** `frontend-developer` (componentes e estados), Arquiteto/ED (novos canais)
+- **Implementação:** `frontend-developer` (componentes, serviços e estados), Arquiteto/ED (canais)
 
 Wireframes em texto. Eles descrevem **estrutura, conteúdo e comportamento**, não pixels. As
 classes vêm do `docs/design-system.md`; aqui os componentes são referenciados pelo nome
@@ -43,6 +43,7 @@ Legenda:
 │   ◆ Clientes ........................... cadastro rápido por CEP    │
 │   ◆ Fornecedores* ...................... compra e manutenção        │
 │   ◆ Manutenção* ........................ ordens de serviço          │
+│   ◆ Categorias* ........................ catálogo de equipamentos   │
 │   ◆ Reservas ........................... disponibilidade + clima    │
 │   ◆ Devoluções ......................... multas por atraso          │
 │   ◆ Pagamentos* ........................ reservas e multas          │
@@ -52,7 +53,9 @@ Legenda:
                     conteúdo `bg-pedra` + cards
 ```
 
-`*` = visível somente para **administrador**.
+`*` = visível somente para **administrador**. A visualização do cliente é separada:
+`#/cliente/disponibilidade` (calendário), `#/cliente/nova-reserva` (wizard) e
+`#/cliente/minhas-reservas`.
 
 | Perfil | Acesso | Intenção |
 | --- | --- | --- |
@@ -65,26 +68,31 @@ administrador quando a listagem usa `incluirInativos: true` e ficam ocultos do b
 
 ### 1.1 Caminho crítico de balcão
 
-1. `Dashboard` mostra reservas de hoje e devoluções pendentes.
-2. `Ctrl+N` abre `Reservas` em modo novo.
-3. Busca do cliente; se não existe, `Clientes` com preenchimento por CEP.
-4. Escolhe a **data** → painel de disponibilidade por data.
-5. Seleciona equipamento(s) → resumo com diárias.
-6. `Ctrl+Enter` abre confirmação com **previsão do tempo do dia**.
-7. Confirma → regresso ao Dashboard + toast de sucesso.
-8. Na devolução: `Devoluções` calcula atraso e multa → `Pagamentos` registra a baixa.
+1. `Dashboard` mostra reservas de hoje e devoluções pendentes com `dashboard:resumo` do main.
+2. `Ctrl+N` abre `Reservas` em modo novo (wizard guiado).
+3. **Etapa 1 - Cliente:** busca; se não existe, `Clientes` com preenchimento por CEP.
+4. **Etapa 2 - Período e equipamentos:** escolhe as datas → disponibilidade real por período,
+   com itens reservados/em manutenção fora da lista e não selecionáveis.
+5. **Etapa 3 - Conferência:** resumo com diárias calculadas, **previsão do tempo do dia** e aviso
+   de feriado no período; falha de integração é discreta e não bloqueia.
+6. **Etapa 4 - Pagamento:** escolhe Pix/Cartão/Dinheiro; confirma a reserva e cria o pagamento
+   pendente na mesma sequência. `Voltar` preserva tudo.
+7. Confirma → Dashboard + toast de sucesso (ou aviso se alguma etapa falhar).
+8. Na devolução: `Devoluções` mostra a prévia didática da multa (`devolucoes:calcular-multa`) e,
+   ao registrar, abre a baixa do pagamento no próprio fluxo.
 
 ### 1.2 Atalhos globais
 
 | Tecla | Ação |
 | --- | --- |
-| `Ctrl+K` | busca global (cliente, equipamento, reserva) |
+| `Ctrl+K` | focar a busca da tela |
 | `Ctrl+N` | novo registro da tela atual |
 | `F5` | recarregar dados da tela |
 | `F2` | editar item selecionado |
 | `Enter` | confirmar / abrir selecionado |
+| `Ctrl+Enter` | confirmar o diálogo aberto |
 | `Esc` | fechar modal, limpar busca ou cancelar edição |
-| `Alt+←` | voltar à tela anterior |
+| `?` ou `F1` | abrir modal global de ajuda de atalhos |
 | `Tab` / `Shift+Tab` | navegação; foco sempre visível (`outline-floresta` / `outline-lima`) |
 
 ---
@@ -92,27 +100,28 @@ administrador quando a listagem usa `incluirInativos: true` e ficam ocultos do b
 ## 2. Matriz de contrato IPC
 
 Situação real em `src/shared/contratos/canais.ts`, `esquemas.ts` e `api.ts`. Legenda: ✅ pronto
-para CRUD · ⚠️ implementado, mas depende de ajuste de UI · ❌ ausente.
+para CRUD · implementado no renderer.
 
 | Tela | Canais disponíveis | Situação | Perfis | Responsável |
 | --- | --- | --- | --- | --- |
-| Login | nenhum | ❌ fora desta entrega (sem `auth:*`) | ambos | Arquiteto → ED |
-| Dashboard | `reservas:listar`, `devolucoes:listar`, `pagamentos:listar`, `equipamentos:listar` | ⚠️ implementado; falta consumir `devolucoes:listar` e `pagamentos:listar` | ambos | FE |
-| Equipamentos | `equipamentos:*`, `categorias:listar`, `fornecedores:listar` | ✅ pronto para CRUD | somente admin consulta/cadastra/edita/inativa | FE |
-| Clientes | `clientes:*`, `clientes:buscar-cep` | ✅ pronto para CRUD | ambos cadastram; admin inativa | FE |
-| Fornecedores | `fornecedores:*` | ✅ pronto para CRUD | somente admin | FE |
-| Manutenção | nenhum | ❌ bloqueado: precisa de `manutencao:*` e modelo `OrdemManutencao` | admin abre/conclui; balcão consulta | Arquiteto → ED → FE |
-| Reservas | `reservas:*`, `itens-reserva:*`, `equipamentos:listar-disponiveis` | ✅ pronto; clima é gravado no main na confirmação | ambos criam; admin edita/cancela/inativa | FE |
-| Devoluções | `devolucoes:*`, `pagamentos:*`, `reservas:buscar-por-id` | ✅ pronto para CRUD | ambos registram; admin edita/inativa e ajusta multa | FE |
-| Pagamentos | `pagamentos:*` | ✅ pronto para CRUD | admin edita/inativa; balcão consulta | FE |
+| Login / Escolha / Cadastro | `auth:*` | ✅ implementado (sessão, bootstrap, cadastro de cliente) | ambos | FE |
+| Dashboard | `dashboard:resumo`, `reservas:listar`, `clientes:listar`, `itensReserva:listar`, `pagamentos:listar`, `equipamentos:listar`, `integracoes:*` | ✅ consome resumo real do main; falha vira `EstadoErro` | ambos | FE |
+| Equipamentos | `equipamentos:*`, `categorias:listar`, `fornecedores:listar` | ✅ pronto para CRUD, sem fallback | somente admin consulta/cadastra/edita/inativa | FE |
+| Categorias | `categorias:listar`, `buscar-por-id`, `criar`, `atualizar`, `inativar` | ✅ CRUD completo | somente admin | FE |
+| Clientes | `clientes:*`, `clientes:buscar-cep` | ✅ pronto para CRUD; CEP com aviso de não encontrado/indisponível | ambos cadastram; admin inativa | FE |
+| Fornecedores | `fornecedores:*`, `integracoes:cnpj` | ✅ pronto para CRUD; CNPJ com aviso de não encontrado/indisponível | somente admin | FE |
+| Manutenção | `manutencao:listar`, `buscar-por-id`, `criar`, `atualizar`, `concluir`, `inativar` | ✅ tela real (ADR 0007) | admin abre/conclui; balcão consulta | FE |
+| Reservas | `reservas:*`, `itens-reserva:*`, `equipamentos:listar-disponiveis`, `pagamentos:criar` | ✅ wizard em 4 etapas; clima/feriados são aviso no main | ambos criam; admin edita/cancela/inativa | FE |
+| Devoluções | `devolucoes:*` (inclui `listar-pendentes` e `calcular-multa`), `pagamentos:*` | ✅ prévia de multa + baixa no mesmo fluxo | ambos registram; admin edita/inativa | FE |
+| Pagamentos | `pagamentos:*` | ✅ KPIs, filtros e comprovante impresso | admin edita/inativa; balcão consulta | FE |
 
 `categorias:listar` alimenta os filtros de Equipamentos e Reservas. Os sufixos `:criar`,
 `:atualizar`, `:inativar` e `:buscar-por-id` existem para todas as entidades de cadastro; itens
 de reserva usam `:remover` (chave composta).
 
 > Nenhuma string literal de canal deve aparecer no renderer. O renderer consome somente
-> `window.electronAPI`; nomes aqui são o contrato já exposto. CEP e clima são chamadas HTTP feitas
-> **no main**, com allowlist de domínios — nunca no renderer (CSP bloqueia `connect-src` externo).
+> `window.electronAPI`; nomes aqui são o contrato já exposto. CEP, CNPJ, clima e feriados são chamadas HTTP feitas
+> **no main**, com allowlist de domínios — nunca no renderer (CSP bloqueia `connect-src` externo). Falha de dado é `EstadoErro`; falha de integração é aviso discreto.
 
 ---
 
@@ -181,8 +190,8 @@ devoluções pendentes e atrasos.
 | Cenário | Onde | Mensagem / comportamento | Componente |
 | --- | --- | --- | --- |
 | CEP não encontrado | — | Não se aplica nesta tela. | — |
-| Clima indisponível | — | Não se aplica; o clima é exibido só na confirmação da reserva. | — |
-| Sem conexão | toast + badge | "Não foi possível atualizar os dados externos. Exibindo dados locais." | `toast alerta` + badge `alerta` |
+| Clima indisponível | card | badge "indisponível" + "A locação não fica bloqueada." | `card` com badge neutro |
+| Sem conexão | tela | "Não foi possível carregar o painel. Tente novamente." | `estado erro` com `( Tentar de novo )` |
 | Lista vazia | tabelas | "Nenhuma reserva para esta data." / "Nenhuma devolução pendente." | `estado vazio` + `( Nova reserva )` |
 
 **Wireframe**
@@ -190,6 +199,7 @@ devoluções pendentes e atrasos.
 ```
 ┌────────────────────────────────────────────────────────────────────┐
 │  Bom dia, ◆nome   ·   Quinta, 23/11   [ Data: 2026-11-23 ] ( Nova reserva ) │
+│ ☀ Previsão 23/11: ◆parcialmente nublado · 14-26 °C (indisponível → aviso) │
 ├────────────────────────────────────────────────────────────────────┤
 │ ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐        │
 │ │ Reservas   │ │ Devoluções │ │ Atrasadas  │ │ A pagar*   │        │
@@ -226,7 +236,6 @@ disponibilidade clara para o balcão.
 
 **Atalhos:** `Ctrl+N` novo · `Ctrl+K` foco na busca · `F2` editar selecionado · `Ctrl+Enter` salvar · `Esc` limpar filtros/cancelar.
 
-**Fallback:** se o banco falhar, os dados de exemplo continuam apenas em leitura, com aviso “dados de exemplo”; `( Novo equipamento )`, edição e inativação ficam desabilitadas.
 
 **Estados de erro**
 
@@ -235,8 +244,7 @@ disponibilidade clara para o balcão.
 | Sem acesso | tela | "Acesso restrito a administradores." | `estado erro` sem botão de tentar |
 | CEP não encontrado | — | Não se aplica; endereço não é campo deste cadastro. | — |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast + tabela | "Não foi possível carregar os equipamentos. Tente novamente." | `toast erro` + botão Tentar novamente |
-| Dados de exemplo | aviso no cabeçalho | "dados de exemplo" + ações de escrita desabilitadas | `badge` + `botão disabled` |
+| Sem conexão | tela | "Não foi possível carregar os equipamentos. Tente novamente." | `estado erro` com `( Tentar de novo )` |
 | Lista vazia | tabela | "Nenhum equipamento com esses filtros." + `( Limpar filtros )` | `estado vazio` |
 
 **Wireframe**
@@ -282,7 +290,7 @@ disponibilidade clara para o balcão.
 | CEP não encontrado | abaixo do CEP | "CEP não encontrado. Preencha o endereço manualmente." + `( Preencher manualmente )` | `campo erro` + `toast alerta` |
 | UF inválida | abaixo da UF | "Informe a UF com 2 letras (ex.: SP)." | `campo erro` |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast | "Não foi possível consultar o CEP. Verifique sua conexão e tente novamente." | `toast erro` + botão Tentar novamente |
+| CEP indisponível | abaixo do CEP | "Consulta indisponível no momento. Preencha o endereço manualmente." | `aviso` discreto |
 | Lista vazia | tabela | "Nenhum cliente cadastrado." + `( Novo cliente )` | `estado vazio` |
 
 **Wireframe**
@@ -321,8 +329,10 @@ disponibilidade clara para o balcão.
 | Cenário | Onde | Mensagem / comportamento | Componente |
 | --- | --- | --- | --- |
 | CEP não encontrado | — | Não se aplica; endereço é opcional e preenchido manualmente. | — |
+| CNPJ não encontrado | abaixo do CNPJ | "CNPJ não encontrado. Preencha manualmente." | `aviso` discreto |
+| CNPJ indisponível | abaixo do CNPJ | "Consulta indisponível no momento. Preencha manualmente." | `aviso` discreto |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast | "Não foi possível carregar os fornecedores. Tente novamente." | `toast erro` |
+| Sem conexão | tela | "Não foi possível carregar os fornecedores. Tente novamente." | `estado erro` com `( Tentar de novo )` |
 | Lista vazia | tabela | "Nenhum fornecedor cadastrado." + `( Novo fornecedor )` | `estado vazio` |
 
 **Wireframe**
@@ -348,6 +358,7 @@ disponibilidade clara para o balcão.
 **Objetivo:** saber o que está fora de operação, por quanto tempo e com qual fornecedor.
 
 **Perfis:** administrador abre/conclui; atendente consulta status (badges) e bloqueia a reserva do item.
+**Implementação:** `PaginaManutencao` com `ServicoManutencao` (canais `manutencao:*`, ADR 0007).
 
 **Campos:** equipamento (select) · fornecedor (select) · problema (textarea) · data de entrada · previsão de retorno · status (aberta / em andamento / concluída) · observações. Tabela: equipamento, fornecedor, entrada, previsão, status, ações.
 
@@ -361,7 +372,7 @@ disponibilidade clara para o balcão.
 | --- | --- | --- | --- |
 | CEP não encontrado | — | Não se aplica; manutenção não usa endereço. | — |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast | "Não foi possível carregar as ordens. Tente novamente." | `toast erro` |
+| Sem conexão | tela | "Não foi possível carregar as ordens. Tente novamente." | `estado erro` com `( Tentar de novo )` |
 | Lista vazia | tabela | "Nenhuma ordem de manutenção aberta." + `( Nova ordem )` | `estado vazio` |
 
 **Wireframe**
@@ -384,8 +395,9 @@ disponibilidade clara para o balcão.
 
 ### 3.7 Reservas
 
-**Objetivo:** consultar disponibilidade por data, montar a reserva e confirmar **com a previsão
-do tempo do dia** — o pedido explícito do cliente.
+**Objetivo:** percorrer um wizard guiado (Cliente - Período e equipamentos - Conferência -
+Pagamento), conferir a disponibilidade real e confirmar **com a previsão do tempo do dia** — o
+pedido explícito do cliente. `Voltar` preserva todo o estado; cada etapa valida só o seu bloco.
 
 **Perfis:** ambos criam e consultam; administrador pode cancelar/editar qualquer reserva.
 
@@ -400,8 +412,9 @@ do tempo do dia** — o pedido explícito do cliente.
 | Cenário | Onde | Mensagem / comportamento | Componente |
 | --- | --- | --- | --- |
 | CEP não encontrado | busca de cliente | "Cliente não encontrado. Cadastre um novo cliente." + atalho para `Clientes` | `toast alerta` + link |
-| Clima indisponível | card no modal | "Previsão indisponível para esta data." + `( Tentar novamente )` e `( Confirmar sem previsão )` — **não bloqueia** a reserva | `card erro` + botões |
-| Sem conexão | painel + toast | "Não foi possível consultar a disponibilidade. Tente novamente." | `erro` no painel + `toast erro` |
+| Clima indisponível | etapa Conferência | "Previsão indisponível para esta data - a locação não fica bloqueada." | `aviso` discreto |
+| Feriado indisponível | etapa Conferência | "Aviso de feriados indisponível - a locação não fica bloqueada." | `aviso` discreto |
+| Sem conexão | painel + tela | "Não foi possível consultar a disponibilidade. Tente novamente." | `estado erro` + `( Tentar de novo )` |
 | Lista vazia | painel | "Nenhum equipamento disponível para 23/11." + "( Ver outra data )" | `estado vazio` |
 
 **Wireframe — consulta**
@@ -436,10 +449,11 @@ do tempo do dia** — o pedido explícito do cliente.
         │ │ Previsão do tempo · 23/11                │ │
         │ │ ◆ ☀  Parcialmente nublado               │ │
         │ │   Mín 14°C · Máx 26°C · vento 12 km/h   │ │
-        │ │ ⚠ Previsão indisponível → ( Tentar novamente ) │
+        │ │ ⚠ Previsão indisponível → aviso discreto; locação segue │
         │ └──────────────────────────────────────────┘ │
         │                                              │
         │ Diárias: ◆ R$ 330   Status: ◆pendente        │
+         │ Pagamento: Pix (registro Pendente)           │
         ├──────────────────────────────────────────────┤
         │        ( Cancelar )  ( Confirmar reserva )  │
         └──────────────────────────────────────────────┘
@@ -449,8 +463,8 @@ do tempo do dia** — o pedido explícito do cliente.
 
 ### 3.8 Devoluções
 
-**Objetivo:** registrar a devolução e calcular automaticamente a **multa por atraso**, com
-possibilidade de isenção pelo administrador.
+**Objetivo:** registrar a devolução com prévia didática da **multa por atraso** e baixar o
+pagamento na mesma sequência, sem precisar ir a outra tela.
 
 **Perfis:** ambos registram; administrador pode isentar a multa.
 
@@ -466,7 +480,8 @@ possibilidade de isenção pelo administrador.
 | --- | --- | --- | --- |
 | CEP não encontrado | — | Não se aplica; devolução usa a reserva já cadastrada. | — |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast | "Não foi possível calcular a multa. Verifique sua conexão e tente novamente." | `toast erro` + botão Tentar novamente |
+| Sem conexão | tela | "Não foi possível carregar as devoluções. Tente novamente." | `estado erro` com `( Tentar de novo )` |
+| Prévia indisponível | modal | "Aviso de feriados indisponível; a multa será calculada no registro." | `aviso` discreto |
 | Lista vazia | tabela | "Nenhuma devolução pendente." + `( Voltar ao Dashboard )` | `estado vazio` |
 
 **Wireframe**
@@ -480,10 +495,9 @@ possibilidade de isenção pelo administrador.
 │ │ #1051   23/11     Barraca    abrir│ │ Conservação [ bom ▾ ]        │
 │ │ ∅ Nenhuma devolução pendente      │ │                              │
 │ │   → ( Voltar ao Dashboard )       │ │ Dias de atraso   ◆ 1          │
-│ └───────────────────────────────────┘ │ Multa           ◆ R$ 25  ⚠   │
-│                                       │ [ Motivo isenção (admin) ]   │
-│                                       │ ( Calcular ) ( Isentar )     │
-│                                       │      ( Registrar devolução ) │
+│ └───────────────────────────────────┘ │ Multa  1 dia × R$ 20 = R$ 20 │
+│                                       │ ( Registrar devolução )      │
+│                                       │ → modal: baixar pagamento     │
 └───────────────────────────────────────┴──────────────────────────────┘
 ```
 
@@ -497,7 +511,8 @@ possibilidade de isenção pelo administrador.
 
 **Campos:** reserva · cliente · tipo (reserva / multa) · valor · forma (dinheiro / pix / cartão) · status (pendente / pago / estornado) · data do pagamento · comprovante (opcional). Filtros: status e período.
 
-**Ações:** `( Registrar pagamento )` · `( Baixar )` · `( Estornar )` (admin) · `( Ver comprovante )`.
+**Ações:** `( Registrar pagamento )` · `( Editar )` · `( Baixar )` · `( Estornar )` ·
+`( Inativar )` (admin) · `( Imprimir comprovante )`.
 
 **Atalhos:** `Ctrl+N` novo · `Ctrl+K` buscar · `F5` atualizar · `Enter` abrir · `Esc` fechar.
 
@@ -507,7 +522,7 @@ possibilidade de isenção pelo administrador.
 | --- | --- | --- | --- |
 | CEP não encontrado | — | Não se aplica; pagamento não consulta endereço. | — |
 | Clima indisponível | — | Não se aplica nesta tela. | — |
-| Sem conexão | toast | "Não foi possível carregar os pagamentos. Tente novamente." | `toast erro` |
+| Sem conexão | tela | "Não foi possível carregar os pagamentos. Tente novamente." | `estado erro` com `( Tentar de novo )` |
 | Lista vazia | tabela | "Nenhum pagamento no período." + "( Limpar filtros )" | `estado vazio` |
 
 **Wireframe**
@@ -535,7 +550,7 @@ possibilidade de isenção pelo administrador.
 
 ## 4. Fichas de implementação — telas que estavam sem conteúdo
 
-Estas fichas substituem os `PaginaEmConstrucao` de `src/renderer/src/main.ts`. Os wireframes da
+Estas fichas substituíram os `PaginaEmConstrucao` de `src/renderer/src/main.ts`. Os wireframes da
 seção 3 continuam válidos; aqui está o que o `frontend-developer` precisa implementar. Todas as
 classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `style=`.
 
@@ -556,19 +571,22 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
   - UF: preenchimento manual ou por CEP é normalizado para maiúsculas; se inválida, campo com
     `aria-invalid` e mensagem "Informe a UF com 2 letras (ex.: SP).".
   - após salvar: filtro de busca limpo e registro gravado selecionado/destacado na tabela.
-  - erro de banco: `toast erro` + `( Tentar novamente )`.
+  - CEP indisponível: aviso discreto “Consulta indisponível no momento. Preencha manualmente.”; os dados digitados são preservados.
+   - erro de banco: `estado erro` com `( Tentar de novo )`.
   - desabilitado: atendente não recebe o botão Inativar (oculto por perfil, não `disabled`).
 
 ### 4.2 Fornecedores
 
 - **Perfil:** somente administrador; item oculto na sidebar do atendente.
-- **Canais:** `fornecedores:listar`, `buscar-por-id`, `criar`, `atualizar`, `inativar`.
+- **Canais:** `fornecedores:listar`, `buscar-por-id`, `criar`, `atualizar`, `inativar`, `integracoes:cnpj`.
 - **Componentes:** `painel de formulário` + `tabela` + `select` de tipo + `botão` + `badge` +
   `estado vazio`/`erro`/`carregando`.
 - **Ações:** `( Novo fornecedor )` · `F2` editar · `( Ver equipamentos )` — abre Equipamentos
   filtrado por `fornecedorId` usando `equipamentos:listar`.
-- **Estados:** vazio com `( Novo fornecedor )`; erro com `toast erro`; carregando com skeleton;
+- **Estados:** vazio com `( Novo fornecedor )`; erro com `estado erro` + `( Tentar de novo )`; carregando com skeleton;
   selecionado com `bg-lima/20 text-floresta`; inativado com badge neutro `bg-pedra text-floresta`.
+  - CNPJ não encontrado: aviso discreto “CNPJ não encontrado. Preencha manualmente.”.
+  - CNPJ indisponível: aviso discreto “Consulta indisponível no momento. Preencha manualmente.”.
 
 ### 4.3 Equipamentos
 
@@ -580,21 +598,33 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
   disponibilidade/fornecedor + `botão` + `badge` + `toast` + `estado vazio`/`erro`/`carregando`.
 - **Ações:** `( Novo equipamento )` · `F2` editar · `( Inativar )` · `Ctrl+Enter` salvar ·
   `Esc` limpar filtros/cancelar.
-- **Estados:** vazio com `( Novo equipamento )`; erro com `toast erro`; carregando com skeleton;
+- **Estados:** vazio com `( Novo equipamento )`; erro com `estado erro` + `( Tentar de novo )`; carregando com skeleton;
   selecionado com `bg-lima/20 text-floresta`; inativado com badge neutro `bg-pedra text-floresta`;
   disponibilidade com badge `sucesso`/`erro`/`alerta`; após salvar, filtros limpos e registro destacado.
 - **Reservas:** itens com disponibilidade diferente de `Disponível` ficam fora de
   `equipamentos:listar-disponiveis`, mas permanecem visíveis para o administrador.
-- **Fallback:** se o banco falhar, manter aviso `dados de exemplo` e desabilitar escrita.
+- **Sem fallback:** se o banco falhar, exibir `estado erro` com `( Tentar de novo )`; nenhuma linha
+  é inventada e nenhuma ação de escrita é habilitada sobre dado fictício.
+
+### 4.3.1 Categorias
+
+- **Perfil:** somente administrador; item na sidebar e rota `#/categorias`.
+- **Canais:** `categorias:listar`, `buscar-por-id`, `criar`, `atualizar`, `inativar` (CRUD completo).
+- **Componentes:** `painel de formulário` + `tabela` + `campo` + `botão` + `badge` + `toast` +
+  `estado vazio`/`erro`/`carregando`.
+- **Ações:** `( Nova categoria )` · `F2` editar · `( Inativar )` com confirmação modal.
+- **Estados:** vazio com `( Nova categoria )`; erro com `( Tentar de novo )`; carregando com
+  skeleton; inativada com badge neutro para o administrador; bloqueio por FK vira mensagem amigável.
 
 ### 4.4 Reservas — caminho crítico de balcão
 
 - **Perfis:** ambos criam e consultam; **administrador** também cancela/edita.
 - **Canais:** `reservas:*`, `itens-reserva:*`, `equipamentos:listar-disponiveis`,
-  `categorias:listar`, `clientes:listar`. **Não existe** canal `clima.previsao`: o main consulta o
-  clima e grava `previsaoTempo` quando a reserva é confirmada.
-- **Componentes:** `painel de formulário` + `lista selecionável` + `modal` de confirmação +
-  `card` de clima + `badge` + `toast` + `estado vazio`/`erro`/`carregando`.
+  `categorias:listar`, `clientes:listar`, `pagamentos:criar`, `integracoes:*`. Clima e feriados são
+  consultados pelo main via `window.electronAPI`; a confirmação grava `previsaoTempo`.
+- **Componentes:** `indicador de etapas` + `painel de formulário` + `lista selecionável` +
+  `modal` de confirmação + `card` de clima/feriado + `select` de forma de pagamento + `badge` +
+  `toast` + `estado vazio`/`erro`/`carregando`.
 - **Ações:** `( Nova reserva )` · `( Ver disponibilidade )` · selecionar equipamento ·
   `Ctrl+Enter` confirmar · `( Editar )` e `( Inativar )` (admin) · `( Cancelar reserva )` (admin).
 - **Edição administrativa:** permite alterar cliente, período e itens; a consulta de disponibilidade
@@ -602,9 +632,11 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
   de confirmação/cancelamento.
 - **Estados:**
   - disponibilidade vazia: “Nenhum equipamento disponível para esta data.” + `( Ver outra data )`.
-  - disponibilidade em erro: `erro` dentro do painel + `toast erro`.
-  - clima indisponível: **não bloqueia**; mostrar o texto de `previsaoTempo` devolvido pelo main
-    com `( Tentar novamente )` e `( Confirmar sem previsão )`.
+  - disponibilidade em erro: `estado erro` com `( Tentar de novo )` dentro do painel.
+  - clima/feriados indisponíveis: **não bloqueiam**; aviso discreto “indisponível - a locação não
+    fica bloqueada”. A confirmação registra o que o main devolver em `previsaoTempo`.
+  - etapa de pagamento: forma Pix/Cartão/Dinheiro; o registro é criado como `Pendente` após a
+    confirmação, e falha é sinalizada sem afirmar sucesso.
   - selecionado: opção da lista com `ring-1 ring-inset ring-floresta` e `text-floresta`.
   - reservado ou em manutenção: opção desabilitada com `opacity-60 cursor-not-allowed`.
   - carregando: lista com skeleton; nunca deixar o painel em branco.
@@ -612,18 +644,21 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
 ### 4.5 Devoluções
 
 - **Perfis:** ambos registram; **administrador** edita, inativa e ajusta a multa.
-- **Canais:** `devolucoes:listar`, `buscar-por-id`, `criar`, `atualizar`, `inativar`,
-  `reservas:buscar-por-id`, `pagamentos:criar`, `pagamentos:listar`.
+- **Canais:** `devolucoes:listar`, `listar-pendentes`, `calcular-multa`, `buscar-por-id`, `criar`,
+  `atualizar`, `inativar`, `reservas:buscar-por-id`, `itensReserva:listar`, `pagamentos:criar`,
+  `pagamentos:atualizar`, `pagamentos:listar`.
 - **Componentes:** `tabela` de pendentes + `painel de formulário` + `campo` de data + `select` de
   conservação + `badge` + `toast` + `estado vazio`/`erro`/`carregando`.
 - **Ações:** `( Registrar devolução )` · `( Editar )` e `( Inativar )` (admin) ·
   `( Calcular multa )` · `( Ver reserva )`.
 - **Edição administrativa:** altera data efetiva, estado pós-uso e observações. A criação continua
   sendo a única operação que recalcula multa e envia equipamentos para manutenção.
-- **Estados:** o main devolve `valorMulta` e `valorTotal` calculados; o renderer apenas exibe.
+- **Estados:** o modal mostra a prévia didática de `devolucoes:calcular-multa` (ex.: “2 dias de
+  atraso × R$ 20,00 = R$ 40,00”); se falhar, aviso discreto de feriados indisponíveis. Após
+  registrar, a baixa do pagamento é aberta no mesmo fluxo (cria ou atualiza para `Pago`).
   Atraso usa badge `bg-erro-suave text-erro`; no prazo usa `bg-sucesso-suave text-sucesso`.
-  Vazio: “Nenhuma devolução pendente.” + `( Voltar ao Dashboard )`. Erro: `toast erro` com
-  `( Tentar novamente )`.
+  Vazio: “Nenhuma devolução pendente.” + `( Voltar ao Dashboard )`. Erro: `estado erro` com
+  `( Tentar de novo )`.
 - **Risco de contrato:** isenção de multa não existe como operação própria. Até o Arquiteto criar
   `devolucoes:isentar`, o administrador pode ajustar `valorMulta`/`valorTotal` do pagamento via
   `pagamentos:atualizar` **após** registrar a devolução.
@@ -635,19 +670,22 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
 - **Componentes:** `card` de KPI + `tabela` + `painel de formulário` + `select` de forma/status +
   `badge` + `toast` + `estado vazio`/`erro`/`carregando`.
 - **Ações:** `( Registrar pagamento )` · `( Editar )` · `( Baixar )` · `( Estornar )` ·
-  `( Inativar )` (admin) · `( Ver comprovante )`.
+  `( Inativar )` (admin) · `( Imprimir comprovante )`.
 - **Estados:** pendente `bg-alerta-suave text-alerta`; pago `bg-sucesso-suave text-sucesso`;
   estornado `bg-erro-suave text-erro`. Vazio: “Nenhum pagamento no período.” + `( Limpar filtros )`.
-  Erro ou carregamento seguem o padrão da seção 5.
+  Erro ou carregamento seguem o padrão da seção 5. `( Imprimir comprovante )` monta uma seção
+  temporária com classes `print:block`/`print:bg-white`, chama `window.print()` e remove a seção no
+  evento `afterprint` - sem arquivo salvo, `style=` ou `innerHTML` dinâmico.
 
-### 4.7 Manutenção — bloqueada
+### 4.7 Manutenção — implementada
 
 - **Perfis:** administrador abre/conclui; atendente consulta status e vê o equipamento como
   indisponível na lista de Reservas.
-- **Contrato necessário:** `manutencao:listar`, `buscar-por-id`, `criar`, `atualizar`, `concluir`
-  e modelo `OrdemManutencao` (equipamento, fornecedor, problema, entrada, previsão, status).
-- **Enquanto não existe:** manter `PaginaEmConstrucao('Manutenção', ...)`; **não** criar canal no
-  renderer nem simular dados. O wireframe da §3.6 já está pronto para virar tela após o handoff.
+- **Canais (ADR 0007):** `manutencao:listar`, `buscar-por-id`, `criar`, `atualizar`, `concluir`,
+  `inativar`; modelo `OrdemManutencao` (equipamento, fornecedor, problema, entrada, previsão, status).
+- **Tela:** `PaginaManutencao` + `ServicoManutencao`, no padrão painel/tabela, com confirmação
+  modal na inativação e mensagem amigável quando a FK bloqueia (`RELACAO_INVALIDA`). Sem
+  `PaginaEmConstrucao`, sem dado simulado e sem canal novo no renderer.
 
 ---
 
@@ -656,8 +694,8 @@ classes vêm de `docs/design-system.md` §8 — nunca CSS novo, `<style>` ou `st
 | Situação | Regra de ouro | Componente do Design System |
 | --- | --- | --- |
 | CEP não encontrado | nunca apagar o que o usuário já digitou; oferecer preenchimento manual | `campo` com `aria-invalid` + `toast alerta` |
-| Clima indisponível | **não bloqueia** a reserva; oferece tentar de novo e confirmar sem previsão | `card` com `border-erro` + dois botões |
-| Sem conexão | manter a última listagem visível e dizer que os dados podem estar desatualizados | `toast erro` + badge `alerta` |
+| Clima/feriados indisponíveis | **não bloqueiam** a reserva; aviso discreto e a locação segue | `aviso` discreto no wizard |
+| Sem conexão | falha de dado vira `estado erro` com `( Tentar de novo )`; nunca exibir dado fictício | `estado erro` + botão `( Tentar de novo )` |
 | Lista vazia | dizer o motivo e oferecer a próxima ação (criar, limpar filtro, voltar) | `estado vazio` com ação |
 | Carregando | sempre com `aria-live="polite"`; nunca tela em branco | `carregando` (spinner) ou `skeleton` |
 
@@ -668,20 +706,19 @@ aconteceu** e **o que fazer**.
 
 ## 6. Riscos e handoff
 
-- **Contrato:** 5 dos 6 placeholders já têm CRUD pronto (Clientes, Fornecedores, Reservas,
-  Devoluções, Pagamentos). Manutenção permanece bloqueada; Login também segue sem `auth:*` e está
-  fora desta entrega.
+- **Contrato:** todos os placeholders têm CRUD pronto (Clientes, Fornecedores, Equipamentos,
+  Categorias, Manutenção, Reservas, Devoluções, Pagamentos), e `auth:*` está implementado. Nenhum
+  canal novo foi necessário nesta entrega.
 - **Modelo:** `Equipamento.estadoConservacao`, `Reserva.previsaoTempo`, `Pagamento.valorTotal`,
   `Devolucao.estadoPosUso` e os filtros de listagem já existem em `src/shared/contratos/modelos.ts`.
-- **CEP e clima:** chamadas HTTP no **main**, com allowlist de domínios e erro tipado; o renderer
-  recebe só dados já validados. CSP de produção sem `ws:`/`'unsafe-inline'`.
-- **Handoff ao `frontend-developer`:** criar `PaginaClientes`, `PaginaFornecedores`,
-  `PaginaReservas`, `PaginaDevolucoes` e `PaginaPagamentos` em `src/renderer/src/paginas/`;
-  exportar em `index.ts`; trocar as entradas de `ROTAS` em `src/renderer/src/main.ts`; reutilizar
-  os componentes de `src/renderer/src/componentes/` e as classes de `docs/design-system.md` §8.
-- **Handoff ao Arquiteto/ED:** contrato de Manutenção e, se desejado, `devolucoes:isentar`.
-  Instalação de `@fontsource-variable/*` também passa por eles (nenhuma fonte externa/CDN).
+- **CEP, CNPJ, clima e feriados:** chamadas HTTP no **main**, com allowlist de domínios e erro
+  tipado; o renderer recebe só dados já validados. Falha de integração é aviso discreto. CSP de
+  produção sem `ws:`/`'unsafe-inline'`.
+- **Handoff ao `frontend-developer`:** implementação concluída: páginas, serviços e utilitários em
+  `src/renderer/src/`; nenhuma pendência deste handoff.
+- **Handoff ao Arquiteto/ED:** se desejado, `devolucoes:isentar` (hoje a isenção é feita ajustando
+  `valorMulta`/`valorTotal` em `pagamentos:atualizar`). Nenhuma fonte variável/CDN foi instalada.
 - **Validação de layout:** conferir em 800×600 (sidebar `w-16`, tabela com rolagem só no corpo) e
   1920×1080, nos dois perfis, com prioridade para o caminho de balcão.
-- **Fora de escopo desta versão:** exportação de relatórios, impressão de comprovante e
-  gestão de usuários (além do Login).
+- **Fora de escopo desta versão:** exportação de relatórios e gestão de usuários (além do Login).
+  Impressão de comprovante **foi implementada** nesta versão via `window.print()`.

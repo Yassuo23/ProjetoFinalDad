@@ -1,6 +1,6 @@
 import './tailwind.css'
 import type { EstadoSessao, Sessao } from '../../shared/contratos/modelos'
-import { Carregando, EstadoErro } from './componentes'
+import { Botao, Carregando, EstadoErro, Modal } from './componentes'
 import { AreaConteudo, Cabecalho, Sidebar } from './layout'
 import {
   ROTA_404,
@@ -28,17 +28,18 @@ import {
 import type { FabricaPagina, GuardiaoRota } from './nucleo'
 import {
   PaginaAcessoRestrito,
+  PaginaCategorias,
   PaginaClientes,
   PaginaComponentes,
   PaginaDashboard,
   PaginaCadastroCliente,
   PaginaDevolucoes,
   PaginaDisponibilidadeCliente,
-  PaginaEmConstrucao,
   PaginaEquipamentos,
   PaginaEscolhaConta,
   PaginaFornecedores,
   PaginaLogin,
+  PaginaManutencao,
   PaginaNaoEncontrada,
   PaginaPagamentos,
   PaginaPrimeiraExecucao,
@@ -65,6 +66,9 @@ const CLASSES = {
   cabecalhoSlot: 'shrink-0',
   conteudoSlot: 'flex min-h-0 flex-1 flex-col',
   oculto: 'hidden',
+  ajudaLista: 'grid grid-cols-1 gap-2 text-sm text-grafite',
+  ajudaLinha: 'flex items-center justify-between gap-4 border-b border-granito/30 pb-1',
+  ajudaTecla: 'font-semibold text-floresta',
 } as const
 
 const ROTAS = new Map<string, FabricaPagina>([
@@ -72,10 +76,8 @@ const ROTAS = new Map<string, FabricaPagina>([
   ['/equipamentos', () => new PaginaEquipamentos()],
   ['/clientes', () => new PaginaClientes()],
   ['/fornecedores', () => new PaginaFornecedores()],
-  [
-    '/manutencao',
-    () => new PaginaEmConstrucao('Manutenção', 'manutencao.listar · manutencao.abrir'),
-  ],
+  ['/categorias', () => new PaginaCategorias()],
+  ['/manutencao', () => new PaginaManutencao()],
   ['/reservas', () => new PaginaReservas('consulta')],
   ['/reservas/nova', () => new PaginaReservas('novo')],
   ['/devolucoes', () => new PaginaDevolucoes()],
@@ -131,11 +133,23 @@ const ROTAS = new Map<string, FabricaPagina>([
   [ROTA_404, () => new PaginaNaoEncontrada()],
 ])
 
+const ATALHOS: readonly (readonly [string, string])[] = [
+  ['Ctrl + N', 'Novo cadastro na tela atual'],
+  ['Ctrl + K', 'Focar a busca'],
+  ['F5', 'Recarregar a lista'],
+  ['F2', 'Editar o item selecionado'],
+  ['Enter', 'Confirmar o formulário'],
+  ['Ctrl + Enter', 'Confirmar o diálogo aberto'],
+  ['Esc', 'Cancelar a operação'],
+  ['? ou F1', 'Abrir esta ajuda'],
+]
+
 const TITULOS = new Map<string, string>([
   ['/dashboard', 'Dashboard'],
   ['/equipamentos', 'Equipamentos'],
   ['/clientes', 'Clientes'],
   ['/fornecedores', 'Fornecedores'],
+  ['/categorias', 'Categorias'],
   ['/manutencao', 'Manutenção'],
   ['/reservas', 'Reservas'],
   ['/reservas/nova', 'Nova reserva'],
@@ -220,6 +234,59 @@ const roteador = new Roteador(
   },
   guardiao,
 )
+
+let modalAjuda: Modal | null = null
+
+function abrirAjuda(): void {
+  if (modalAjuda !== null) {
+    return
+  }
+  const linhas = ATALHOS.map(([tecla, descricao]) =>
+    criarElemento('div', {
+      className: CLASSES.ajudaLinha,
+      filhos: [
+        criarElemento('span', { className: CLASSES.ajudaTecla, texto: tecla }),
+        criarElemento('span', { texto: descricao }),
+      ],
+    }),
+  )
+  const fechar = new Botao({
+    texto: 'Fechar',
+    variante: 'secundario',
+    aoClicar: () => {
+      modalAjuda?.fechar()
+      modalAjuda = null
+    },
+  })
+  modalAjuda = new Modal({
+    id: 'ajuda-atalhos',
+    titulo: 'Atalhos de teclado',
+    conteudo: criarElemento('div', {
+      className: CLASSES.ajudaLista,
+      filhos: linhas,
+    }),
+    rodape: [fechar.raiz],
+    aoFechar: () => {
+      modalAjuda = null
+    },
+  })
+  modalAjuda.abrir()
+}
+
+document.addEventListener('keydown', (evento: KeyboardEvent): void => {
+  if (evento.ctrlKey || evento.metaKey || evento.altKey) {
+    return
+  }
+  if (evento.key !== '?' && evento.key !== 'F1') {
+    return
+  }
+  const alvo = evento.target
+  if (alvo instanceof HTMLElement && alvo.matches('input, select, textarea')) {
+    return
+  }
+  evento.preventDefault()
+  abrirAjuda()
+})
 
 function aplicarSessao(sessao: Sessao): void {
   avisoLogin = null

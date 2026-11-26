@@ -3,14 +3,15 @@ export { ServicoPing } from './ServicoPing'
 export { ServicoClientes } from './ServicoClientes'
 export { ServicoIntegracoes } from './ServicoIntegracoes'
 export { EquipamentoServico } from './EquipamentoServico'
-export type { ResultadoCategorias, ResultadoEquipamentos } from './EquipamentoServico'
 export { ServicoReservas } from './ServicoReservas'
 export { ServicoFornecedores } from './ServicoFornecedores'
 export { ServicoPagamentos } from './ServicoPagamentos'
 export { ServicoDevolucoes } from './ServicoDevolucoes'
 export { ServicoItensReserva } from './ServicoItensReserva'
 export { ServicoCategorias } from './ServicoCategorias'
+export { ServicoManutencao } from './ServicoManutencao'
 export { DashboardServico, hojeISO } from './DashboardServico'
+export type { DadosDashboard } from './DashboardServico'
 export { ServicoAutenticacao } from './ServicoAutenticacao'
 export { ServicoUsuarios } from './ServicoUsuarios'
 export {
@@ -41,13 +42,4 @@ export type {
   DadosFormularioCadastroCliente,
   ErrosCadastroCliente,
 } from './ValidacaoCadastroCliente'
-export type {
-  CondicaoClima,
-  DadosDashboard,
-  DevolucaoPendente,
-  Faturamento,
-  PagamentoItem,
-  PrevisaoTempo,
-  StatusFrota,
-  StatusPagamento,
-} from './DashboardServico'
+

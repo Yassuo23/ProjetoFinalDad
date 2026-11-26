@@ -3,6 +3,13 @@
 Registro histórico de lacunas encontradas ao montar as telas do renderer. As decisões já
 implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/telas.md`.
 
+> **Estado atual (2026-11-25):** os dois blocos de integração real foram concluídos. Não há mais
+> dado de exemplo nem fallback de leitura em nenhuma tela: toda falha de canal de dado vira
+> `EstadoErro` com “Tentar de novo”. Integrações externas (CEP, CNPJ, clima, feriados) são a única
+> exceção — falha vira estado explícito `indisponivel`/“não encontrado” em aviso discreto, sem
+> bloquear o formulário e sem inventar valores. As seções abaixo foram revisadas para refletir esse
+> estado; onde o texto ainda descreve o passado, ele está marcado como “histórico”.
+
 ## Equipamentos
 
 ### Estado atual
@@ -11,8 +18,10 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
   `fornecedores:listar`.
 - A tela é administrativa: item oculto para atendente e rota direta bloqueada.
 - `Equipamento` expõe `estadoConservacao` e `disponibilidade`.
-- Se uma chamada falhar, o serviço ainda pode devolver dados de exemplo tipados; nesse caso a
-  tela exibe **“dados de exemplo”** e desabilita escrita.
+- **Sem fallback:** `EquipamentoServico` é uma fachada fina sobre `window.electronAPI.equipamentos.*`
+  e `categorias:listar`. Se uma chamada falhar, a exceção é propagada e a tela exibe `EstadoErro`
+  com “Tentar de novo”; nenhum dado de exemplo é devolvido nem escrita é habilitada sobre dados
+  inventados. (Histórico: o antigo “dados de exemplo” foi removido nesta entrega.)
 
 ### Decisões aplicadas
 
@@ -35,15 +44,21 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
 
 ### Estado atual
 
-- `DashboardServico.carregar()` consulta diretamente `reservas.listar`, `clientes.listar`,
-  `equipamentos.listar`, `itensReserva.listar` e `pagamentos.listar` pela API tipada. Não há mais
-  conjunto de exemplo no agregador: fonte que falha vira lista vazia e é nomeada em
-  `fontesIndisponiveis`, exibida numa faixa “dados parciais”. As demais colunas continuam reais.
+- `DashboardServico.carregar()` consulta `window.electronAPI.dashboard.resumo({ data: hojeISO() })`,
+  que já devolve `ResumoDashboard` calculado no main (retiradas/devoluções, pendentes e atrasadas
+  com multa, faturamento do dia, status da frota com manutenção e o financeiro para administrador).
+  As listas de reservas, clientes, itens, pagamentos e equipamentos vêm das APIs tipadas. Nenhuma
+  agregação de negócio é reimplementada no renderer (ADR 0008).
+- **Sem fallback:** qualquer falha de canal de dado é propagada para `PaginaDashboard`, que exibe
+  `EstadoErro` com “Tentar de novo”. Não há mais “faixa de dados parciais” nem lista vazia inventada.
 - O card “Previsão do tempo” usa `integracoes.previsaoTempo({ data: hojeISO() })` — a data das
   reservas da agenda, nunca uma cidade ou chave. `estado: 'indisponivel'` vira badge
   “indisponível” e texto “A locação não fica bloqueada.”; nenhum valor fictício é exibido.
-- `integracoes.feriados({ ano })` é consultado para sinalizar feriado nacional na data atual. Se
-  indisponível, o subtitle volta ao texto padrão e o motivo entra em `integracoesIndisponiveis`.
+- `integracoes.feriados({ ano })` é consultado para sinalizar feriado nacional na data atual; a data
+  entra na agenda e no aviso da confirmação de reserva. Se indisponível, o aviso é discreto e a
+  location não fica bloqueada.
+- Exceções lançadas pelo canal de integração são convertidas somente para o estado explícito
+  `indisponivel` (`SERVICO_FORA`) — nunca para dado fictício. Falha de dado continua sendo erro.
 - `PaginaReservas` consome `Reserva.previsaoTempo` e `Reserva.altaDemandaPrevista` gravados pelo
   main ao confirmar. O renderer não reexecuta a regra de alta demanda, clima ou feriados.
 - A fungibilidade de pagamento usa `valorMulta > 0` → “Multa”, `Estornado` → “Estornado”,
@@ -53,32 +68,25 @@ implementadas estão consolidadas aqui; a fonte atual de comportamento é `docs/
   `fim === hoje` significa devolução; caso contrário, retirada. `Reserva` não tem horário, então a
   célula mostra “—”.
 
-### Tipos locais do renderer
+### Tipos do contrato (sem tipos provisórios locais)
 
-Nenhum campo novo foi acrescentado a `src/shared/contratos`. Os tipos abaixo vivem em
-`src/renderer/src/servicos/DashboardServico.ts`:
+Nenhum campo novo foi acrescentado a `src/shared/contratos`. `DadosDashboard` em
+`src/renderer/src/servicos/DashboardServico.ts` apenas reúne tipos já existentes no contrato —
+`ResumoDashboard`, `Reserva`, `Cliente`, `ItemReserva`, `Pagamento`, `Equipamento`,
+`RespostaPrevisaoTempo` e `RespostaFeriados`. A agregação (retiradas/devoluções, pendentes,
+atrasos, multa, faturamento, frota e financeiro) vive no main e chega pronta em `resumo`. Os tipos
+provisórios antigos (`PagamentoItem`, `PrevisaoTempo`, `StatusFrota`, `Faturamento`,
+`DevolucaoPendente`, `fontesIndisponiveis`) foram removidos.
 
-| Tipo local                             | Uso na tela                                     | Origem / observação                                                                                   |
-| -------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `PagamentoItem`, `StatusPagamento`     | coluna “Pagamento / Multa” e KPI de faturamento | `pagamentos.listar`; `estornado` é apresentação do `StatusPagamento` do contrato                      |
-| `PrevisaoTempo`, `CondicaoClima`       | card “Previsão do tempo”                        | tradução de `RespostaPrevisaoTempo`; `condicao: null` e temperaturas `null` são renderizados como “—” |
-| `StatusFrota.manutencao`               | contador “Manutenção”                           | derivado de `estadoConservacao`/`disponibilidade`, ambos já presentes em `Equipamento`                |
-| `Faturamento.estimado`                 | KPI “Faturamento do dia”                        | `false` quando `pagamentos.listar` responde; `true` apenas na ausência total de pagamentos            |
-| `DevolucaoPendente.atrasada`, `.multa` | KPI “Devoluções pendentes” e destaque de atraso | agregação local de reservas/clientes/itens/pagamentos; valor de multa vem de `Pagamento.valorMulta`   |
-| `fontesIndisponiveis`                  | faixa “dados parciais”                          | cada fonte IPC que lançou exceção é listada; nenhuma linha é inventada                                |
+### Canais consumidos (todos com handler registrado)
 
-### Handoff — canais sem handler
-
-Estes canais existem no contrato e no preload, mas **não têm handler registrado** em
-`src/main/ipc/handlers/index.ts`; o renderer não os chama:
-
-- `dashboard:resumo` — quando registrado, substitui a agregação local por `ResumoDashboard`,
-  inclusive `financeiro` (nulo para atendente).
-- `devolucoes:listar-pendentes` — quando registrado, substitui a agregação local de pendências e
-  traz `valorMultaEstimado` já calculado no main.
-- `devolucoes:calcular-multa` — quando registrado, permite prévia da multa sem registrar a
-  devolução. Hoje a multa definitiva é calculada no main por `devolucoes:criar` e exibida via
-  `Pagamento.valorMulta`; o renderer não reimplementa a regra (domingos/feriados).
+- `dashboard:resumo` — registrado em `src/main/ipc/handlers/dashboard.ts`; devolve
+  `ResumoDashboard`, inclusive `financeiro` (nulo para atendente).
+- `devolucoes:listar-pendentes` — registrado em `src/main/ipc/handlers/devolucoes.ts`; usado pela
+  prévia de pendências.
+- `devolucoes:calcular-multa` — registrado no mesmo handler; usado na prévia didática da multa no
+  modal de devolução, sem registrar. A multa definitiva continua sendo calculada no main por
+  `devolucoes:criar`; o renderer não reimplementa a regra (domingos/feriados).
 
 `auth:*` e `usuarios:*` já estão implementados no renderer (ver § Autenticação e sessão).
 Nenhuma string de canal, Node, SQL ou chave aparece no renderer.
@@ -274,3 +282,69 @@ Sair — sem Dashboard, Clientes, Equipamentos, Fornecedores, Manutenção, Paga
 - `PaginaDisponibilidadeCliente` e `PaginaCadastroCliente` tratam carregando, erro, vazio e
   sucesso; foco inicial, `aria-live`, `role="alert"` e `motion-reduce:*` seguem o DS. Classes
   Tailwind são literais, sem `style=`, `<style>`, CSS novo, `any` ou `innerHTML` dinâmico.
+
+## Categorias e Manutenção (Bloco 1)
+
+### Estado aplicado
+
+- `PaginaCategorias` e `PaginaManutencao` substituíram os `PaginaEmConstrucao` das rotas
+  `#/categorias` e `#/manutencao`, registradas em `src/renderer/src/main.ts`, exportadas em
+  `paginas/index.ts` e liberadas no `nucleo/ControleAcesso.ts` e no `layout/Sidebar.ts`.
+- `ServicoCategorias` usa o CRUD completo (`categorias:listar`, `buscar-por-id`, `criar`,
+  `atualizar`, `inativar`); `ServicoManutencao` usa `manutencao:listar`, `buscar-por-id`, `criar`,
+  `atualizar`, `concluir` e `inativar`. Todos os canais e schemas existem no contrato (ADR 0007).
+- As duas telas seguem o padrão de painel de formulário + tabela, com confirmação modal explícita
+  em toda inativação/exclusão. Erro de relacionamento (`RELACAO_INVALIDA`, o único código real de
+  FK do contrato/main) é traduzido por `mensagemErroOperacao` para texto amigável (“não é possível
+  inativar porque ainda há registros associados”), sem nomear tabela ou SQL.
+- O mesmo tradutor foi aplicado à inativação em Clientes, Fornecedores, Equipamentos, Reservas,
+  Pagamentos e Devoluções. Não existe código `EM_USO`/`FK_BLOKEIA_EXCLUSAO` no main atual; se
+  aparecer, basta acrescentar o mapeamento em `util/ErrosRenderer.ts`.
+
+### Handoff / risco residual
+
+- Nenhum novo canal foi necessário; não houve mudança de contrato. A conclusão de ordem usa
+  `manutencao:concluir` (já registrado), não uma edição de status simulada.
+- A listagem de Categorias/Manutenção respeita `incluirInativos` somente para administrador.
+
+## Integrações e fluxos guiados (Bloco 2)
+
+### Estado aplicado
+
+- **CEP (Clientes) e CNPJ (Fornecedores):** falha é distinguida por `codigoErro`. `SEM_DADOS`
+  (ou equivalente de “não encontrado”) exibe “CEP/CNPJ não encontrado. Preencha manualmente.”;
+  qualquer outra falha exibe “Consulta indisponível no momento.”. Ambos os avisos são discretos,
+  não apagam o que foi digitado e não bloqueiam o salvamento manual.
+- **Wizard de reservas:** `#/reservas/nova` e `#/cliente/nova-reserva` usam indicador de 4 etapas
+  (Cliente → Período e equipamentos → Conferência → Pagamento), com `Voltar` preservando todo o
+  estado do formulário. Cada avanço valida somente a etapa atual. A conferência mostra o resumo com
+  **diárias calculadas a partir das datas**, previsão do tempo e aviso de feriado no período;
+  indisponibilidade das integrações gera aviso discreto, nunca bloqueio. A etapa de pagamento
+  escolhe Pix/Cartão/Dinheiro e cria o registro como `Pendente` após a reserva ser confirmada;
+  falha no pagamento é sinalizada no toast, sem afirmar sucesso.
+- **Calendário de disponibilidade:** `PaginaDisponibilidadeCliente` consulta
+  `equipamentos.listarDisponiveis` dia a dia para o mês exibido. Dias com equipamento livre são
+  selecionáveis; dias sem disponibilidade (reservado **ou** em manutenção — o main já filtra os
+  dois) aparecem riscados e desabilitados; falha de consulta aparece em cor de alerta e também é
+  desabilitada. Legenda explica os três estados. Navegação de mês recarrega o calendário.
+- **Devolução:** `ServicoDevolucoes` usa `devolucoes:listar-pendentes` e
+  `devolucoes:calcular-multa`. O modal de registro mostra a prévia didática (`textoMulta`, ex.:
+  “2 dias de atraso × R$ 20,00 = R$ 40,00”); se a prévia falhar, aparece aviso discreto de feriados
+  indisponíveis e o registro segue. Após registrar, o próprio fluxo abre a baixa do pagamento
+  (cria ou atualiza para `Pago`, com a multa informada), sem exigir ida a outra tela.
+- **Pagamentos:** KPIs de recebido/pendente/multas, filtros por texto/status/período e
+  `( Imprimir comprovante )`. O comprovante é uma seção temporária no `document.body` com classes
+  `print:block`/`print:bg-white`, removida no evento `afterprint`; usa `window.print()` e somente
+  `createElement`/`textContent` com os dados do pagamento.
+- **Atalhos:** `?` e `F1` abrem um modal global (fora de campos de texto) com a lista de atalhos;
+  `Ctrl+N`, `Ctrl+K`, `F5`, `F2`, `Enter`, `Ctrl+Enter` e `Esc` permanecem registrados por tela.
+
+### Handoff / risco residual
+
+- Regras de multa (domingos/feriados), disponibilidade e faturamento continuam **no main**. O
+  renderer apenas exibe `CalculoMulta`/`ResumoDashboard` e traduz erros; não há reimplementação.
+- `window.print()` depende do diálogo de impressão do Electron; o comprovante não é salvo em disco
+  nem enviado a serviço externo. Se o main passar a oferecer impressão via IPC, o handoff é trocar
+  essa chamada, sem alterar layout.
+- Nenhuma dependência nova foi instalada e nenhum `git add`, `git commit` ou `git push` foi executado.
+  Os arquivos alterados estão listados no resumo final da entrega.

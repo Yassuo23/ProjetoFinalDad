@@ -27,7 +27,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoFornecedores, ServicoIntegracoes } from '../servicos'
-import { formatadorPtBr } from '../util'
+import { formatadorPtBr, mensagemErroOperacao, mensagemIntegracao } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -699,10 +699,10 @@ export class PaginaFornecedores extends Componente {
         return
       }
 
+      this.campos?.cnpj.definirErro(null)
       this.toasts.exibir({
-        titulo: 'Consulta indisponível',
-        mensagem:
-          'O serviço de CNPJ não respondeu. Preencha os dados manualmente; o cadastro continua disponível.',
+        titulo: resposta.motivo === 'SEM_DADOS' ? 'CNPJ não encontrado' : 'Consulta indisponível',
+        mensagem: `${mensagemIntegracao(resposta.motivo, 'CNPJ')} O cadastro continua disponível.`,
         tom: 'alerta',
       })
     } catch {
@@ -814,10 +814,10 @@ export class PaginaFornecedores extends Componente {
             })
             this.novo()
             await this.recarregar()
-          } catch {
+          } catch (erro) {
             this.toasts.exibir({
               titulo: 'Não foi possível inativar',
-              mensagem: 'Tente novamente em instantes.',
+              mensagem: mensagemErroOperacao(erro, 'o fornecedor'),
               tom: 'erro',
             })
           }

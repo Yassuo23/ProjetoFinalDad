@@ -51,6 +51,11 @@ const ITENS: readonly ItemNav[] = [
     icone: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6',
   },
   {
+    caminho: '/categorias',
+    rotulo: 'Categorias',
+    icone: 'M4 6h16M4 12h16M4 18h10',
+  },
+  {
     caminho: '/manutencao',
     rotulo: 'Manutenção',
     icone: 'M14.7 6.3a4 4 0 0 0-5 5L3 18v3h3l8.7-8.7a4 4 0 0 0 5-5l-3 3-3-3 3-3z',
@@ -109,6 +114,7 @@ const CAMINHOS_CLIENTE: ReadonlySet<string> = new Set(
 const SOMENTE_ADMIN: ReadonlySet<string> = new Set([
   '/equipamentos',
   '/fornecedores',
+  '/categorias',
   '/manutencao',
   '/pagamentos',
   '/usuarios',

@@ -29,7 +29,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoClientes, ServicoPagamentos, ServicoReservas } from '../servicos'
-import { formatadorPtBr } from '../util'
+import { formatadorPtBr, mensagemErroOperacao } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -57,6 +57,10 @@ const CLASSES = {
   acoes: 'flex flex-wrap items-center gap-1',
   leituraLinha: 'mb-2 text-sm text-grafite',
   leituraTitulo: 'font-semibold text-floresta',
+  impressao: 'hidden print:block print:bg-white print:p-8 print:text-grafite',
+  impressaoTitulo: 'font-display text-xl font-semibold text-floresta',
+  impressaoLinha: 'mt-3 flex justify-between gap-6 border-b border-granito/30 pb-2 text-sm',
+  impressaoTotal: 'mt-6 text-right text-lg font-semibold text-floresta',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
@@ -422,13 +426,23 @@ export class PaginaPagamentos extends Componente {
 
     const admin = ehAdministrador()
     const corpo = admin ? this.construirFormulario() : this.construirLeitura()
-    const rodape: Node[] =
-      admin && !this.carregando
-        ? [
-            new Botao({ texto: 'Cancelar', variante: 'secundario', aoClicar: () => this.cancelarEdicao() }).raiz,
-            new Botao({ texto: 'Salvar', aoClicar: () => void this.salvar() }).raiz,
-          ]
-        : []
+    const rodape: Node[] = []
+    if (admin && !this.carregando) {
+      rodape.push(
+        new Botao({ texto: 'Cancelar', variante: 'secundario', aoClicar: () => this.cancelarEdicao() }).raiz,
+        new Botao({ texto: 'Salvar', aoClicar: () => void this.salvar() }).raiz,
+      )
+    }
+    if (this.selecionado !== null && !this.carregando) {
+      const selecionado = this.selecionado
+      rodape.push(
+        new Botao({
+          texto: 'Imprimir comprovante',
+          variante: 'secundario',
+          aoClicar: () => this.imprimirComprovante(selecionado),
+        }).raiz,
+      )
+    }
 
     this.painel = new PainelFormulario({
       id: 'pagamentos-painel',
@@ -577,6 +591,47 @@ export class PaginaPagamentos extends Componente {
         valor,
       ],
     })
+  }
+
+  private imprimirComprovante(pagamento: Pagamento): void {
+    const linha = (titulo: string, valor: string): HTMLElement =>
+      criarElemento('div', {
+        className: CLASSES.impressaoLinha,
+        filhos: [
+          criarElemento('span', { texto: titulo }),
+          criarElemento('span', { texto: valor }),
+        ],
+      })
+
+    const area = criarElemento('section', {
+      className: CLASSES.impressao,
+      atributos: { 'aria-label': 'Comprovante de pagamento' },
+      filhos: [
+        criarElemento('h1', {
+          className: CLASSES.impressaoTitulo,
+          texto: 'Zênite — Comprovante de pagamento',
+        }),
+        linha('Pagamento', `#${String(pagamento.id)}`),
+        linha('Reserva', `#${String(pagamento.reservaId)}`),
+        linha('Cliente', this.nomeCliente(pagamento.reservaId)),
+        linha('Valor da reserva', formatadorPtBr.moeda(pagamento.valorBase)),
+        linha('Multa', formatadorPtBr.moeda(pagamento.valorMulta)),
+        linha('Forma', pagamento.formaPagamento ?? 'Não informada'),
+        linha('Status', pagamento.statusPagamento),
+        linha('Data', formatadorPtBr.data(pagamento.dataPagamento)),
+        criarElemento('p', {
+          className: CLASSES.impressaoTotal,
+          texto: `Total: ${formatadorPtBr.moeda(pagamento.valorTotal)}`,
+        }),
+      ],
+    })
+    document.body.append(area)
+    const remover = (): void => {
+      area.remove()
+      window.removeEventListener('afterprint', remover)
+    }
+    window.addEventListener('afterprint', remover)
+    window.print()
   }
 
   private atualizarTabela(): void {
@@ -1028,10 +1083,10 @@ export class PaginaPagamentos extends Componente {
       this.formulario = formularioVazio()
       await this.recarregar()
       this.selecionar(id)
-    } catch {
+    } catch (erro) {
       this.toasts.exibir({
         titulo: 'Não foi possível inativar',
-        mensagem: 'Tente novamente em instantes.',
+        mensagem: mensagemErroOperacao(erro, 'o pagamento'),
         tom: 'erro',
       })
     }

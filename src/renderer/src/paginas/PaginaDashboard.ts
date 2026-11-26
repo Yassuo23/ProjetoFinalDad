@@ -1,4 +1,10 @@
-import type { StatusReserva } from '../../../shared/contratos/modelos'
+import type {
+  CondicaoTempo,
+  DevolucaoPendente,
+  RespostaPrevisaoTempo,
+  StatusPagamento,
+  StatusReserva,
+} from '../../../shared/contratos/modelos'
 import { Badge, Botao, Carregando, EstadoErro, EstadoVazio, Tabela } from '../componentes'
 import type { ColunaTabela, TomBadge } from '../componentes'
 import {
@@ -8,9 +14,9 @@ import {
   registrarAtalhos,
   substituirConteudo,
 } from '../nucleo'
-import { DashboardServico, hojeISO } from '../servicos'
-import { formatadorPtBr } from '../util'
-import type { CondicaoClima, DadosDashboard, PrevisaoTempo, StatusPagamento } from '../servicos'
+import { DashboardServico } from '../servicos'
+import type { DadosDashboard } from '../servicos'
+import { formatadorPtBr, mensagemIntegracao } from '../util'
 
 const CLASSES = {
   pagina: 'flex flex-col gap-6',
@@ -48,11 +54,15 @@ const CLASSES = {
   frotaNome: 'text-sm text-grafite',
   frotaNumero: 'font-display text-base text-floresta',
   trilha: 'h-2 w-full overflow-hidden rounded-pill bg-pedra',
+  listaDevolucoes: 'mt-4 flex flex-col gap-2',
+  devolucaoLinha: 'flex flex-wrap items-center justify-between gap-2 rounded-control bg-pedra/40 px-3 py-2',
+  devolucaoTexto: 'text-sm text-grafite',
+  devolucaoMulta: 'text-sm font-semibold text-erro',
 } as const
 
 type CorFrota = 'disponivel' | 'reservado' | 'manutencao'
 
-/** Cada variante é uma string completa: o Tailwind v4 enxerga as classes no código-fonte. */
+/** Variantes completas: o Tailwind v4 detecta cada classe no código-fonte. */
 const BARRAS: Readonly<Record<CorFrota, readonly string[]>> = {
   disponivel: [
     'h-full rounded-pill bg-sucesso w-0',
@@ -83,13 +93,16 @@ const ICONES = {
   devolucoes: 'M3 12a9 9 0 1 0 3-6.7M3 4v5h5',
   equipamentos: 'M20 7l-8-4-8 4v10l8 4 8-4zM4 7l8 4 8-4M12 11v10',
   faturamento: 'M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',
+  financeiro: 'M3 6h18v12H3zM3 10h18M7 15h4',
 } as const
 
-const ICONES_CLIMA: Readonly<Record<CondicaoClima, string>> = {
-  ensolarado:
+const ICONES_CLIMA: Readonly<Record<CondicaoTempo, string>> = {
+  Ensolarado:
     'M12 4V2M12 22v-2M4 12H2M22 12h-2M5.6 5.6L4.2 4.2M19.8 19.8l-1.4-1.4M18.4 5.6l1.4-1.4M4.2 19.8l1.4-1.4M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
-  nublado: 'M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z',
-  chuva: 'M7 15h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7zM8 19l-1 2M13 19l-1 2M18 19l-1 2',
+  Nublado: 'M7 18h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z',
+  Chuvoso:
+    'M7 15h10a4 4 0 0 0 .6-8A6 6 0 0 0 6 8a3.5 3.5 0 0 0 1 7zM8 19l-1 2M13 19l-1 2M18 19l-1 2',
+  Outro: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16h.01',
 }
 
 type TipoAgenda = 'retirada' | 'devolucao'
@@ -101,6 +114,14 @@ interface LinhaAgenda {
   readonly tipo: TipoAgenda
   readonly status: StatusReserva
   readonly statusPagamento: StatusPagamento
+  readonly valorMulta: number
+}
+
+interface FrotaLinha {
+  readonly nome: string
+  readonly numero: string
+  readonly parcial: number
+  readonly cor: CorFrota
 }
 
 interface OpcoesKpi {
@@ -136,8 +157,8 @@ const COLUNAS: readonly ColunaTabela<LinhaAgenda>[] = [
     rotulo: 'Pagamento / Multa',
     celula: (linha) =>
       new Badge({
-        texto: rotuloPagamento(linha.statusPagamento),
-        tom: tomPagamento(linha.statusPagamento),
+        texto: rotuloPagamento(linha),
+        tom: tomPagamento(linha),
       }).raiz,
   },
 ]
@@ -159,28 +180,37 @@ function tomStatus(status: StatusReserva): TomBadge {
   return status === 'Pendente' ? 'alerta' : 'neutro'
 }
 
-function rotuloPagamento(status: StatusPagamento): string {
-  if (status === 'pago') {
-    return 'Pago'
+function rotuloPagamento(linha: LinhaAgenda): string {
+  if (linha.valorMulta > 0) {
+    return `Multa · ${formatadorPtBr.moeda(linha.valorMulta)}`
   }
-  if (status === 'multa') {
-    return 'Multa'
+  const rotulos: Readonly<Record<StatusPagamento, string>> = {
+    Pago: 'Pago',
+    Pendente: 'Pendente',
+    Estornado: 'Estornado',
   }
-  return status === 'estornado' ? 'Estornado' : 'Pendente'
+  return rotulos[linha.statusPagamento]
 }
 
-function tomPagamento(status: StatusPagamento): TomBadge {
-  if (status === 'pago') {
-    return 'sucesso'
-  }
-  if (status === 'multa') {
+function tomPagamento(linha: LinhaAgenda): TomBadge {
+  if (linha.valorMulta > 0) {
     return 'erro'
   }
-  return status === 'estornado' ? 'neutro' : 'alerta'
+  if (linha.statusPagamento === 'Pago') {
+    return 'sucesso'
+  }
+  return linha.statusPagamento === 'Estornado' ? 'neutro' : 'alerta'
 }
 
 function pluralizar(quantidade: number, singular: string, plural: string): string {
   return `${quantidade} ${quantidade === 1 ? singular : plural}`
+}
+
+function recomendacaoClima(condicao: CondicaoTempo | null): string {
+  if (condicao === 'Chuvoso') return 'Leve capa de chuva e calçado aderente.'
+  if (condicao === 'Ensolarado') return 'Bom para trilha e ciclismo; use proteção solar.'
+  if (condicao === 'Nublado') return 'Condição estável para atividades ao ar livre.'
+  return 'Confira as condições antes de retirar os equipamentos.'
 }
 
 export class PaginaDashboard extends Componente {
@@ -262,14 +292,17 @@ export class PaginaDashboard extends Componente {
   }
 
   private criarBanner(dados: DadosDashboard): HTMLElement {
+    const textos = dados.resumo.integracoesIndisponiveis.map((item) =>
+      mensagemIntegracao(item.motivo, item.integracao),
+    )
     return criarElemento('div', {
       className: CLASSES.banner,
       atributos: { role: 'status' },
       filhos: [
-        new Badge({ texto: 'dados parciais', tom: 'alerta' }).raiz,
+        new Badge({ texto: 'integração indisponível', tom: 'alerta' }).raiz,
         criarElemento('p', {
           className: CLASSES.bannerTexto,
-          texto: `Não foi possível consultar: ${dados.fontesIndisponiveis.join(', ')}. Os demais dados exibidos vêm do sistema.`,
+          texto: `${textos.join(' ')} Os dados do sistema permanecem disponíveis.`,
         }),
       ],
     })
@@ -295,17 +328,15 @@ export class PaginaDashboard extends Componente {
 
   private mostrarDados(dados: DadosDashboard): void {
     const filhos: Array<Node> = [this.criarCabecalho(dados.feriadoHoje)]
-    if (dados.fontesIndisponiveis.length > 0) {
+    if (dados.resumo.integracoesIndisponiveis.length > 0) {
       filhos.push(this.criarBanner(dados))
     }
 
-    const reservasHoje = dados.reservas.filter(
-      (reserva) => reserva.dataInicio === hojeISO() && reserva.statusReserva !== 'Cancelada',
-    ).length
-    const atrasadas = dados.devolucoes.filter((devolucao) => devolucao.atrasada).length
-    const multas = dados.devolucoes
-      .filter((devolucao) => devolucao.atrasada && devolucao.multa > 0)
-      .reduce((total, devolucao) => total + devolucao.multa, 0)
+    const { contadores, faturamento, financeiro } = dados.resumo
+    const atrasadas = contadores.devolucoesAtrasadas
+    const multas = dados.resumo.devolucoesPendentes
+      .filter((devolucao) => devolucao.atrasada)
+      .reduce((total, devolucao) => total + devolucao.valorMultaEstimado, 0)
     const disponiveis = dados.equipamentos.filter(
       (equipamento) =>
         equipamento.disponibilidade === 'Disponível' &&
@@ -316,15 +347,15 @@ export class PaginaDashboard extends Componente {
       className: CLASSES.gradeKpis,
       filhos: [
         this.criarKpi({
-          rotulo: 'Reservas hoje',
-          valor: String(reservasHoje),
+          rotulo: 'Retiradas hoje',
+          valor: String(contadores.reservasHoje),
           icone: ICONES.reservas,
           classeIcone: CLASSES.icone,
-          rodape: 'Retiradas e devoluções agendadas',
+          rodape: 'Reservas com início na data de hoje',
         }),
         this.criarKpi({
           rotulo: 'Devoluções pendentes',
-          valor: String(dados.devolucoes.length),
+          valor: String(contadores.devolucoesPendentes),
           icone: ICONES.devolucoes,
           classeIcone: atrasadas > 0 ? CLASSES.iconeAlerta : CLASSES.icone,
           destaque:
@@ -345,16 +376,14 @@ export class PaginaDashboard extends Componente {
         }),
         this.criarKpi({
           rotulo: 'Faturamento do dia',
-          valor: formatadorPtBr.moeda(dados.faturamento.valor),
+          valor: formatadorPtBr.moeda(faturamento.valor),
           icone: ICONES.faturamento,
           classeIcone: CLASSES.icone,
           destaque: new Badge({
-            texto: dados.faturamento.estimado ? 'estimativa' : 'confirmado',
-            tom: dados.faturamento.estimado ? 'alerta' : 'sucesso',
+            texto: faturamento.estimado ? 'estimativa' : 'confirmado',
+            tom: faturamento.estimado ? 'alerta' : 'sucesso',
           }).raiz,
-          rodape: dados.faturamento.estimado
-            ? 'Estimado pelas diárias das reservas de hoje'
-            : 'Recebimentos das reservas de hoje',
+          rodape: 'Receitas apuradas pelo sistema',
         }),
       ],
     })
@@ -362,10 +391,20 @@ export class PaginaDashboard extends Componente {
     const corpo = criarElemento('div', {
       className: CLASSES.gradeCorpo,
       filhos: [
-        this.criarAgenda(dados),
+        criarElemento('div', {
+          className: CLASSES.colunaAgenda,
+          filhos: [
+            this.criarAgenda(dados),
+            this.criarDevolucoesPendentes(dados.resumo.devolucoesPendentes),
+          ],
+        }),
         criarElemento('div', {
           className: CLASSES.colunaLateral,
-          filhos: [this.criarClima(dados), this.criarFrota(dados)],
+          filhos: [
+            this.criarClima(dados.previsao),
+            this.criarFrota(dados),
+            ...(financeiro === null ? [] : [this.criarFinanceiro(financeiro)]),
+          ],
         }),
       ],
     })
@@ -404,7 +443,7 @@ export class PaginaDashboard extends Componente {
             criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Agenda do dia' }),
             criarElemento('p', {
               className: CLASSES.descricaoSecao,
-              texto: 'Retiradas e devoluções programadas para hoje.',
+              texto: `Retiradas e devoluções programadas para ${dados.resumo.data}.`,
             }),
           ],
         }),
@@ -440,7 +479,7 @@ export class PaginaDashboard extends Componente {
   }
 
   private montarLinhasAgenda(dados: DadosDashboard): readonly LinhaAgenda[] {
-    const hoje = hojeISO()
+    const hoje = dados.resumo.data
     const nomesClientes = new Map(dados.clientes.map((cliente) => [cliente.id, cliente.nome]))
     const nomesEquipamentos = new Map(
       dados.equipamentos.map((equipamento) => [equipamento.id, equipamento.nome]),
@@ -461,6 +500,7 @@ export class PaginaDashboard extends Componente {
       )
       .map((reserva) => {
         const equipamentoId = equipamentosPorReserva.get(reserva.id)
+        const pagamento = pagamentos.get(reserva.id)
         return {
           horario: '—',
           cliente: nomesClientes.get(reserva.clienteId) ?? `Cliente #${reserva.clienteId}`,
@@ -470,18 +510,78 @@ export class PaginaDashboard extends Componente {
               : (nomesEquipamentos.get(equipamentoId) ?? `Item #${equipamentoId}`),
           tipo: reserva.dataFim === hoje ? ('devolucao' as const) : ('retirada' as const),
           status: reserva.statusReserva,
-          statusPagamento: pagamentos.get(reserva.id)?.status ?? ('pendente' as const),
+          statusPagamento: pagamento?.statusPagamento ?? ('Pendente' as const),
+          valorMulta: pagamento?.valorMulta ?? 0,
         }
       })
   }
 
-  private criarClima(dados: DadosDashboard): HTMLElement {
-    const previsao = dados.previsao
+  private criarDevolucoesPendentes(itens: readonly DevolucaoPendente[]): HTMLElement {
+    const cartao = criarElemento('section', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Devoluções pendentes' }),
+        criarElemento('p', {
+          className: CLASSES.descricaoSecao,
+          texto: 'Multas estimadas pelo sistema; o valor final é calculado na devolução.',
+        }),
+      ],
+    })
+    if (itens.length === 0) {
+      cartao.append(
+        criarElemento('p', {
+          className: CLASSES.previsaoIndisponivel,
+          texto: 'Nenhuma devolução pendente.',
+        }),
+      )
+      return cartao
+    }
+    cartao.append(
+      criarElemento('div', {
+        className: CLASSES.listaDevolucoes,
+        filhos: itens.map((item) =>
+          criarElemento('div', {
+            className: CLASSES.devolucaoLinha,
+            filhos: [
+              criarElemento('span', {
+                className: CLASSES.devolucaoTexto,
+                texto: `${item.clienteNome} · ${item.equipamentoNome ?? 'item não informado'} · prevista ${item.dataPrevista}${item.atrasada ? ` · ${pluralizar(item.diasAtraso, 'dia', 'dias')} de atraso` : ''}`,
+              }),
+              item.valorMultaEstimado > 0
+                ? criarElemento('span', {
+                    className: CLASSES.devolucaoMulta,
+                    texto: formatadorPtBr.moeda(item.valorMultaEstimado),
+                  })
+                : new Badge({ texto: 'No prazo', tom: 'sucesso' }).raiz,
+            ],
+          }),
+        ),
+      }),
+    )
+    return cartao
+  }
+
+  private criarClima(previsao: RespostaPrevisaoTempo): HTMLElement {
+    const disponivel = previsao.estado === 'disponivel'
+    const condicao = disponivel ? previsao.condicao : null
     const icone =
-      previsao.condicao === null
+      condicao === null || condicao === 'Outro'
         ? criarElemento('span', { className: CLASSES.previsaoIndisponivel, texto: '—' })
-        : criarIcone(ICONES_CLIMA[previsao.condicao], CLASSES.climaIcone)
-    const cartao = criarElemento('article', {
+        : criarIcone(ICONES_CLIMA[condicao], CLASSES.climaIcone)
+
+    const descricao = disponivel
+      ? (previsao.descricao ?? 'Sem descrição informada pelo serviço.')
+      : mensagemIntegracao(previsao.motivo, 'previsão do tempo')
+    const temperatura = disponivel
+      ? this.formatarTemperatura(previsao.temperaturaMinC, previsao.temperaturaMaxC)
+      : '—'
+    const vento = disponivel
+      ? previsao.ventoKmH === null
+        ? '—'
+        : `${previsao.ventoKmH} km/h`
+      : '—'
+
+    return criarElemento('article', {
       className: CLASSES.cartao,
       filhos: [
         criarElemento('div', {
@@ -491,7 +591,7 @@ export class PaginaDashboard extends Componente {
               className: CLASSES.tituloSecao,
               texto: 'Previsão do tempo',
             }),
-            previsao.disponivel
+            disponivel
               ? new Badge({ texto: 'atualizado', tom: 'sucesso' }).raiz
               : new Badge({ texto: 'indisponível', tom: 'alerta' }).raiz,
           ],
@@ -502,13 +602,10 @@ export class PaginaDashboard extends Componente {
             icone,
             criarElemento('div', {
               filhos: [
+                criarElemento('p', { className: CLASSES.temperatura, texto: temperatura }),
                 criarElemento('p', {
-                  className: CLASSES.temperatura,
-                  texto: this.formatarTemperatura(previsao),
-                }),
-                criarElemento('p', {
-                  className: previsao.disponivel ? CLASSES.condicao : CLASSES.previsaoIndisponivel,
-                  texto: previsao.descricao,
+                  className: disponivel ? CLASSES.condicao : CLASSES.previsaoIndisponivel,
+                  texto: descricao,
                 }),
               ],
             }),
@@ -517,16 +614,15 @@ export class PaginaDashboard extends Componente {
         criarElemento('dl', {
           className: CLASSES.detalhes,
           filhos: [
+            this.criarDetalhe('Vento', vento),
             this.criarDetalhe(
-              'Vento',
-              previsao.ventoKmH === null ? '—' : `${previsao.ventoKmH} km/h`,
+              'Recomendação',
+              disponivel ? recomendacaoClima(condicao) : 'A locação não fica bloqueada.',
             ),
-            this.criarDetalhe('Recomendação', previsao.recomendacao),
           ],
         }),
       ],
     })
-    return cartao
   }
 
   private criarDetalhe(rotulo: string, valor: string): HTMLElement {
@@ -538,43 +634,37 @@ export class PaginaDashboard extends Componente {
     })
   }
 
-  private formatarTemperatura(previsao: PrevisaoTempo): string {
-    const minima = previsao.temperaturaMinC
-    const maxima = previsao.temperaturaMaxC
+  private formatarTemperatura(minima: number | null, maxima: number | null): string {
     if (minima === null && maxima === null) {
       return '—'
     }
     if (minima === null) {
-      return `${maxima} °C`
+      return `${String(maxima)} °C`
     }
     if (maxima === null) {
-      return `${minima} °C`
+      return `${String(minima)} °C`
     }
-    return minima === maxima ? `${minima} °C` : `${minima}–${maxima} °C`
+    return minima === maxima ? `${String(minima)} °C` : `${String(minima)}–${String(maxima)} °C`
   }
 
   private criarFrota(dados: DadosDashboard): HTMLElement {
-    const { frota } = dados
-    const total = dados.equipamentos.length
+    const { equipamentos, resumo } = dados
+    const total = equipamentos.length
+    const manutencao = resumo.contadores.equipamentosEmManutencao
+    const disponivel = equipamentos.filter(
+      (equipamento) =>
+        equipamento.disponibilidade === 'Disponível' &&
+        equipamento.estadoConservacao !== 'Em Manutenção',
+    ).length
+    const reservado = equipamentos.filter(
+      (equipamento) =>
+        equipamento.disponibilidade === 'Indisponível' &&
+        equipamento.estadoConservacao !== 'Em Manutenção',
+    ).length
     const itens: readonly FrotaLinha[] = [
-      {
-        nome: 'Disponível',
-        numero: String(frota.disponivel),
-        parcial: frota.disponivel,
-        cor: 'disponivel',
-      },
-      {
-        nome: 'Reservado',
-        numero: String(frota.reservado),
-        parcial: frota.reservado,
-        cor: 'reservado',
-      },
-      {
-        nome: 'Manutenção',
-        numero: frota.manutencao === null ? '—' : String(frota.manutencao),
-        parcial: frota.manutencao ?? 0,
-        cor: 'manutencao',
-      },
+      { nome: 'Disponível', numero: String(disponivel), parcial: disponivel, cor: 'disponivel' },
+      { nome: 'Reservado', numero: String(reservado), parcial: reservado, cor: 'reservado' },
+      { nome: 'Manutenção', numero: String(manutencao), parcial: manutencao, cor: 'manutencao' },
     ]
 
     return criarElemento('article', {
@@ -583,14 +673,42 @@ export class PaginaDashboard extends Componente {
         criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Status da frota' }),
         criarElemento('p', {
           className: CLASSES.descricaoSecao,
-          texto:
-            frota.manutencao === null
-              ? 'Distribuição dos equipamentos cadastrados.'
-              : 'Distribuição ilustrativa dos equipamentos.',
+          texto: 'Distribuição real dos equipamentos cadastrados.',
         }),
         criarElemento('div', {
           className: CLASSES.frotaLista,
           filhos: itens.map((item) => this.criarLinhaFrota(item, total)),
+        }),
+      ],
+    })
+  }
+
+  private criarFinanceiro(
+    financeiro: NonNullable<DadosDashboard['resumo']['financeiro']>,
+  ): HTMLElement {
+    const itens: readonly (readonly [string, number])[] = [
+      ['Recebido', financeiro.recebido],
+      ['A pagar', financeiro.aPagar],
+      ['Multas', financeiro.multas],
+    ]
+    return criarElemento('article', {
+      className: CLASSES.cartao,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.tituloSecao, texto: 'Financeiro' }),
+        criarElemento('div', {
+          className: CLASSES.frotaLista,
+          filhos: itens.map(([rotulo, valor]) =>
+            criarElemento('div', {
+              className: CLASSES.frotaLinha,
+              filhos: [
+                criarElemento('span', { className: CLASSES.frotaNome, texto: rotulo }),
+                criarElemento('span', {
+                  className: CLASSES.frotaNumero,
+                  texto: formatadorPtBr.moeda(valor),
+                }),
+              ],
+            }),
+          ),
         }),
       ],
     })
@@ -629,11 +747,4 @@ export class PaginaDashboard extends Componente {
     const indice = proporcao >= 0.875 ? 4 : proporcao >= 0.625 ? 3 : proporcao >= 0.375 ? 2 : 1
     return variantes[indice] ?? 'h-full rounded-pill bg-granito w-full'
   }
-}
-
-interface FrotaLinha {
-  readonly nome: string
-  readonly numero: string
-  readonly parcial: number
-  readonly cor: CorFrota
 }

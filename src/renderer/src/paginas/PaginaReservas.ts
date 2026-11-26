@@ -2,10 +2,13 @@ import type {
   CategoriaEquipamento,
   Cliente,
   Equipamento,
+  FeriadoNacional,
+  FormaPagamento,
   ItemReservaEntrada,
   Reserva,
   ReservaAtualizarEntrada,
   ReservaCriarEntrada,
+  RespostaPrevisaoTempo,
   StatusReserva,
 } from '../../../shared/contratos/modelos'
 import {
@@ -37,10 +40,12 @@ import {
 import {
   EquipamentoServico,
   ServicoClientes,
+  ServicoIntegracoes,
   ServicoItensReserva,
+  ServicoPagamentos,
   ServicoReservas,
 } from '../servicos'
-import { formatadorPtBr } from '../util'
+import { formatadorPtBr, mensagemErroOperacao, mensagemIntegracao } from '../util'
 
 type ModoReservas = 'consulta' | 'novo'
 
@@ -102,11 +107,18 @@ const CLASSES = {
     'flex w-full flex-col gap-2 rounded-card border border-lima bg-superficie p-4 text-left shadow-card transition-colors motion-reduce:transition-none hover:border-floresta/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-floresta',
   cartaoTitulo: 'font-semibold text-floresta',
   cartaoLinha: 'text-sm text-grafite',
+  etapas: 'mb-4 flex flex-wrap gap-2 text-xs font-semibold',
+  etapa: 'rounded-pill px-3 py-1 bg-granito/30 text-grafite',
+  etapaAtiva: 'rounded-pill px-3 py-1 bg-floresta text-pedra',
+  etapaConteudo: 'flex flex-col gap-3',
+  previsao: 'rounded-card border border-granito/45 bg-pedra p-3 text-sm text-grafite',
 } as const
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
 const CATEGORIAS: readonly CategoriaEquipamento[] = ['Bicicleta', 'Caiaque', 'Prancha', 'Camping']
 const STATUS: readonly StatusReserva[] = ['Pendente', 'Confirmada', 'Cancelada', 'Concluída']
+const ETAPAS: readonly string[] = ['Cliente', 'Período e equipamentos', 'Conferência', 'Pagamento']
+const FORMAS_PAGAMENTO: readonly FormaPagamento[] = ['Pix', 'Cartão de Crédito', 'Dinheiro']
 const MS_POR_DIA = 86_400_000
 const ATRASO_DISPONIBILIDADE_MS = 250
 
@@ -233,6 +245,10 @@ function ehCategoriaEquipamento(valor: string): valor is CategoriaEquipamento {
   return CATEGORIAS.some((categoria) => categoria === valor)
 }
 
+function ehFormaPagamento(valor: string): valor is FormaPagamento {
+  return FORMAS_PAGAMENTO.some((forma) => forma === valor)
+}
+
 function ehStatusReserva(valor: string): valor is StatusReserva {
   return STATUS.some((status) => status === valor)
 }
@@ -276,6 +292,8 @@ export class PaginaReservas extends Componente {
   private readonly servicoItens = new ServicoItensReserva()
   private readonly servicoClientes = new ServicoClientes()
   private readonly servicoEquipamentos = new EquipamentoServico()
+  private readonly servicoIntegracoes = new ServicoIntegracoes()
+  private readonly servicoPagamentos = new ServicoPagamentos()
   private readonly toasts = new AreaToast()
   private readonly cancelarAtalhos: () => void
   private readonly cancelarPerfil: () => void
@@ -303,6 +321,14 @@ export class PaginaReservas extends Componente {
   private motivoSlot: HTMLElement | null = null
   private botaoConfirmar: Botao | null = null
   private campoFiltroCliente: Campo | null = null
+  private campoFormaPagamento: Select | null = null
+  private secoesEtapa: HTMLElement[] = []
+  private integracaoSlot: HTMLElement | null = null
+  private previsao: RespostaPrevisaoTempo | null = null
+  private feriados: readonly FeriadoNacional[] = []
+  private feriadosIndisponivel = false
+  private etapa = 1
+  private formaPagamento: FormaPagamento = 'Pix'
   private modal: Modal | null = null
   private confirmacaoRapida: (() => void) | null = null
   private selecionadoId: number | null = null
@@ -473,19 +499,24 @@ export class PaginaReservas extends Componente {
 
   private async carregarCategorias(): Promise<void> {
     try {
-      const resultado = await this.servicoEquipamentos.listarCategorias()
-      this.categorias = resultado.itens
+      const categorias = await this.servicoEquipamentos.listarCategorias()
+      this.categorias = categorias
         .map((categoria) => categoria.nome)
         .filter(ehCategoriaEquipamento)
-      if (resultado.dadosDeExemplo) {
+      if (categorias.length === 0) {
         this.toasts.exibir({
-          titulo: 'Categorias temporárias',
-          mensagem: 'Não foi possível carregar as categorias; opções de exemplo estão em uso.',
+          titulo: 'Sem categorias cadastradas',
+          mensagem: 'Cadastre categorias antes de criar uma reserva.',
           tom: 'alerta',
         })
       }
     } catch {
       this.categorias = []
+      this.toasts.exibir({
+        titulo: 'Falha ao carregar categorias',
+        mensagem: 'Não foi possível carregar as categorias. Tente novamente.',
+        tom: 'erro',
+      })
     }
   }
 
@@ -502,6 +533,9 @@ export class PaginaReservas extends Componente {
     this.motivoSlot = null
     this.botaoConfirmar = null
     this.campoFiltroCliente = null
+    this.campoFormaPagamento = null
+    this.secoesEtapa = []
+    this.integracaoSlot = null
     if (this.modo === 'consulta') {
       this.campos = null
       this.lista = null
@@ -559,9 +593,20 @@ export class PaginaReservas extends Componente {
 
     if (this.modo === 'novo') {
       this.painelSlot = criarElemento('div', { className: CLASSES.formularioColuna })
+      const indicador = criarElemento('div', {
+        className: CLASSES.etapas,
+        atributos: { 'aria-label': 'Etapas da reserva' },
+        filhos: ETAPAS.map((rotulo, indice) =>
+          criarElemento('span', {
+            className: indice + 1 === this.etapa ? CLASSES.etapaAtiva : CLASSES.etapa,
+            texto: `${String(indice + 1)}. ${rotulo}`,
+          }),
+        ),
+      })
       substituirConteudo(
         this.elemento,
         cabecalho,
+        indicador,
         criarElemento('div', {
           className: CLASSES.conteudoFormulario,
           filhos: [this.painelSlot],
@@ -599,27 +644,46 @@ export class PaginaReservas extends Componente {
       aoClicar: () => this.abrirConfirmacao(),
     })
     confirmar.raiz.setAttribute('aria-describedby', 'reservas-confirmar-motivo')
-    this.botaoConfirmar = confirmar
+    this.botaoConfirmar = this.etapa === ETAPAS.length ? confirmar : null
     this.motivoSlot = criarElemento('p', {
       className: CLASSES.motivo,
       atributos: { id: 'reservas-confirmar-motivo', 'aria-live': 'polite' },
     })
 
+    const botoes: Array<Node> = []
+    if (this.etapa === 1) {
+      botoes.push(
+        new Botao({
+          texto: editando ? 'Cancelar edição' : 'Limpar',
+          variante: 'secundario',
+          aoClicar: () => this.cancelarEdicao(),
+        }).raiz,
+      )
+    } else {
+      botoes.push(
+        new Botao({
+          texto: `Voltar para ${ETAPAS[this.etapa - 2] ?? 'Cliente'}`,
+          variante: 'secundario',
+          aoClicar: () => this.irParaEtapa(this.etapa - 1),
+        }).raiz,
+      )
+    }
+    if (this.etapa < ETAPAS.length) {
+      botoes.push(
+        new Botao({
+          texto: 'Próxima etapa',
+          aoClicar: () => this.irParaEtapa(this.etapa + 1),
+        }).raiz,
+      )
+    } else {
+      botoes.push(confirmar.raiz)
+    }
+
     const rodape = criarElemento('div', {
       className: CLASSES.rodapeFormulario,
       filhos: [
         this.motivoSlot,
-        criarElemento('div', {
-          className: CLASSES.botoesRodape,
-          filhos: [
-            new Botao({
-              texto: editando ? 'Cancelar edição' : 'Limpar',
-              variante: 'secundario',
-              aoClicar: () => this.cancelarEdicao(),
-            }).raiz,
-            confirmar.raiz,
-          ],
-        }),
+        criarElemento('div', { className: CLASSES.botoesRodape, filhos: botoes }),
       ],
     })
 
@@ -659,10 +723,154 @@ export class PaginaReservas extends Componente {
       this.renderizarClientes()
       this.renderizarEquipamentos()
       this.atualizarResumo()
+      this.renderizarIntegracoes()
       this.atualizarMotivo()
     } else {
-      this.botaoConfirmar.definirDesabilitado(true)
+      this.botaoConfirmar?.definirDesabilitado(true)
     }
+  }
+
+  private irParaEtapa(etapa: number): void {
+    if (etapa < 1 || etapa > ETAPAS.length) {
+      return
+    }
+    if (etapa > this.etapa && !this.validarEtapa(this.etapa)) {
+      return
+    }
+    this.etapa = etapa
+    if (etapa === 3) {
+      void this.carregarIntegracoes()
+    }
+    this.montarEstrutura()
+    this.painel?.focarPrimeiroControle()
+  }
+
+  private validarEtapa(etapa: number): boolean {
+    if (etapa === 1) {
+      const clienteId = Number(this.formulario.clienteId)
+      const valido = this.modoCliente
+        ? clienteVinculado()
+        : this.clientesErro === null && this.clientes.length > 0 && Number.isSafeInteger(clienteId) && clienteId > 0
+      if (!valido) {
+        this.campos?.cliente.definirErro(
+          this.modoCliente ? 'Fale com a loja para vincular sua conta.' : 'Selecione um cliente.',
+        )
+        this.toasts.exibir({
+          titulo: 'Revise o cliente',
+          mensagem: 'Escolha um cliente para continuar.',
+          tom: 'alerta',
+        })
+      } else {
+        this.campos?.cliente.definirErro(null)
+      }
+      return valido
+    }
+    if (etapa === 2) {
+      this.validarPeriodo()
+      const valido =
+        this.periodoValido() && this.itens.size > 0 && this.diariasInvalidas.size === 0
+      if (!valido) {
+        this.toasts.exibir({
+          titulo: 'Revise o período',
+          mensagem: 'Informe datas válidas e selecione ao menos um equipamento.',
+          tom: 'alerta',
+        })
+      }
+      return valido
+    }
+    return true
+  }
+
+  private async carregarIntegracoes(): Promise<void> {
+    const data = this.formulario.dataInicio
+    if (data === '') {
+      return
+    }
+    try {
+      this.previsao = await this.servicoIntegracoes.previsaoTempo({ data })
+    } catch {
+      this.previsao = { estado: 'indisponivel', data, motivo: 'SERVICO_FORA' }
+    }
+    try {
+      const resposta = await this.servicoIntegracoes.feriados({ ano: Number(data.slice(0, 4)) })
+      this.feriados = resposta.estado === 'disponivel' ? resposta.feriados : []
+      this.feriadosIndisponivel = resposta.estado === 'indisponivel'
+    } catch {
+      this.feriados = []
+      this.feriadosIndisponivel = true
+    }
+    this.renderizarIntegracoes()
+  }
+
+  private renderizarIntegracoes(): void {
+    if (this.integracaoSlot === null) {
+      return
+    }
+    const linhas: Array<Node> = []
+    if (this.previsao === null) {
+      linhas.push(
+        criarElemento('p', { className: CLASSES.previsao, texto: 'Consultando integrações…' }),
+      )
+    } else if (this.previsao.estado === 'disponivel') {
+      const clima = [
+        this.previsao.descricao,
+        this.previsao.temperaturaMinC === null ? null : `mín. ${String(this.previsao.temperaturaMinC)}°C`,
+        this.previsao.temperaturaMaxC === null ? null : `máx. ${String(this.previsao.temperaturaMaxC)}°C`,
+      ]
+        .filter((parte): parte is string => parte !== null)
+        .join(' · ')
+      linhas.push(
+        criarElemento('p', {
+          className: CLASSES.previsao,
+          texto: `Previsão para ${formatadorPtBr.data(this.previsao.data)}: ${clima === '' ? 'sem detalhes' : clima}.`,
+        }),
+      )
+    } else {
+      linhas.push(
+        criarElemento('p', {
+          className: CLASSES.aviso,
+          texto: mensagemIntegracao(this.previsao.motivo, 'previsão do tempo'),
+        }),
+      )
+    }
+
+    const inicio = this.formulario.dataInicio
+    const fim = this.formulario.dataFim
+    const feriados = this.feriados.filter(
+      (feriado) => feriado.data >= inicio && feriado.data <= fim,
+    )
+    if (feriados.length > 0) {
+      linhas.push(
+        criarElemento('p', {
+          className: CLASSES.aviso,
+          texto: `Atenção: feriado no período (${feriados.map((item) => `${formatadorPtBr.data(item.data)} — ${item.nome}`).join('; ')}). Pode haver alta demanda.`,
+        }),
+      )
+    }
+    if (this.feriadosIndisponivel) {
+      linhas.push(
+        criarElemento('p', {
+          className: CLASSES.aviso,
+          texto: mensagemIntegracao('SERVICO_FORA', 'feriados'),
+        }),
+      )
+    }
+    this.integracaoSlot.replaceChildren(...linhas)
+  }
+
+  private validarPagamentoEscolhido(): FormaPagamento {
+    const campo = this.campoFormaPagamento
+    if (campo === null) {
+      return this.formaPagamento
+    }
+    const valor = campo.valor()
+    if (!ehFormaPagamento(valor)) {
+      campo.definirErro('Escolha uma forma de pagamento.')
+      return this.formaPagamento
+    }
+    campo.definirErro(null)
+    this.formaPagamento = valor
+    return valor
   }
 
   private construirFormulario(): HTMLElement {
@@ -738,6 +946,20 @@ export class PaginaReservas extends Componente {
       className: CLASSES.resumo,
       atributos: { 'aria-live': 'polite' },
     })
+    this.integracaoSlot = criarElemento('div', { className: CLASSES.previsao })
+    this.campoFormaPagamento = new Select({
+      id: 'reserva-forma-pagamento',
+      rotulo: 'Forma de pagamento',
+      obrigatorio: true,
+      valorInicial: this.formaPagamento,
+      opcoes: FORMAS_PAGAMENTO.map((forma) => ({ valor: forma, rotulo: forma })),
+      aoAlterar: (valor) => {
+        if (ehFormaPagamento(valor)) {
+          this.formaPagamento = valor
+          this.campoFormaPagamento?.definirErro(null)
+        }
+      },
+    })
 
     if (this.modoCliente) {
       const id = idClienteVinculado()
@@ -761,13 +983,16 @@ export class PaginaReservas extends Componente {
       )
     }
 
-    return criarElemento('div', {
-      className: CLASSES.gradeContainer,
+    const secaoCliente = criarElemento('div', {
+      className: CLASSES.etapaConteudo,
+      filhos: [this.clientesSlot],
+    })
+    const secaoPeriodo = criarElemento('div', {
+      className: CLASSES.etapaConteudo,
       filhos: [
         criarElemento('div', {
           className: CLASSES.gradeCampos,
           filhos: [
-            this.clientesSlot,
             campos.dataInicio.raiz,
             campos.dataFim.raiz,
             campos.categoria.raiz,
@@ -788,14 +1013,34 @@ export class PaginaReservas extends Componente {
             this.equipamentosSlot,
           ],
         }),
-        criarElemento('div', {
-          className: CLASSES.secao,
-          filhos: [
-            criarElemento('h3', { className: CLASSES.secaoTitulo, texto: 'Resumo' }),
-            this.resumoSlot,
-          ],
+      ],
+    })
+    const secaoConferencia = criarElemento('div', {
+      className: CLASSES.etapaConteudo,
+      filhos: [
+        criarElemento('h3', { className: CLASSES.secaoTitulo, texto: 'Resumo da reserva' }),
+        this.resumoSlot,
+        this.integracaoSlot,
+      ],
+    })
+    const secaoPagamento = criarElemento('div', {
+      className: CLASSES.etapaConteudo,
+      filhos: [
+        this.campoFormaPagamento.raiz,
+        criarElemento('p', {
+          className: CLASSES.motivo,
+          texto:
+            'O pagamento fica registrado como Pendente nesta reserva; a baixa pode ser feita em Pagamentos.',
         }),
       ],
+    })
+    this.secoesEtapa = [secaoCliente, secaoPeriodo, secaoConferencia, secaoPagamento]
+    this.secoesEtapa.forEach((secao, indice) => {
+      secao.hidden = indice + 1 !== this.etapa
+    })
+    return criarElemento('div', {
+      className: CLASSES.gradeContainer,
+      filhos: this.secoesEtapa,
     })
   }
 
@@ -1234,6 +1479,10 @@ export class PaginaReservas extends Componente {
     this.selecionadoId = null
     this.editandoId = null
     this.preservarAoDesmontar = true
+    this.etapa = 1
+    this.previsao = null
+    this.feriados = []
+    this.feriadosIndisponivel = false
     limparRascunho()
     this.montarEstrutura()
     this.painel?.focarPrimeiroControle()
@@ -1319,6 +1568,7 @@ export class PaginaReservas extends Componente {
       this.disponiveis = []
       this.consultaFeita = false
       this.disponibilidadeErro = null
+      this.etapa = 2
       this.montarEstrutura()
       await this.buscarDisponibilidade(++this.requisicaoDisponibilidade)
       this.painel?.focarPrimeiroControle()
@@ -1771,10 +2021,10 @@ export class PaginaReservas extends Componente {
         mensagem: 'Registro preservado e marcado como Inativo.',
         tom: 'sucesso',
       })
-    } catch {
+    } catch (erro) {
       this.toasts.exibir({
         titulo: 'Não foi possível inativar',
-        mensagem: 'Tente novamente em instantes.',
+        mensagem: mensagemErroOperacao(erro, 'a reserva'),
         tom: 'erro',
       })
     }
@@ -1818,6 +2068,9 @@ export class PaginaReservas extends Componente {
     if (this.modal !== null) {
       return
     }
+    if (this.etapa === ETAPAS.length) {
+      this.validarPagamentoEscolhido()
+    }
     if (!this.validar()) {
       return
     }
@@ -1860,9 +2113,13 @@ export class PaginaReservas extends Componente {
           texto: `Total estimado: ${formatadorPtBr.moeda(this.calcularTotal())}.`,
         }),
         criarElemento('p', {
+          className: CLASSES.leituraLinha,
+          texto: `Pagamento: ${this.formaPagamento} (registro Pendente).`,
+        }),
+        criarElemento('p', {
           className: CLASSES.aviso,
           texto:
-            'A previsão do tempo é consultada pelo sistema ao confirmar; sua indisponibilidade não bloqueia a reserva.',
+            'Previsão e feriados são consultados pelo sistema; falhas nestas integrações não bloqueiam a reserva.',
         }),
       ],
     })
@@ -1943,21 +2200,50 @@ export class PaginaReservas extends Componente {
       falhaConfirmacao = true
     }
 
+    let falhaPagamento = false
+    const dias = diasEntre(dados.dataInicio, dados.dataFim)
+    const valorBase = dados.itens.reduce(
+      (total, item) => total + item.valorDiaria * dias,
+      0,
+    )
+    try {
+      await this.servicoPagamentos.criar({
+        reservaId: criada.id,
+        valorBase,
+        valorMulta: 0,
+        formaPagamento: this.formaPagamento,
+        statusPagamento: 'Pendente',
+      })
+    } catch {
+      falhaPagamento = true
+    }
+
     const previsao = confirmada.previsaoTempo?.trim() ?? ''
-    const mensagem: MensagemDestaque = falhaConfirmacao
-      ? {
-          titulo: 'Reserva registrada',
-          texto: `Reserva #${criada.id} criada, mas a confirmação não foi concluída. Confira o status na consulta.`,
-          tom: 'alerta',
-        }
-      : {
-          titulo: 'Reserva confirmada',
-          texto:
-            previsao === ''
-              ? `Reserva #${confirmada.id} confirmada. Previsão indisponível; a locação não fica bloqueada.`
-              : `Reserva #${confirmada.id} confirmada. Previsão: ${previsao}`,
-          tom: 'sucesso',
-        }
+    const avisos: string[] = []
+    if (falhaConfirmacao) {
+      avisos.push('a confirmação não foi concluída')
+    }
+    if (falhaPagamento) {
+      avisos.push('o pagamento pendente não foi registrado')
+    }
+    if (previsao === '') {
+      avisos.push('previsão indisponível')
+    }
+    if (this.feriadosIndisponivel) {
+      avisos.push('aviso de feriados indisponível')
+    }
+    const mensagem: MensagemDestaque =
+      avisos.length === 0
+        ? {
+            titulo: 'Reserva confirmada',
+            texto: `Reserva #${confirmada.id} confirmada. Previsão: ${previsao}. Pagamento pendente registrado.`,
+            tom: 'sucesso',
+          }
+        : {
+            titulo: 'Reserva registrada',
+            texto: `Reserva #${criada.id} registrada, mas ${avisos.join('; ')}. A locação não fica bloqueada; confira os detalhes na consulta.`,
+            tom: 'alerta',
+          }
     guardarDestaque({ id: criada.id, mensagem })
     this.irParaConsultaAposSucesso()
   }

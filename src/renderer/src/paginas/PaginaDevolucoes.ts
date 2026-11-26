@@ -1,8 +1,11 @@
 import type {
+  CalculoMulta,
   Cliente,
   Devolucao,
   DevolucaoAtualizarEntrada,
   EstadoPosUso,
+  FormaPagamento,
+  ItemReserva,
   Pagamento,
   Reserva,
 } from '../../../shared/contratos/modelos'
@@ -31,10 +34,16 @@ import {
 import {
   ServicoClientes,
   ServicoDevolucoes,
+  ServicoItensReserva,
   ServicoPagamentos,
   ServicoReservas,
 } from '../servicos'
-import { formatadorPtBr } from '../util'
+import {
+  avisoFeriadosIndisponiveis,
+  formatadorPtBr,
+  mensagemErroOperacao,
+  textoMulta,
+} from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -66,6 +75,7 @@ const CLASSES = {
 
 const ICONE_BUSCA = 'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z'
 const ESTADOS: readonly EstadoPosUso[] = ['Perfeito', 'Com avarias leves', 'Danificado']
+const FORMAS_PAGAMENTO: readonly FormaPagamento[] = ['Pix', 'Cartão de Crédito', 'Dinheiro']
 const MS_POR_DIA = 86_400_000
 
 interface FormularioDevolucao {
@@ -153,6 +163,27 @@ function ehEstadoPosUso(valor: string): valor is EstadoPosUso {
   return ESTADOS.some((estado) => estado === valor)
 }
 
+function ehFormaPagamento(valor: string): valor is FormaPagamento {
+  return FORMAS_PAGAMENTO.some((forma) => forma === valor)
+}
+
+/** Mesmo critério de dias usado na reserva: início e fim inclusivos. */
+function diasPeriodo(inicio: string, fim: string): number {
+  const inicioMs = Date.parse(`${inicio}T00:00:00Z`)
+  const fimMs = Date.parse(`${fim}T00:00:00Z`)
+  if (!Number.isFinite(inicioMs) || !Number.isFinite(fimMs)) {
+    return 1
+  }
+  return Math.max(1, Math.trunc((fimMs - inicioMs) / MS_POR_DIA) + 1)
+}
+
+function valorBaseReserva(reserva: Reserva, itens: readonly ItemReserva[]): number {
+  const dias = diasPeriodo(reserva.dataInicio, reserva.dataFim)
+  return itens
+    .filter((item) => item.reservaId === reserva.id)
+    .reduce((total, item) => total + item.valorDiaria * dias, 0)
+}
+
 function badgePrazo(dias: number): Badge {
   return dias > 0
     ? new Badge({ texto: `${dias} dia(s) de atraso`, tom: 'erro' })
@@ -192,6 +223,7 @@ export class PaginaDevolucoes extends Componente {
   private readonly servicoReservas = new ServicoReservas()
   private readonly servicoPagamentos = new ServicoPagamentos()
   private readonly servicoClientes = new ServicoClientes()
+  private readonly servicoItens = new ServicoItensReserva()
   private readonly toasts = new AreaToast()
   private readonly cancelarAtalhos: () => void
   private readonly cancelarPerfil: () => void
@@ -200,6 +232,7 @@ export class PaginaDevolucoes extends Componente {
   private devolucoes: readonly Devolucao[] = []
   private reservas: readonly Reserva[] = []
   private pagamentos: readonly Pagamento[] = []
+  private itens: readonly ItemReserva[] = []
   private formulario: FormularioDevolucao = formularioVazio()
   private campos: CamposDevolucao | null = null
   private painel: PainelFormulario | null = null
@@ -265,16 +298,18 @@ export class PaginaDevolucoes extends Componente {
 
     try {
       const incluirInativos = ehAdministrador() ? { incluirInativos: true } : undefined
-      const [devolucoes, reservas, pagamentos, clientes] = await Promise.all([
+      const [devolucoes, reservas, pagamentos, clientes, itens] = await Promise.all([
         this.servico.listar(incluirInativos),
         this.servicoReservas.listar(incluirInativos),
         this.servicoPagamentos.listar(incluirInativos),
         this.servicoClientes.listar(incluirInativos),
+        this.servicoItens.listar(),
       ])
       this.devolucoes = [...devolucoes].sort((um, dois) => dois.id - um.id)
       this.reservas = reservas
       this.pagamentos = pagamentos
       this.clientes = clientes
+      this.itens = itens
       if (this.selecionadoId !== null && !this.devolucoes.some((item) => item.id === this.selecionadoId)) {
         this.selecionadoId = null
       }
@@ -399,7 +434,7 @@ export class PaginaDevolucoes extends Componente {
             }).raiz,
             new Botao({
               texto: 'Salvar alterações',
-              aoClicar: () => this.abrirConfirmacao(),
+              aoClicar: () => void this.abrirConfirmacao(),
             }).raiz,
           ]
         : selecionada === undefined
@@ -411,7 +446,7 @@ export class PaginaDevolucoes extends Componente {
               }).raiz,
               new Botao({
                 texto: 'Calcular multa',
-                aoClicar: () => this.abrirConfirmacao(),
+                aoClicar: () => void this.abrirConfirmacao(),
               }).raiz,
             ]
           : [
@@ -558,7 +593,7 @@ export class PaginaDevolucoes extends Componente {
       return
     }
     this.campoAjuste = null
-    const pagamento = this.pagamentoDe(devolucao)
+    const pagamento = this.pagamentoDe(devolucao.reservaId)
     if (pagamento === undefined) {
       this.valoresSlot.replaceChildren(
         'Pagamento não encontrado para esta reserva. Valores calculados pelo sistema.',
@@ -806,7 +841,7 @@ export class PaginaDevolucoes extends Componente {
     registrar.addEventListener('click', (evento) => {
       evento.stopPropagation()
       this.selecionarPendente(id)
-      this.abrirConfirmacao()
+      void this.abrirConfirmacao()
     })
     container.append(ver, registrar)
     return container
@@ -889,8 +924,8 @@ export class PaginaDevolucoes extends Componente {
     return this.clientes.find((cliente) => cliente.id === id)?.nome ?? `Cliente ${id}`
   }
 
-  private pagamentoDe(devolucao: Devolucao): Pagamento | undefined {
-    return this.pagamentos.find((pagamento) => pagamento.reservaId === devolucao.reservaId)
+  private pagamentoDe(reservaId: number): Pagamento | undefined {
+    return this.pagamentos.find((pagamento) => pagamento.reservaId === reservaId)
   }
 
   private selecionar(id: number): void {
@@ -987,10 +1022,10 @@ export class PaginaDevolucoes extends Componente {
         tom: 'sucesso',
       })
       await this.limparEDestacar(id)
-    } catch {
+    } catch (erro) {
       this.toasts.exibir({
         titulo: 'Não foi possível inativar',
-        mensagem: 'Tente novamente em instantes.',
+        mensagem: mensagemErroOperacao(erro, 'a devolução'),
         tom: 'erro',
       })
     }
@@ -1007,13 +1042,13 @@ export class PaginaDevolucoes extends Componente {
   private aoConfirmar(): void {
     if (this.selecionadoId !== null && ehAdministrador() && this.campoAjuste !== null) {
       const devolucao = this.devolucoes.find((item) => item.id === this.selecionadoId)
-      const pagamento = devolucao === undefined ? undefined : this.pagamentoDe(devolucao)
+      const pagamento = devolucao === undefined ? undefined : this.pagamentoDe(devolucao.reservaId)
       if (pagamento !== undefined) {
         this.abrirAjuste(pagamento)
         return
       }
     }
-    this.abrirConfirmacao()
+    void this.abrirConfirmacao()
   }
 
   private validar(): boolean {
@@ -1041,7 +1076,7 @@ export class PaginaDevolucoes extends Componente {
     return true
   }
 
-  private abrirConfirmacao(): void {
+  private async abrirConfirmacao(): Promise<void> {
     if (this.modal !== null) {
       return
     }
@@ -1062,25 +1097,54 @@ export class PaginaDevolucoes extends Componente {
     const reserva = this.pendentes().find(
       (item) => item.id === Number(this.formulario.reservaId),
     )
-    const conteudo = criarElemento('div', {
-      filhos: [
+    const reservaId = Number(this.formulario.reservaId)
+    const dataDevolucao = this.formulario.dataEfetiva === '' ? new Date().toISOString().slice(0, 10) : this.formulario.dataEfetiva
+
+    let calculo: CalculoMulta | null = null
+    try {
+      calculo = await this.servico.calcularMulta({ reservaId, dataDevolucao })
+    } catch {
+      calculo = null
+    }
+    if (this.modal !== null) {
+      return
+    }
+
+    const filhos: Array<Node> = [
+      criarElemento('p', {
+        className: CLASSES.leituraLinha,
+        texto: `Reserva #${this.formulario.reservaId} de ${this.nomeCliente(reserva?.clienteId ?? 0)}.`,
+      }),
+    ]
+    if (calculo !== null) {
+      filhos.push(
         criarElemento('p', {
-          className: CLASSES.leituraLinha,
-          texto: `Reserva #${this.formulario.reservaId} de ${this.nomeCliente(reserva?.clienteId ?? 0)}.`,
+          className: CLASSES.valores,
+          texto: textoMulta(calculo.diasAtraso, calculo.valorDiarioMulta, calculo.valorMulta),
         }),
+      )
+    } else {
+      filhos.push(
         criarElemento('p', {
           className: CLASSES.aviso,
-          texto: 'O sistema calculará atraso, multa e total no registro. A baixa continua em Pagamentos.',
+          texto: avisoFeriadosIndisponiveis('feriados'),
         }),
-      ],
-    })
+      )
+    }
+    filhos.push(
+      criarElemento('p', {
+        className: CLASSES.aviso,
+        texto:
+          'Ao registrar, o sistema recalcula a multa e abre a baixa do pagamento neste mesmo fluxo.',
+      }),
+    )
     this.confirmar({
       titulo: 'Registrar devolução',
-      conteudo,
+      conteudo: criarElemento('div', { filhos }),
       rotulo: 'Registrar devolução',
       permitirAtalho: true,
       acao: () => {
-        void this.salvar()
+        void this.salvar(calculo)
       },
     })
   }
@@ -1177,13 +1241,14 @@ export class PaginaDevolucoes extends Componente {
     }
   }
 
-  private async salvar(): Promise<void> {
+  private async salvar(calculo: CalculoMulta | null = null): Promise<void> {
     const estado = ehEstadoPosUso(this.formulario.estadoPosUso)
       ? this.formulario.estadoPosUso
       : 'Perfeito'
     const observacoes = this.formulario.observacoes.trim()
+    const reservaId = Number(this.formulario.reservaId)
     const dados = {
-      reservaId: Number(this.formulario.reservaId),
+      reservaId,
       estadoPosUso: estado,
       ...(this.formulario.dataEfetiva === ''
         ? {}
@@ -1196,15 +1261,101 @@ export class PaginaDevolucoes extends Componente {
       await this.recarregar()
       this.toasts.exibir({
         titulo: 'Devolução registrada',
-        mensagem: 'Multa e total calculados pelo sistema e exibidos no pagamento da reserva.',
+        mensagem: 'Multa e total calculados pelo sistema. Registre a baixa do pagamento.',
         tom: 'sucesso',
       })
-      this.novo()
-    } catch {
+      const reserva = this.reservas.find((item) => item.id === reservaId)
+      if (reserva !== undefined) {
+        this.abrirPagamento(reserva, calculo?.valorMulta ?? 0)
+      } else {
+        this.novo()
+      }
+    } catch (erro) {
       this.painel?.definirErro(true)
       this.toasts.exibir({
         titulo: 'Não foi possível registrar',
-        mensagem: 'Verifique os dados e tente novamente em instantes.',
+        mensagem: mensagemErroOperacao(erro, 'a devolução'),
+        tom: 'erro',
+      })
+    }
+  }
+
+  private abrirPagamento(reserva: Reserva, valorMulta: number): void {
+    const existente = this.pagamentoDe(reserva.id)
+    const base = valorBaseReserva(reserva, this.itens)
+    const selectForma = new Select({
+      id: 'devolucao-pagamento-forma',
+      rotulo: 'Forma de pagamento',
+      obrigatorio: true,
+      valorInicial: 'Pix',
+      opcoes: FORMAS_PAGAMENTO.map((forma) => ({ valor: forma, rotulo: forma })),
+    })
+    const conteudo = criarElemento('div', {
+      filhos: [
+        criarElemento('p', {
+          className: CLASSES.leituraLinha,
+          texto: `Reserva #${reserva.id} · base ${formatadorPtBr.moeda(base)} · multa ${formatadorPtBr.moeda(valorMulta)}.`,
+        }),
+        criarElemento('p', {
+          className: CLASSES.aviso,
+          texto: existente === undefined
+            ? 'Ainda não há pagamento desta reserva. Vamos criar e baixar o registro agora.'
+            : 'O pagamento existente será baixado como Pago nesta mesma etapa.',
+        }),
+        selectForma.raiz,
+      ],
+    })
+    this.confirmar({
+      titulo: 'Baixar pagamento',
+      conteudo,
+      rotulo: 'Registrar pagamento',
+      permitirAtalho: true,
+      acao: () => {
+        const forma = selectForma.valor()
+        void this.registrarPagamento(reserva.id, base, valorMulta, forma)
+      },
+    })
+  }
+
+  private async registrarPagamento(
+    reservaId: number,
+    valorBase: number,
+    valorMulta: number,
+    forma: string,
+  ): Promise<void> {
+    const formaPagamento: FormaPagamento = ehFormaPagamento(forma) ? forma : 'Pix'
+    const dataPagamento = new Date().toISOString()
+    try {
+      const existente = this.pagamentoDe(reservaId)
+      if (existente === undefined) {
+        await this.servicoPagamentos.criar({
+          reservaId,
+          valorBase,
+          valorMulta,
+          formaPagamento,
+          statusPagamento: 'Pago',
+          dataPagamento,
+        })
+      } else {
+        await this.servicoPagamentos.atualizar({
+          id: existente.id,
+          valorMulta,
+          formaPagamento,
+          statusPagamento: 'Pago',
+          dataPagamento,
+        })
+      }
+      await this.recarregar()
+      this.toasts.exibir({
+        titulo: 'Pagamento baixado',
+        mensagem: 'Pagamento registrado como Pago na reserva.',
+        tom: 'sucesso',
+      })
+      this.novo()
+    } catch (erro) {
+      this.toasts.exibir({
+        titulo: 'Não foi possível baixar',
+        mensagem: mensagemErroOperacao(erro, 'o pagamento'),
         tom: 'erro',
       })
     }

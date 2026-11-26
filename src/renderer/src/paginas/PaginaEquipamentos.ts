@@ -34,7 +34,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { EquipamentoServico, ServicoFornecedores } from '../servicos'
-import { formatadorPtBr } from '../util'
+import { codigoErro, formatadorPtBr, mensagemErroOperacao } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -202,21 +202,13 @@ function formularioDe(
   }
 }
 
-function codigoDoErro(erro: unknown): string | null {
-  if (typeof erro !== 'object' || erro === null || !('codigo' in erro)) {
-    return null
-  }
-  const codigo: unknown = erro.codigo
-  return typeof codigo === 'string' ? codigo : null
-}
-
 function mensagemFalha(erro: unknown, padrao: string): string {
-  const codigo = codigoDoErro(erro)
+  const codigo = codigoErro(erro)
   if (codigo === 'REGISTRO_DUPLICADO') {
     return 'Já existe um equipamento com este nome.'
   }
   if (codigo === 'RELACAO_INVALIDA') {
-    return 'Fornecedor não encontrado. Selecione outro ou Nenhum.'
+    return mensagemErroOperacao(erro, 'o equipamento')
   }
   return padrao
 }
@@ -304,7 +296,6 @@ export class PaginaEquipamentos extends Componente {
   private salvando = false
   private falhaLista: string | null = null
   private falhaFornecedores = false
-  private dadosDeExemplo = false
   private painelOculto = false
   private geracao = 0
 
@@ -361,7 +352,7 @@ export class PaginaEquipamentos extends Componente {
   }
 
   private podeEscrever(): boolean {
-    return ehAdministrador() && !this.dadosDeExemplo && !this.carregando && !this.salvando
+    return ehAdministrador() && !this.carregando && !this.salvando
   }
 
   private async recarregar(): Promise<void> {
@@ -379,17 +370,15 @@ export class PaginaEquipamentos extends Componente {
     const filtrosFornecedores: FornecedorListarFiltros = { incluirInativos: true }
 
     try {
-      const [resultadoEquipamentos, resultadoCategorias] = await Promise.all([
+      const [equipamentos, categorias] = await Promise.all([
         this.servico.listar(filtros),
         this.servico.listarCategorias(),
       ])
       if (geracao !== this.geracao || !ehAdministrador()) {
         return
       }
-      this.equipamentos = resultadoEquipamentos.itens
-      this.categorias = resultadoCategorias.itens
-      this.dadosDeExemplo =
-        resultadoEquipamentos.dadosDeExemplo || resultadoCategorias.dadosDeExemplo
+      this.equipamentos = equipamentos
+      this.categorias = categorias
     } catch {
       if (geracao !== this.geracao || !ehAdministrador()) {
         return
@@ -463,10 +452,6 @@ export class PaginaEquipamentos extends Componente {
       return
     }
 
-    const avisoExemplo = criarElemento('span', {
-      className: this.dadosDeExemplo ? CLASSES.avisoExemplo : CLASSES.oculto,
-      texto: 'dados de exemplo',
-    })
     const cabecalho = criarElemento('div', {
       className: CLASSES.cabecalho,
       filhos: [
@@ -482,7 +467,6 @@ export class PaginaEquipamentos extends Componente {
         criarElemento('div', {
           className: CLASSES.acoes,
           filhos: [
-            avisoExemplo,
             new Botao({
               texto: 'Novo equipamento',
               desabilitado: !this.podeEscrever(),
@@ -607,7 +591,7 @@ export class PaginaEquipamentos extends Componente {
       ],
       acoesCabecalho,
       carregando: this.carregando,
-      desabilitado: this.carregando || this.salvando || this.dadosDeExemplo,
+      desabilitado: this.carregando || this.salvando,
       selecionado: this.selecionado !== null,
       mensagemCarregando: 'Carregando formulário…',
     })

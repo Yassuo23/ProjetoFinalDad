@@ -25,7 +25,7 @@ import {
   substituirConteudo,
 } from '../nucleo'
 import { ServicoClientes } from '../servicos'
-import { formatadorPtBr } from '../util'
+import { codigoErro, formatadorPtBr, mensagemErroOperacao } from '../util'
 
 const CLASSES = {
   pagina: 'flex h-full min-h-0 flex-col gap-6',
@@ -117,14 +117,6 @@ function formularioDe(cliente: Cliente): FormularioCliente {
 function opcional(valor: string): string | null {
   const limpo = valor.trim()
   return limpo === '' ? null : limpo
-}
-
-function codigoDoErro(erro: unknown): string | null {
-  if (typeof erro !== 'object' || erro === null || !('codigo' in erro)) {
-    return null
-  }
-  const codigo: unknown = (erro as { readonly codigo: unknown }).codigo
-  return typeof codigo === 'string' ? codigo : null
 }
 
 function normalizarUf(valor: string): string {
@@ -540,7 +532,7 @@ export class PaginaClientes extends Componente {
         tom: 'sucesso',
       })
     } catch (erro) {
-      const naoEncontrado = codigoDoErro(erro) === 'CEP_INVALIDO'
+      const naoEncontrado = codigoErro(erro) === 'CEP_INVALIDO'
       this.campoCep?.definirErro(
         naoEncontrado
           ? 'CEP não encontrado. Preencha o endereço manualmente.'
@@ -864,10 +856,10 @@ export class PaginaClientes extends Componente {
             })
             this.novo()
             await this.recarregar()
-          } catch {
+          } catch (erro) {
             this.toasts.exibir({
               titulo: 'Não foi possível inativar',
-              mensagem: 'Tente novamente em instantes.',
+              mensagem: mensagemErroOperacao(erro, 'o cliente'),
               tom: 'erro',
             })
           }
